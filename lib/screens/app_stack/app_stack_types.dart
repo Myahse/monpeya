@@ -1,0 +1,26 @@
+class AppStackRoute {
+  static const main = 'Main';
+  static const billetterie = 'Billetterie';
+  static const mrImmoRental = 'MrImmoRental';
+  static const mrImmoConstruction = 'MrImmoConstruction';
+  static const mrImmoCollection = 'MrImmoCollection';
+  static const serviceModule = 'ServiceModule';
+}
+
+class AppStackItem {
+  AppStackItem({required this.id, required this.name, required this.params});
+  final String id;
+  final String name;
+  final Map<String, Object?> params;
+}
+
+class AppStackState {
+  const AppStackState({required this.stack, required this.menuVisible});
+  final List<AppStackItem> stack;
+  final bool menuVisible;
+
+  AppStackItem get current => stack.isNotEmpty
+      ? stack.last
+      : AppStackItem(id: 'main-0', name: AppStackRoute.main, params: const {});
+}
+
