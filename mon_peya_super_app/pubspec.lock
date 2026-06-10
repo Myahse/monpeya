@@ -20,7 +20,7 @@ packages:
   billetterie_electronique:
     dependency: "direct main"
     description:
-      path: "packages/billetterie_electronique"
+      path: "../billetterie_electronique"
       relative: true
     source: path
     version: "1.0.0"
@@ -322,7 +322,7 @@ packages:
   mr_immo:
     dependency: "direct main"
     description:
-      path: "packages/mr_immo"
+      path: "../mr_immo"
       relative: true
     source: path
     version: "1.0.0"

@@ -25,7 +25,7 @@ Mon Peya depends on this package via path:
 ```yaml
 dependencies:
   mr_immo:
-    path: packages/mr_immo
+    path: ../mr_immo
 ```
 
 Before opening Mr Immo, the shell registers:

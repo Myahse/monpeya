@@ -21,7 +21,7 @@ billetterie_electronique/
 ```yaml
 dependencies:
   billetterie_electronique:
-    path: packages/billetterie_electronique
+    path: ../billetterie_electronique
 ```
 
 Before opening Billetterie:
