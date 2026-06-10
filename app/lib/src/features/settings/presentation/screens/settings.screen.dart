@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app/src/core/routing/routes.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/storage/constants/prefs.keys.dart';
+import 'package:app/src/integration/adapters/peyapay_host.adapter.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -34,7 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _biometricsEnabled = prefs.getBool(PrefsKeys.biometricEnabled) ?? false;
       _loading = false;
     });
-    final ok = await AuthStore.isRegistered();
+    final ok = await AuthStore.hasAccount();
     if (!mounted) return;
     setState(() => _isRegistered = ok);
   }
@@ -71,12 +72,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!ok) return;
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(PrefsKeys.isRegistered, false);
     await prefs.setBool(PrefsKeys.biometricEnabled, false);
-    await prefs.setString(PrefsKeys.phoneNumber, '');
+    await AuthStore.endSession();
+    await AuthStore.setImmoUserId(null);
+    endMonPeyaSession();
+    notifyMonPeyaSessionChanged();
 
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil(Routes.onboarding, (r) => false);
+    Navigator.of(context).pop();
   }
 
   Future<void> _guardedAction({

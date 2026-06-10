@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:app/src/core/assets/constants/asset.paths.dart';
 import 'package:app/src/core/routing/routes.dart';
+import 'package:app/src/core/storage/constants/prefs.keys.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -29,12 +32,18 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _bootstrap() async {
     if (!mounted) return;
-    // Match RN timing: fade in (1000ms) and keep splash visible (~2500ms total).
     await Future<void>.delayed(const Duration(milliseconds: 2500));
     if (!mounted) return;
 
-    // RN behavior: always go to Onboarding after Splash.
-    Navigator.of(context).pushReplacementNamed(Routes.onboarding);
+    final prefs = await SharedPreferences.getInstance();
+    final seenOnboarding = prefs.getBool(PrefsKeys.seenOnboarding) ?? false;
+    if (!mounted) return;
+    if (!seenOnboarding) {
+      Navigator.of(context).pushReplacementNamed(Routes.onboarding);
+      return;
+    }
+
+    Navigator.of(context).pushReplacementNamed(Routes.app);
   }
 
   @override
@@ -62,4 +71,3 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 }
-

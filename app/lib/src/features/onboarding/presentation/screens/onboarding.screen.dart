@@ -81,9 +81,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Future<void> _handleStart() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(PrefsKeys.seenOnboarding, true);
- 
-    await prefs.setBool(PrefsKeys.isRegistered, false);
-    await prefs.setString(PrefsKeys.phoneNumber, '');
     if (!mounted) return;
     Navigator.of(context).pushReplacementNamed(Routes.app);
   }
@@ -94,6 +91,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final bgImage = AssetPaths.onboardingImages[_index % AssetPaths.onboardingImages.length];
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mq = MediaQuery.of(context);
+    final topInset = mq.viewPadding.top;
+    final bottomInset = mq.viewPadding.bottom;
+    final screenH = mq.size.height;
+    final screenW = mq.size.width;
+
+    const bottomContentHeight = 210.0;
+    final bottomReserved = bottomContentHeight + bottomInset + 20;
+    final cardTop = topInset + (screenH * 0.24).clamp(80.0, 150.0);
+    final cardHeight = (screenH - cardTop - bottomReserved).clamp(200.0, 360.0);
+    final cardWidth = (screenW * 0.65).clamp(220.0, 320.0);
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -141,41 +149,32 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
           ),
 
-          // Card carousel (rectangular cards, positioned lower, no border frame).
-          Align(
-            alignment: Alignment.topCenter,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 230),
-                child: SizedBox(
-                  height: 360,
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: _slides.length,
-                    onPageChanged: (i) => setState(() => _index = i),
-                    itemBuilder: (context, i) {
-                      final img = AssetPaths.onboardingImages[i % AssetPaths.onboardingImages.length];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 22),
-                        child: Center(
-                          child: SizedBox(
-                            width: MediaQuery.of(context).size.width * 0.65,
-                            height: 360,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(28),
-                              child: DecoratedBox(
-                                decoration: const BoxDecoration(color: Colors.transparent),
-                                child: Image.asset(img, fit: BoxFit.cover),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+          // Card carousel — height adapts so bottom text never overlaps.
+          Positioned(
+            top: cardTop,
+            left: 0,
+            right: 0,
+            height: cardHeight,
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: _slides.length,
+              onPageChanged: (i) => setState(() => _index = i),
+              itemBuilder: (context, i) {
+                final img = AssetPaths.onboardingImages[i % AssetPaths.onboardingImages.length];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
+                  child: Center(
+                    child: SizedBox(
+                      width: cardWidth,
+                      height: cardHeight,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(28),
+                        child: Image.asset(img, fit: BoxFit.cover),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
 

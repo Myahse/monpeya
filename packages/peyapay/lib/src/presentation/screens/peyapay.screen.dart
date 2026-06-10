@@ -5,7 +5,6 @@ import 'package:peyapay/src/data/models/transaction.item.dart';
 import 'package:peyapay/src/core/utils/formatters.util.dart';
 import 'package:peyapay/src/core/utils/screen_insets.util.dart';
 import 'package:peyapay/src/presentation/widgets/action_button.widget.dart';
-import 'package:peyapay/src/presentation/widgets/blocked_states.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_slide_panel.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_top_bar.widget.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_payment_services.screen.dart';
@@ -21,11 +20,9 @@ class PeyapayScreen extends StatefulWidget {
 }
 
 class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateMixin, PeyapaySlideOverlayMixin {
-  bool _authChecked = false;
-  bool _isRegistered = false;
   bool _showBalance = false;
   bool _showLoginRequiredModal = false;
-  String _userName = '...';
+  String _userName = 'Utilisateur';
 
   // TODO: Wire to the same data source as the RN dashboardDataCache.
   final int _balance = 125000;
@@ -38,31 +35,36 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _checkRegistration();
-
- 
-    Future<void>(() async {
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      if (!mounted) return;
-      setState(() => _userName = 'Utilisateur');
-    });
+    PeyapayHostBridge.sessionChanges?.addListener(_onSessionChanged);
+    _loadProfile();
   }
 
-  Future<void> _checkRegistration() async {
+  @override
+  void dispose() {
+    PeyapayHostBridge.sessionChanges?.removeListener(_onSessionChanged);
+    super.dispose();
+  }
+
+  void _onSessionChanged() => _loadProfile();
+
+  Future<void> _loadProfile() async {
     try {
-      final ok = await PeyapayHostBridge.requireAuth.isRegistered();
+      final phone = await PeyapayHostBridge.requireAuth.getPhone();
       if (!mounted) return;
-      setState(() {
-        _isRegistered = ok;
-        _authChecked = true;
-      });
+      setState(() => _userName = _displayName(phone));
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _isRegistered = false;
-        _authChecked = true;
-      });
+      setState(() => _userName = 'Utilisateur');
     }
+  }
+
+  String _displayName(String? phone) {
+    if (phone == null || phone.isEmpty) return 'Utilisateur';
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length >= 4) {
+      return 'Utilisateur • ${digits.substring(digits.length - 4)}';
+    }
+    return 'Utilisateur';
   }
 
   void _toggleBalanceVisibility() => setState(() => _showBalance = !_showBalance);
@@ -83,25 +85,6 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
     const actionsPaddingH = 40.0; // left+right = 20+20
     const gap = 8.0;
     final actionWidth = ((w - actionsPaddingH - (gap * 3)) / 4).clamp(0.0, 220.0);
-
-    if (!_authChecked) {
-      return Scaffold(
-        backgroundColor: bg,
-        body: PeyapayLoadingGate(textColor: ink),
-      );
-    }
-
-    if (!_isRegistered) {
-      return Scaffold(
-        backgroundColor: bg,
-        body: PeyapayBlockedGate(
-          titleColor: ink,
-          bodyColor: isDark ? muted : const Color(0xFF4B5563),
-          buttonBg: ink,
-          onPressLogin: () => PeyapayHostBridge.openNamedRoute(PeyapayHostRoutes.phoneInput),
-        ),
-      );
-    }
 
     return Scaffold(
       backgroundColor: bg,

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'package:app/src/core/auth/auth.navigation.dart';
 import 'package:app/src/core/auth/module.auth.dart';
-import 'package:app/src/core/routing/routes.dart';
+import 'package:app/src/core/session/mon_peya.session.dart';
 import 'package:app/src/core/storage/auth.store.dart';
+import 'package:app/src/features/auth/presentation/login_pin/screens/login_pin.screen.dart';
 import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
 
-/// Ensures Mon Peya sign-in before native services. No loading spinner — opens immediately.
+/// Ensures Mon Peya sign-in before native services. Opens PIN or registration automatically.
 class MonPeyaModuleGate extends StatefulWidget {
   const MonPeyaModuleGate({super.key, required this.child});
 
@@ -16,75 +18,70 @@ class MonPeyaModuleGate extends StatefulWidget {
 }
 
 class _MonPeyaModuleGateState extends State<MonPeyaModuleGate> {
-  bool _checked = false;
-  bool _registered = true;
+  bool _authFlowOpen = false;
 
   @override
   void initState() {
     super.initState();
-    _check();
+    MonPeyaSession.instance.addListener(_onSessionChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureSession());
   }
 
-  Future<void> _check() async {
-    final ok = await AuthStore.isRegistered();
+  @override
+  void dispose() {
+    MonPeyaSession.instance.removeListener(_onSessionChanged);
+    super.dispose();
+  }
+
+  void _onSessionChanged() {
     if (!mounted) return;
-    setState(() {
-      _registered = ok;
-      _checked = true;
-    });
+    setState(() {});
+    if (!MonPeyaSession.instance.isSessionActive) {
+      _ensureSession();
+    }
   }
 
-  Future<void> _openMonPeyaLogin() async {
-    await rootNavKey.currentState?.pushNamed(Routes.phoneInput);
-    await _check();
+  Future<void> _ensureSession() async {
+    if (_authFlowOpen || MonPeyaSession.instance.isSessionActive || !mounted) return;
+
+    _authFlowOpen = true;
+    try {
+      if (await AuthStore.hasAccount()) {
+        final phone = await AuthStore.getPhone();
+        if (!mounted) return;
+        await pushFullScreenAuth<bool>(
+          context,
+          LoginPinScreen(embeddedInModule: true, phoneNumber: phone),
+        );
+      } else {
+        await ModuleAuth.ensureRegistered(context);
+      }
+    } finally {
+      _authFlowOpen = false;
+      if (mounted) setState(() {});
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_checked && !_registered) {
+    if (!MonPeyaSession.instance.isSessionActive) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                IconButton(
-                  alignment: Alignment.centerLeft,
-                  onPressed: () => _exitToMonPeyaHome(context),
-                  icon: const Icon(Icons.arrow_back),
-                ),
-                const Spacer(),
-                const Icon(Icons.account_circle_outlined, size: 56, color: Color(0xFF0284C7)),
-                const SizedBox(height: 16),
-                const Text(
-                  'Connexion Mon Peya requise',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Connectez-vous avec votre téléphone et votre code PIN Mon Peya pour accéder à ce service.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade700, height: 1.4),
-                ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: _openMonPeyaLogin,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF006D56),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text('Se connecter à Mon Peya'),
-                ),
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: () => _exitToMonPeyaHome(context),
-                  child: const Text('Retour'),
-                ),
-              ],
-            ),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => _exitToMonPeyaHome(context),
+                child: const Text('Retour'),
+              ),
+            ],
           ),
         ),
       );

@@ -4,13 +4,23 @@ import 'package:flutter/material.dart';
 import 'package:immo/immo.dart';
 
 import 'package:app/src/core/assets/constants/asset.paths.dart';
+import 'package:app/src/core/auth/biometric.auth.dart';
 import 'package:app/src/core/routing/routes.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/widgets/pin_keypad.widget.dart';
+import 'package:app/src/integration/adapters/peyapay_host.adapter.dart';
 
 class LoginPinScreen extends StatefulWidget {
-  const LoginPinScreen({super.key});
+  const LoginPinScreen({
+    super.key,
+    this.embeddedInModule = false,
+    this.phoneNumber,
+  });
+
   static const routeName = '/login-pin';
+
+  final bool embeddedInModule;
+  final String? phoneNumber;
 
   @override
   State<LoginPinScreen> createState() => _LoginPinScreenState();
@@ -20,6 +30,9 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
   String _pin = '';
   bool _showError = false;
   bool _submitting = false;
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  bool _autoBiometricAttempted = false;
   String? _phoneNumber;
   late final List<List<String>> _keypad;
 
@@ -27,12 +40,39 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
   void initState() {
     super.initState();
     _keypad = generateKeypad3Rows();
+    _phoneNumber = widget.phoneNumber;
+    _bootstrap();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _phoneNumber ??= _readPhoneArg();
+  Future<bool> _hasBiometricToken() async {
+    final token = await AuthStore.authToken();
+    return token != null && token.isNotEmpty;
+  }
+
+  Future<void> _refreshBiometricState() async {
+    final available = await BiometricAuth.canUseBiometrics();
+    final enabled = await BiometricAuth.isEnabledInSettings();
+    final hasToken = await _hasBiometricToken();
+    if (!mounted) return;
+    setState(() {
+      _biometricAvailable = available;
+      _biometricEnabled = enabled;
+    });
+
+    final phone = _phoneNumber;
+    if (!available || phone == null) return;
+
+    final hasPin = await AuthStore.hasPinForPhone(phone);
+    if (!mounted || !hasPin) return;
+
+    if (hasToken || enabled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _tryBiometricLogin(auto: true));
+    }
+  }
+
+  Future<void> _bootstrap() async {
+    _phoneNumber ??= await AuthStore.getPhone();
+    await _refreshBiometricState();
   }
 
   String? _readPhoneArg() {
@@ -41,6 +81,12 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
       return args['phoneNumber'] as String;
     }
     return null;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _phoneNumber ??= widget.phoneNumber ?? _readPhoneArg();
   }
 
   void _onKeyPress(String n) {
@@ -71,7 +117,6 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     });
   }
 
-  /// Mr Immo JWT sync — never blocks Mon Peya login.
   void _syncImmoSessionInBackground(String phone, String pin) {
     unawaited(
       ImmoAuthService().loginWithPhoneAndPin(
@@ -82,6 +127,21 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     );
   }
 
+  Future<void> _completeLogin(String phone, String pin) async {
+    await AuthStore.setSessionRegistered(true);
+    activateMonPeyaSession();
+    notifyMonPeyaSessionChanged();
+    _syncImmoSessionInBackground(phone, pin);
+    if (!mounted) return;
+    if (widget.embeddedInModule) {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      }
+      return;
+    }
+    Navigator.of(context).pushReplacementNamed(Routes.app);
+  }
+
   Future<void> _submit(String phone) async {
     if (_submitting) return;
     setState(() => _submitting = true);
@@ -90,10 +150,7 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     if (!mounted) return;
 
     if (stored != null && stored == _pin) {
-      await AuthStore.setSessionRegistered(true);
-      _syncImmoSessionInBackground(phone, _pin);
-      if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(Routes.app);
+      await _completeLogin(phone, _pin);
       return;
     }
 
@@ -104,63 +161,95 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     });
   }
 
+  Future<void> _tryBiometricLogin({bool auto = false}) async {
+    if (_submitting) return;
+    if (auto) {
+      if (_autoBiometricAttempted) return;
+      _autoBiometricAttempted = true;
+      final hasToken = await _hasBiometricToken();
+      if (!_biometricEnabled && !hasToken) return;
+    }
+    if (!_biometricAvailable) return;
+
+    final phone = _phoneNumber;
+    if (phone == null) return;
+
+    final ok = await BiometricAuth.authenticate();
+    if (!mounted || !ok) return;
+
+    if (!_biometricEnabled) {
+      await BiometricAuth.setEnabledInSettings(true);
+      if (mounted) setState(() => _biometricEnabled = true);
+    }
+
+    final pin = await AuthStore.getPinForPhone(phone);
+    if (!mounted || pin == null) return;
+
+    setState(() => _submitting = true);
+    await _completeLogin(phone, pin);
+  }
+
   @override
   Widget build(BuildContext context) {
     final phoneNumber = _phoneNumber;
-
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? cs.surface : Colors.white;
     final ink = isDark ? cs.onSurface : const Color(0xFF111827);
-
     final logoPath = isDark ? AssetPaths.logoDark : AssetPaths.logo;
+    final viewPadding = MediaQuery.viewPaddingOf(context);
 
     if (phoneNumber == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
-        Navigator.of(context).pushReplacementNamed(Routes.phoneInput);
+        final stored = await AuthStore.getPhone();
+        if (!mounted) return;
+        if (stored != null) {
+          setState(() => _phoneNumber = stored);
+          unawaited(_refreshBiometricState());
+          return;
+        }
+        if (widget.embeddedInModule) {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop(false);
+          }
+        } else {
+          Navigator.of(context).pushReplacementNamed(Routes.phoneInput);
+        }
       });
     }
 
+    final showBiometric = _biometricAvailable && phoneNumber != null;
+
     return Scaffold(
       backgroundColor: bg,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
+      resizeToAvoidBottomInset: false,
+      body: Padding(
+        padding: EdgeInsets.fromLTRB(18, viewPadding.top + 16, 18, viewPadding.bottom + 16),
+        child: Column(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 34),
                   Image.asset(
                     logoPath,
-                    width: 256,
-                    height: 115,
+                    width: 220,
+                    height: 100,
                     fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 20),
                   Text(
                     'Entrez votre code PIN',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ink),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Saisissez votre code PIN à 4 chiffres pour vous connecter.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? cs.onSurfaceVariant : const Color(0xFF6B7280),
-                    ),
-                  ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 24),
                   Container(
                     width: 256,
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? cs.surfaceContainerHighest : Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: _showError ? const Color(0xFFEF4444) : const Color(0xFF9CA3AF),
@@ -175,16 +264,16 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
                           height: 48,
                           margin: const EdgeInsets.symmetric(horizontal: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF3F4F6),
+                            color: isDark ? cs.surface : const Color(0xFFF3F4F6),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           alignment: Alignment.center,
                           child: Text(
                             _pin.length > i ? '•' : '',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF374151),
+                              color: ink,
                             ),
                           ),
                         );
@@ -193,7 +282,7 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
                   ),
                   if (_showError)
                     const Padding(
-                      padding: EdgeInsets.only(top: 6),
+                      padding: EdgeInsets.only(top: 8),
                       child: Text(
                         'Code PIN incorrect. Réessayez.',
                         textAlign: TextAlign.center,
@@ -202,44 +291,40 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
                     ),
                 ],
               ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 22),
-                child: Column(
-                  children: [
-                    PinKeypad(
-                      keypad: _keypad,
-                      onKeyPress: _onKeyPress,
-                      onDelete: _onDelete,
-                      onLongDelete: _onLongDelete,
-                      textColor: ink,
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: MediaQuery.sizeOf(context).width * 0.8,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _pin.length == 4 ? const Color(0xFF006D56) : const Color(0xFFB9D8CF),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        onPressed: (_pin.length == 4 && phoneNumber != null && !_submitting)
-                            ? () => _submit(phoneNumber)
-                            : null,
-                        child: _submitting
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Text('Valider', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                  ],
+            ),
+            PinKeypad(
+              keypad: _keypad,
+              onKeyPress: _onKeyPress,
+              onDelete: _onDelete,
+              onLongDelete: _onLongDelete,
+              textColor: ink,
+              showBiometric: showBiometric,
+              onBiometric: () => _tryBiometricLogin(),
+              biometricEnabled: !_submitting,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: _pin.length == 4 ? const Color(0xFF006D56) : const Color(0xFFB9D8CF),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
+                onPressed: (_pin.length == 4 && phoneNumber != null && !_submitting)
+                    ? () => _submit(phoneNumber)
+                    : null,
+                child: _submitting
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Valider', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

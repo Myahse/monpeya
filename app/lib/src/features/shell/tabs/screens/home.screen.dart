@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'package:app/src/core/assets/constants/asset.paths.dart';
+import 'package:app/src/core/auth/module.auth.dart';
 import 'package:app/src/core/modules/app.module.dart';
 import 'package:app/src/core/modules/repositories/module.repository.dart';
 import 'package:app/src/core/routing/routes.dart';
-import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
 import 'package:app/src/features/shell/screens/mon_peya_my_services.screen.dart';
 import 'package:app/src/features/shell/widgets/dynamic_modules_grid.widget.dart';
@@ -45,6 +45,12 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _showHomeActionSnack(BuildContext context, String label) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$label : bientôt.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -57,6 +63,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _HomeTopBar(
           title: 'Bienvenue,',
           onPressProfile: () => rootNavKey.currentState?.pushNamed(Routes.settings),
+          onPressNotifications: () => _showHomeActionSnack(context, 'Notifications'),
+          onPressAssistance: () => _showHomeActionSnack(context, 'Assistance'),
         ),
         const SizedBox(height: 12),
         _BalanceCard(
@@ -74,13 +82,8 @@ class _HomeScreenState extends State<HomeScreen> {
         // Mon Peya (mini card under balance)
         _MonPeyaMiniCard(
           onTap: () async {
-            final ok = await AuthStore.isRegistered();
-            if (!context.mounted) return;
-
-            if (!ok) {
-              rootNavKey.currentState?.pushNamed(Routes.phoneInput);
-              return;
-            }
+            final ok = await ModuleAuth.ensureRegistered(context);
+            if (!context.mounted || !ok) return;
 
             Navigator.of(context).push(
               MaterialPageRoute<void>(
@@ -172,10 +175,14 @@ class _HomeTopBar extends StatelessWidget {
   const _HomeTopBar({
     required this.title,
     required this.onPressProfile,
+    required this.onPressNotifications,
+    required this.onPressAssistance,
   });
 
   final String title;
   final VoidCallback onPressProfile;
+  final VoidCallback onPressNotifications;
+  final VoidCallback onPressAssistance;
 
   @override
   Widget build(BuildContext context) {
@@ -198,54 +205,90 @@ class _HomeTopBar extends StatelessWidget {
             child: Padding(
               // Keep content aligned with page padding while border goes edge-to-edge.
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  // Left "avatar dot" placeholder 
-                  InkWell(
-                    onTap: onPressProfile,
-                    borderRadius: BorderRadius.circular(999),
-                    child: SizedBox(
-                      width: 36,
-                      height: 36,
-                      child: Center(
-                        child: Container(
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            color: cs.onSurface,
-                            borderRadius: BorderRadius.circular(999),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      InkWell(
+                        onTap: onPressProfile,
+                        borderRadius: BorderRadius.circular(999),
+                        child: SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: Center(
+                            child: Container(
+                              width: 26,
+                              height: 26,
+                              decoration: BoxDecoration(
+                                color: cs.onSurface,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-
-                  // Center title
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: cs.onSurface,
-                          height: 1.1,
-                        ),
+                      const Spacer(),
+                      _HomeTopBarIconButton(
+                        icon: Icons.notifications_none_rounded,
+                        tooltip: 'Notifications',
+                        onPressed: onPressNotifications,
+                        color: cs.onSurface,
                       ),
+                      const SizedBox(width: 4),
+                      _HomeTopBarIconButton(
+                        icon: Icons.headset_mic_outlined,
+                        tooltip: 'Assistance',
+                        onPressed: onPressAssistance,
+                        color: cs.onSurface,
+                      ),
+                    ],
+                  ),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: cs.onSurface,
+                      height: 1.1,
                     ),
                   ),
-
-                  // Right side left empty on Home (matches NTERI)
-                  const SizedBox(width: 36, height: 36),
                 ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _HomeTopBarIconButton extends StatelessWidget {
+  const _HomeTopBarIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+      icon: Icon(icon, size: 22, color: color),
     );
   }
 }

@@ -8,9 +8,17 @@ class PeyapayHostRoutes {
   static const settings = '/settings';
 }
 
-/// Host-provided session and navigation from Mon Peya shell.
+/// Host-provided Mon Peya session used by Peya Pay and payment flows from services.
 abstract class PeyapayHostAuth {
-  Future<bool> isRegistered();
+  /// True when the user entered PIN this session (in-memory).
+  Future<bool> isSessionActive();
+
+  /// True when phone + PIN are stored on device (registered account).
+  Future<bool> hasAccount();
+
+  Future<String?> getPhone();
+
+  Future<String?> authToken();
 }
 
 typedef PeyapayHostRouteOpener = Future<void> Function(String routeName);
@@ -24,6 +32,9 @@ class PeyapayHostBridge {
   static PeyapayHostAuth? auth;
   static PeyapayHostRouteOpener? openRoute;
   static PeyapayHostNewsBuilder? buildNewsCarousel;
+
+  /// Fired when Mon Peya login / logout changes (shell registers this).
+  static Listenable? sessionChanges;
 
   static PeyapayHostAuth get requireAuth {
     final host = auth;

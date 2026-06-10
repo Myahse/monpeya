@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:immo/immo.dart';
 
+import 'package:app/src/core/session/mon_peya.session.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
 
@@ -23,7 +24,7 @@ class MonPeyaImmoHostAdapter implements ImmoHostAuth {
   }
 
   @override
-  Future<bool> isRegistered() => AuthStore.isRegistered();
+  Future<bool> isRegistered() async => MonPeyaSession.instance.isSessionActive;
 
   @override
   Future<String?> authToken() => AuthStore.authToken();

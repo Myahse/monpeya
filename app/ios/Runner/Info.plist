@@ -47,5 +47,7 @@
 	<true/>
 	<key>NSContactsUsageDescription</key>
 	<string>We use your contacts to help you choose a recipient for transfers.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Utilisez Face ID pour déverrouiller Mon Peya rapidement.</string>
 </dict>
 </plist>

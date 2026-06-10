@@ -4,6 +4,7 @@ library;
 export 'package:peyapay/src/core/host/peyapay_host.bridge.dart';
 export 'package:peyapay/src/core/constants/peya_pay.assets.dart';
 export 'package:peyapay/src/core/utils/formatters.util.dart';
+export 'package:peyapay/src/core/utils/peyapay_session.util.dart';
 export 'package:peyapay/src/core/utils/screen_insets.util.dart';
 export 'package:peyapay/src/data/models/fund_source.item.dart';
 export 'package:peyapay/src/data/models/transaction.item.dart';

@@ -28,6 +28,7 @@ dependencies:
     path: ../packages/billetterie
   peyapay:
     path: ../packages/peyapay
+  local_auth: ^2.3.0
 
 dev_dependencies:
   flutter_test:

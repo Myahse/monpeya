@@ -46,11 +46,12 @@ class MonPeyaSuperApp extends StatelessWidget {
         final media = MediaQuery.of(context);
         final childWidget = child ?? const SizedBox.shrink();
 
-        // Global text size reduction (safe even for styles without explicit fontSize).
-        final fixedMedia = media.copyWith(textScaler: const TextScaler.linear(_textScale));
+        // Fixed app typography: ignore OS display/font size (accessibility text scale).
+        final fixedMedia = media.copyWith(
+          textScaler: const TextScaler.linear(_textScale),
+          boldText: false,
+        );
 
-        // IMPORTANT: Do not force a fixed "design size" viewport.
-        // That behavior makes the whole app look like it isn't using full width/height.
         return MediaQuery(data: fixedMedia, child: childWidget);
       },
       navigatorKey: rootNavKey,

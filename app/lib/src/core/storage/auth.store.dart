@@ -67,6 +67,20 @@ class AuthStore {
     return prefs.getBool(PrefsKeys.isRegistered) ?? false;
   }
 
+  /// Account exists on device (phone + PIN stored after registration).
+  static Future<bool> hasAccount() async {
+    if (_forceGuest) return false;
+    if (!await isRegistered()) return false;
+    final phone = await getPhone();
+    if (phone == null || phone.trim().isEmpty) return false;
+    return hasPinForPhone(phone);
+  }
+
+  /// Ends the current session but keeps phone/PIN for next PIN login.
+  static Future<void> endSession() async {
+    await setAuthToken(null);
+  }
+
   static Future<void> loginDemoUser() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(PrefsKeys.phoneNumber, demoPhoneFull);

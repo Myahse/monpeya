@@ -30,6 +30,9 @@ migrate_working_dir/
 /apps/
 /scripts/
 
+# Leftover local build tree from pre-DMS layout (safe to delete when no process locks build/)
+/mon_peya_super_app/
+
 # Symbolication related
 app.*.symbols
 

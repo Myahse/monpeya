@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 List<List<String>> generateKeypad3Rows() {
   final digits = List<String>.generate(10, (i) => '$i');
   digits.shuffle(Random());
-  // 3 rows of 3 + a last row with blank, one digit, and delete handled separately.
   return [
     [digits[0], digits[1], digits[2]],
     [digits[3], digits[4], digits[5]],
@@ -22,6 +21,9 @@ class PinKeypad extends StatelessWidget {
     required this.onDelete,
     required this.onLongDelete,
     this.textColor = const Color(0xFF111827),
+    this.showBiometric = false,
+    this.onBiometric,
+    this.biometricEnabled = true,
   });
 
   final List<List<String>> keypad;
@@ -29,6 +31,13 @@ class PinKeypad extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onLongDelete;
   final Color textColor;
+  final bool showBiometric;
+  final VoidCallback? onBiometric;
+  final bool biometricEnabled;
+
+  static const _keyWidth = 74.0;
+  static const _keyHeight = 56.0;
+  static const _keyFontSize = 22.0;
 
   @override
   Widget build(BuildContext context) {
@@ -37,12 +46,12 @@ class PinKeypad extends StatelessWidget {
         onTap: () => onKeyPress(label),
         borderRadius: BorderRadius.circular(18),
         child: SizedBox(
-          width: 74,
-          height: 56,
+          width: _keyWidth,
+          height: _keyHeight,
           child: Center(
             child: Text(
               label,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: textColor),
+              style: TextStyle(fontSize: _keyFontSize, fontWeight: FontWeight.w800, color: textColor),
             ),
           ),
         ),
@@ -54,13 +63,38 @@ class PinKeypad extends StatelessWidget {
         onTap: onDelete,
         onLongPress: onLongDelete,
         child: SizedBox(
-          width: 74,
-          height: 56,
+          width: _keyWidth,
+          height: _keyHeight,
           child: Center(
             child: Icon(Icons.backspace_outlined, color: textColor),
           ),
         ),
       );
+    }
+
+    Widget bioBtn() {
+      return InkWell(
+        onTap: biometricEnabled ? onBiometric : null,
+        borderRadius: BorderRadius.circular(18),
+        child: SizedBox(
+          width: _keyWidth,
+          height: _keyHeight,
+          child: Center(
+            child: Icon(
+              Icons.fingerprint,
+              color: biometricEnabled ? const Color(0xFF006D56) : textColor.withValues(alpha: 0.35),
+              size: 26,
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget lastRowLeading() {
+      if (showBiometric && onBiometric != null) {
+        return bioBtn();
+      }
+      return const SizedBox(width: _keyWidth, height: _keyHeight);
     }
 
     return Column(
@@ -82,7 +116,7 @@ class PinKeypad extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              const SizedBox(width: 74, height: 56),
+              lastRowLeading(),
               keyBtn(keypad[3][0]),
               delBtn(),
             ],
@@ -92,4 +126,3 @@ class PinKeypad extends StatelessWidget {
     );
   }
 }
-

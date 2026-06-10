@@ -2,6 +2,7 @@ import 'package:billetterie/billetterie.dart';
 import 'package:flutter/material.dart';
 import 'package:peyapay/peyapay.dart';
 
+import 'package:app/src/core/auth/module.auth.dart';
 import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
 
 /// Connects Mon Peya Peya Pay to the independent Billetterie package.
@@ -26,12 +27,20 @@ class MonPeyaBilletterieHostAdapter {
     BuildContext context,
     BilletteriePaymentRequest request,
   ) async {
+    if (!context.mounted) return false;
+    final ok = await ModuleAuth.ensureRegistered(context);
+    if (!ok || !context.mounted) return false;
+
+    final sender = await peyapayPrimarySender();
+    if (!context.mounted) return false;
+
     final result = await Navigator.of(context).push<bool>(
       peyapayReviewTransferRoute(
         PeyapayReviewTransferScreen(
           type: PeyapayTransactionType.payment,
           amount: request.amount,
           fee: 0,
+          sender: sender,
           recipient: PeyapayRecipient(
             name: request.recipientName,
             reference: request.reference ?? request.label,

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:app/src/features/shell/widgets/main_bottom_navigation_bar.widget.dart';
+import 'package:app/src/core/session/mon_peya.session.dart';
 import 'package:app/src/features/shell/tabs/screens/home.screen.dart';
-import 'package:app/src/features/shell/tabs/screens/peyapay.screen.dart';
+import 'package:app/src/features/shell/tabs/screens/peyapay_tab.shell.dart';
 import 'package:app/src/features/shell/tabs/screens/subscriptions.screen.dart';
+import 'package:app/src/features/shell/widgets/main_bottom_navigation_bar.widget.dart';
 
 enum MainTab { home, peyapay, subscriptions }
 
@@ -49,41 +50,57 @@ class _MainTabsShellState extends State<MainTabsShell> {
     setState(() => _tab = next);
   }
 
+  bool _hideBottomNav() {
+    final session = MonPeyaSession.instance;
+    if (session.isAuthOverlayVisible) return true;
+    if (_tab == MainTab.peyapay && !session.isSessionActive) return true;
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        final shouldExit = await _onBackPressed();
-        if (shouldExit && context.mounted) {
-          Navigator.of(context).pop();
-        }
-      },
-      child: Scaffold(
-        body: Stack(
-          children: [
-            IndexedStack(
-              index: _tab.index,
+    return ListenableBuilder(
+      listenable: MonPeyaSession.instance,
+      builder: (context, _) {
+        final hideNav = _hideBottomNav();
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) return;
+            final shouldExit = await _onBackPressed();
+            if (shouldExit && context.mounted) {
+              Navigator.of(context).pop();
+            }
+          },
+          child: Scaffold(
+            extendBody: hideNav,
+            body: Stack(
               children: [
-                _TabNavigator(navigatorKey: _navKeys[MainTab.home]!, root: const HomeScreen()),
-                _TabNavigator(
-                  navigatorKey: _navKeys[MainTab.peyapay]!,
-                  root: const PeyapayScreen(),
-                ),
-                _TabNavigator(
-                  navigatorKey: _navKeys[MainTab.subscriptions]!,
-                  root: const SubscriptionsScreen(),
+                IndexedStack(
+                  index: _tab.index,
+                  children: [
+                    _TabNavigator(navigatorKey: _navKeys[MainTab.home]!, root: const HomeScreen()),
+                    _TabNavigator(
+                      navigatorKey: _navKeys[MainTab.peyapay]!,
+                      root: const PeyapayTabShell(),
+                    ),
+                    _TabNavigator(
+                      navigatorKey: _navKeys[MainTab.subscriptions]!,
+                      root: const SubscriptionsScreen(),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-        bottomNavigationBar: MainBottomNavigationBar(
-          selectedIndex: _tab.index,
-          onDestinationSelected: (idx) => _selectTab(MainTab.values[idx]),
-        ),
-      ),
+            bottomNavigationBar: hideNav
+                ? null
+                : MainBottomNavigationBar(
+                    selectedIndex: _tab.index,
+                    onDestinationSelected: (idx) => _selectTab(MainTab.values[idx]),
+                  ),
+          ),
+        );
+      },
     );
   }
 }
@@ -104,4 +121,3 @@ class _TabNavigator extends StatelessWidget {
     );
   }
 }
-

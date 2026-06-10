@@ -4,11 +4,15 @@ import 'package:app/src/core/assets/constants/asset.paths.dart';
 import 'package:app/src/core/routing/routes.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/widgets/pin_keypad.widget.dart';
+import 'package:app/src/features/auth/presentation/login_pin/screens/login_pin.screen.dart';
+import 'package:app/src/features/auth/presentation/registration_flow/screens/registration_flow.screen.dart';
 import 'package:app/src/features/auth/presentation/widgets/auth_flow_scaffold.widget.dart';
 
 class PhoneInputScreen extends StatefulWidget {
-  const PhoneInputScreen({super.key});
+  const PhoneInputScreen({super.key, this.embeddedInModule = false});
   static const routeName = '/phone';
+
+  final bool embeddedInModule;
 
   @override
   State<PhoneInputScreen> createState() => _PhoneInputScreenState();
@@ -130,9 +134,26 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
     setState(() => _submitting = false);
 
     if (hasPin) {
-      Navigator.of(context).pushReplacementNamed(
-        Routes.loginPin,
-        arguments: {'phoneNumber': fullPhone},
+      if (widget.embeddedInModule) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => LoginPinScreen(embeddedInModule: true, phoneNumber: fullPhone),
+          ),
+        );
+      } else {
+        Navigator.of(context).pushReplacementNamed(
+          Routes.loginPin,
+          arguments: {'phoneNumber': fullPhone},
+        );
+      }
+      return;
+    }
+
+    if (widget.embeddedInModule) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const RegistrationFlowScreen(embeddedInModule: true),
+        ),
       );
       return;
     }
@@ -153,10 +174,18 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
       await AuthStore.hasPinForPhone(fullPhone);
       if (!mounted) return;
       setState(() => _submitting = false);
-      Navigator.of(context).pushReplacementNamed(
-        Routes.loginPin,
-        arguments: {'phoneNumber': fullPhone},
-      );
+      if (widget.embeddedInModule) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => LoginPinScreen(embeddedInModule: true, phoneNumber: fullPhone),
+          ),
+        );
+      } else {
+        Navigator.of(context).pushReplacementNamed(
+          Routes.loginPin,
+          arguments: {'phoneNumber': fullPhone},
+        );
+      }
       return;
     }
 
@@ -187,7 +216,13 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
 
     return AuthFlowScaffold(
       logoPath: logoPath,
-      onBack: () => Navigator.of(context).pushReplacementNamed(Routes.onboarding),
+      onBack: () {
+        if (widget.embeddedInModule) {
+          Navigator.of(context).pop(false);
+        } else {
+          Navigator.of(context).pushReplacementNamed(Routes.onboarding);
+        }
+      },
       title: const Text('Saisissez votre numéro de téléphone'),
       subtitle: const Text('Utilisez votre numéro de téléphone pour vous inscrire ou vous connecter.'),
       body: SingleChildScrollView(

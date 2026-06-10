@@ -6,10 +6,13 @@ import 'package:app/src/core/routing/routes.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/widgets/pin_keypad.widget.dart';
 import 'package:app/src/features/auth/presentation/widgets/auth_flow_scaffold.widget.dart';
+import 'package:app/src/integration/adapters/peyapay_host.adapter.dart';
 
 class RegistrationFlowScreen extends StatefulWidget {
-  const RegistrationFlowScreen({super.key});
+  const RegistrationFlowScreen({super.key, this.embeddedInModule = false});
   static const routeName = '/registration-flow';
+
+  final bool embeddedInModule;
 
   @override
   State<RegistrationFlowScreen> createState() => _RegistrationFlowScreenState();
@@ -268,15 +271,25 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
 
     await AuthStore.setPinForPhone(phone.trim(), _pin);
     await AuthStore.setSessionRegistered(true);
+    activateMonPeyaSession();
+    notifyMonPeyaSessionChanged();
     if (!mounted) return;
     setState(() => _busy = false);
+    if (widget.embeddedInModule) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      return;
+    }
     Navigator.of(context).pushReplacementNamed(Routes.app);
   }
 
   void _back() {
     if (_busy) return;
     if (_step == 0) {
-      Navigator.of(context).pushReplacementNamed(Routes.phoneInput);
+      if (widget.embeddedInModule) {
+        Navigator.of(context).pop();
+      } else {
+        Navigator.of(context).pushReplacementNamed(Routes.phoneInput);
+      }
       return;
     }
     setState(() => _step -= 1);

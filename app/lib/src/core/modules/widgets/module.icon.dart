@@ -12,18 +12,18 @@ String? moduleIconAsset({String? moduleKey, String? iconKey}) {
     'immo-rental' ||
     'immo/rental' ||
     'mr-immo-rental' =>
-      'packages/mr_immo/assets/logo/immo/rental.png',
+      'packages/immo/assets/logo/immo/rental.png',
     'construction' ||
     'build' ||
     'immo-construction' ||
     'immo/construction' ||
     'mr-immo-construction' =>
-      'packages/mr_immo/assets/logo/immo/construction.png',
+      'packages/immo/assets/logo/immo/construction.png',
     'collection' ||
     'immo-collection' ||
     'immo/collection' ||
     'mr-immo-collection' =>
-      'packages/mr_immo/assets/logo/immo/collection.png',
+      'packages/immo/assets/logo/immo/collection.png',
     _ => _iconKeyAsset(iconKey),
   };
 }
@@ -31,9 +31,9 @@ String? moduleIconAsset({String? moduleKey, String? iconKey}) {
 String? _iconKeyAsset(String? iconKey) {
   if (iconKey == null) return null;
   return switch (iconKey.toLowerCase()) {
-    'immo-rental' => 'packages/mr_immo/assets/logo/immo/rental.png',
-    'immo-construction' => 'packages/mr_immo/assets/logo/immo/construction.png',
-    'immo-collection' => 'packages/mr_immo/assets/logo/immo/collection.png',
+    'immo-rental' => 'packages/immo/assets/logo/immo/rental.png',
+    'immo-construction' => 'packages/immo/assets/logo/immo/construction.png',
+    'immo-collection' => 'packages/immo/assets/logo/immo/collection.png',
     _ => null,
   };
 }

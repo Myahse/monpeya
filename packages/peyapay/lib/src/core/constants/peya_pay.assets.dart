@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Asset paths bundled in the [peya_pay] package.
+/// Asset paths bundled in the [peyapay] package.
 class PeyaPayAssets {
   PeyaPayAssets._();
 
-  static const package = 'peya_pay';
+  static const package = 'peyapay';
 
   static String logo(String relativePath) => 'assets/logo/$relativePath';
 
@@ -13,7 +13,7 @@ class PeyaPayAssets {
   static String card(String fileName) => 'assets/logo/cards/$fileName';
 }
 
-/// Loads an asset from the [peya_pay] package bundle.
+/// Loads an asset from the [peyapay] package bundle.
 class PeyaPayAssetImage extends StatelessWidget {
   const PeyaPayAssetImage(
     this.asset, {
