@@ -1,0 +1,107 @@
+import 'package:flutter/material.dart';
+
+import 'package:app/src/features/shell/widgets/main_bottom_navigation_bar.widget.dart';
+import 'package:app/src/features/shell/tabs/screens/home.screen.dart';
+import 'package:app/src/features/shell/tabs/screens/peyapay.screen.dart';
+import 'package:app/src/features/shell/tabs/screens/subscriptions.screen.dart';
+
+enum MainTab { home, peyapay, subscriptions }
+
+class MainTabsShell extends StatefulWidget {
+  const MainTabsShell({super.key});
+
+  static const storageKey = PageStorageKey<String>('main-tabs-shell');
+
+  @override
+  State<MainTabsShell> createState() => _MainTabsShellState();
+}
+
+class _MainTabsShellState extends State<MainTabsShell> {
+  MainTab _tab = MainTab.home;
+
+  final _navKeys = <MainTab, GlobalKey<NavigatorState>>{
+    MainTab.home: GlobalKey<NavigatorState>(),
+    MainTab.peyapay: GlobalKey<NavigatorState>(),
+    MainTab.subscriptions: GlobalKey<NavigatorState>(),
+  };
+
+  Future<bool> _onBackPressed() async {
+    final nav = _navKeys[_tab]!.currentState!;
+    if (nav.canPop()) {
+      nav.pop();
+      return false;
+    }
+
+    if (_tab != MainTab.home) {
+      setState(() => _tab = MainTab.home);
+      return false;
+    }
+
+    return true;
+  }
+
+  Future<void> _selectTab(MainTab next) async {
+    if (next == _tab) {
+      _navKeys[_tab]!.currentState!.popUntil((r) => r.isFirst);
+      return;
+    }
+
+    setState(() => _tab = next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldExit = await _onBackPressed();
+        if (shouldExit && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            IndexedStack(
+              index: _tab.index,
+              children: [
+                _TabNavigator(navigatorKey: _navKeys[MainTab.home]!, root: const HomeScreen()),
+                _TabNavigator(
+                  navigatorKey: _navKeys[MainTab.peyapay]!,
+                  root: const PeyapayScreen(),
+                ),
+                _TabNavigator(
+                  navigatorKey: _navKeys[MainTab.subscriptions]!,
+                  root: const SubscriptionsScreen(),
+                ),
+              ],
+            ),
+          ],
+        ),
+        bottomNavigationBar: MainBottomNavigationBar(
+          selectedIndex: _tab.index,
+          onDestinationSelected: (idx) => _selectTab(MainTab.values[idx]),
+        ),
+      ),
+    );
+  }
+}
+
+class _TabNavigator extends StatelessWidget {
+  const _TabNavigator({required this.navigatorKey, required this.root});
+  final GlobalKey<NavigatorState> navigatorKey;
+  final Widget root;
+
+  @override
+  Widget build(BuildContext context) {
+    return Navigator(
+      key: navigatorKey,
+      onGenerateRoute: (settings) => MaterialPageRoute<void>(
+        settings: settings,
+        builder: (_) => root,
+      ),
+    );
+  }
+}
+

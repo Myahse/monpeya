@@ -1,0 +1,10 @@
+name: mon_peya
+repository: https://gitlab.com/djogana-pay/monpeya
+
+packages:
+  - app
+  - packages/**
+
+command:
+  bootstrap:
+    runPubGetInParallel: true
