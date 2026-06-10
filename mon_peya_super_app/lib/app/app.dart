@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../modules/adapters/billetterie_host_adapter.dart';
 import '../modules/adapters/immo_host_adapter.dart';
+import '../modules/adapters/peyapay_host_adapter.dart';
 import 'routing/routes.dart';
 
 void _registerModuleHosts() {
+  MonPeyaPeyapayHostAdapter.register();
   MonPeyaImmoHostAdapter.register();
   MonPeyaBilletterieHostAdapter.register();
 }

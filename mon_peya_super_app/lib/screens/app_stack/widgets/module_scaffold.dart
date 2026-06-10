@@ -7,26 +7,31 @@ class ModuleScaffold extends StatelessWidget {
     required this.children,
     this.showAppBar = true,
     this.padding = const EdgeInsets.fromLTRB(16, 12, 16, 24),
+    this.safeAreaTop = false,
   });
   final String title;
   final List<Widget> children;
   final bool showAppBar;
   final EdgeInsets padding;
+  final bool safeAreaTop;
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: CustomScrollView(
-        key: PageStorageKey<String>('module-scroll-$title'),
-        slivers: [
-          if (showAppBar) SliverAppBar(pinned: true, title: Text(title)),
-          SliverPadding(
-            padding: padding,
-            sliver: SliverList(delegate: SliverChildListDelegate.fixed(children)),
-          ),
-        ],
-      ),
+    final scroll = CustomScrollView(
+      key: PageStorageKey<String>('module-scroll-$title'),
+      slivers: [
+        if (showAppBar) SliverAppBar(pinned: true, title: Text(title)),
+        SliverPadding(
+          padding: padding,
+          sliver: SliverList(delegate: SliverChildListDelegate.fixed(children)),
+        ),
+      ],
     );
+
+    if (safeAreaTop) {
+      return SafeArea(top: true, bottom: false, child: scroll);
+    }
+    return scroll;
   }
 }
 

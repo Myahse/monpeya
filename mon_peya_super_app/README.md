@@ -67,7 +67,7 @@ The project is a **Flutter port** of an existing React Native app. PeyaPay and t
 
 | Feature | Description |
 |---------|-------------|
-| **Dashboard** | Balance card, news carousel, services grid |
+| **Dashboard** | Balance card, news carousel, services grid (Mr Immo, Billetterie) |
 | **Mon Peya space** | Personal services hub (registration required) |
 | **Mr Immo** | Expandable folder: Rental, Construction, Collection |
 | **Billetterie** | Ticketing module entry point |
@@ -79,8 +79,8 @@ The project is a **Flutter port** of an existing React Native app. PeyaPay and t
 |---------|-------------|
 | **Dashboard** | Balance, quick actions, news, recent transactions |
 | **Transfer** | Contact picker → amount → review → confirm |
-| **Bill payments** | CIE / SODECI utilities, assurance overlay |
-| **Source of funds** | Link CI banks and debit cards (15 banks, 3 card brands) |
+| **Bill payments** | CIE / SODECI utilities (Assurance removed for now) |
+| **Source of funds** | Link CI banks and debit cards — draggable sheets, full card preview |
 | **Add money** | Top-up after linking a funding source |
 | **Transactions** | Full payment history |
 | **Payment review / success** | Confirmation screens for completed payments |
@@ -116,11 +116,12 @@ assets/screenshots/
 
 ### Workspace layout
 
-Mon Peya is the **host shell**. Mr Immo and Billetterie are **sibling packages** in the same GitLab repo:
+Mon Peya is the **host shell**. Peya Pay, Mr Immo, and Billetterie are **sibling packages** in the same GitLab repo:
 
 ```
 Mon peya/                     # Git repo root
-├── mon_peya_super_app/       # This app — auth, Peya Pay, navigation
+├── mon_peya_super_app/       # This app — auth, navigation, module launcher
+├── peya_pay/                 # Wallet & payments (Peya Pay tab)
 ├── mr_immo/                  # Rental, Construction, Collection
 └── billetterie_electronique/ # Ticketing (events + cars)
 ```
@@ -133,6 +134,7 @@ At startup the shell registers host adapters (`lib/app/app.dart`):
 
 | Package | Bridge | Mon Peya provides |
 |---------|--------|-------------------|
+| `peya_pay` | `PeyapayHostBridge` | Registration check, shell routes (login, settings), news carousel |
 | `mr_immo` | `ImmoHostBridge` | Phone/PIN auth, JWT sync, exit to home |
 | `billetterie_electronique` | `BilletterieHostBridge` | Peya Pay review/payment flow, exit to home |
 
@@ -297,10 +299,13 @@ PeyaPay → Payments & services → Select provider → Reference lookup (mock)
         → Amount & method → Review → Success
 ```
 
+> **Assurance** and **Mon Marché** are temporarily hidden from the home grid and payment services list.
+
 ### Top-up wallet
 
 ```
-PeyaPay → Banks & insurance → Link bank or card → Add money → Review
+PeyaPay → Banques et assurances → Mode de transfert (compact sheet)
+        → Link bank or card → Add money → Review
 ```
 
 ### Open a service module
@@ -326,23 +331,9 @@ Billetterie → checkout → BilletterieHostBridge.requestPayment()
 ```
 Mon peya/                        # Git repo root
 ├── mon_peya_super_app/
-│   ├── android/
-│   ├── ios/
-│   ├── windows/
-│   ├── linux/
-│   ├── macos/
-│   ├── assets/
-│   │   ├── images/
-│   │   ├── logo/
-│   │   └── modules/
 │   ├── lib/
-│   │   ├── main.dart
-│   │   ├── app/
-│   │   ├── modules/adapters/
-│   │   ├── widgets/
-│   │   └── screens/
-│   ├── test/
 │   └── pubspec.yaml
+├── peya_pay/
 ├── mr_immo/
 └── billetterie_electronique/
 ```
@@ -351,16 +342,18 @@ Mon peya/                        # Git repo root
 
 | Path | Purpose |
 |------|---------|
-| `lib/screens/app_stack/tabs/peyapay/` | Wallet module (screens, widgets, models) |
-| `lib/screens/app_stack/services/` | Re-exports Billetterie + Mr Immo entry screens |
-| `lib/modules/adapters/` | Wires AuthStore / Peya Pay into module host bridges |
+| `../peya_pay/` | Wallet module (screens, widgets, bank/card assets) |
+| `lib/screens/app_stack/tabs/peyapay_screen.dart` | Re-exports Peya Pay entry screen |
+| `lib/modules/adapters/` | Wires shell into Peya Pay, Immo, Billetterie host bridges |
 | `lib/app/storage/` | Local session and auth persistence |
-| `assets/logo/banks/` | Bank logos for source-of-funds linking |
+| `assets/logo/banks/` | Bank logos (also shipped in `peya_pay/assets/logo/`) |
 
 ### Path dependencies (`pubspec.yaml`)
 
 ```yaml
 dependencies:
+  peya_pay:
+    path: ../peya_pay
   mr_immo:
     path: ../mr_immo
   billetterie_electronique:
@@ -414,6 +407,13 @@ dependencies:
 
 ## Development notes
 
+### UI conventions (Peya Pay)
+
+- French copy, Material 3 adaptive light/dark theme
+- Full-screen layouts with manual status-bar inset (`peyapayStatusBarTop` in `peya_pay/lib/utils/screen_insets.dart`)
+- Draggable bottom sheets for add-card, transfer method, and success flows
+- Compact bottom nav (icon-only, ~58px) on main tabs
+
 ### Mock data
 
 Backend APIs are not wired yet. The following use hardcoded or static data:
@@ -452,7 +452,9 @@ void main() => runApp(const MonPeyaSuperApp());
 ## Roadmap
 
 - [x] Embed Mr Immo and Billetterie as path packages with host bridges
-- [x] Monorepo on GitLab — sibling `mr_immo` and `billetterie_electronique` folders in same repo
+- [x] Extract Peya Pay into `peya_pay` sibling package with host bridge
+- [x] Peya Pay UI polish — draggable sheets, edge-to-edge headers, compact nav
+- [ ] Re-enable Assurance & Mon Marché modules when ready
 - [ ] Backend API integration (auth, wallet, payments, bills)
 - [ ] Service module bundle loader (webview / native runtime)
 - [ ] Reset PIN flow

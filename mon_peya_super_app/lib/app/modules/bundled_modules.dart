@@ -37,15 +37,6 @@ class BundledModules {
       sortOrder: 3,
     ),
     AppModule(
-      id: 4,
-      moduleKey: 'insurance',
-      name: 'Assurance',
-      icon: 'shield',
-      url: 'asset:modules/insurance.html',
-      source: ModuleSource.bundled,
-      sortOrder: 4,
-    ),
-    AppModule(
       id: 5,
       moduleKey: 'billetterie',
       name: 'Billetterie',
@@ -54,15 +45,6 @@ class BundledModules {
       type: ModuleLaunchType.native,
       source: ModuleSource.bundled,
       sortOrder: 5,
-    ),
-    AppModule(
-      id: 6,
-      moduleKey: 'marketplace',
-      name: 'Mon Marché',
-      icon: 'marketplace',
-      url: 'asset:modules/marketplace.html',
-      source: ModuleSource.bundled,
-      sortOrder: 6,
     ),
   ];
 }

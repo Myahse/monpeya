@@ -1,10 +1,8 @@
 import 'package:billetterie_electronique/host/billetterie_host_bridge.dart';
 import 'package:flutter/material.dart';
+import 'package:peya_pay/peya_pay.dart';
 
 import '../../screens/app_stack/app_stack_scope.dart';
-import '../../screens/app_stack/tabs/peyapay/widgets/peyapay_review_animations.dart';
-import '../../screens/app_stack/tabs/peyapay/screens/peyapay_review_transfer_screen.dart';
-import '../../screens/app_stack/tabs/peyapay/widgets/review_transfer_sheet.dart';
 
 /// Connects Mon Peya Peya Pay to the independent Billetterie package.
 class MonPeyaBilletterieHostAdapter {

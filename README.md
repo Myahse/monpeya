@@ -4,7 +4,8 @@ N'TERI super-app monorepo — one GitLab repo, three sibling Flutter packages.
 
 ```
 Mon peya/                     # Git repo root
-├── mon_peya_super_app/       # Shell: auth, Peya Pay, home, module launcher
+├── mon_peya_super_app/       # Shell: auth, home, navigation, module launcher
+├── peya_pay/                 # Wallet & payments (Peya Pay)
 ├── mr_immo/                  # Location, Construction, Collection
 ├── billetterie_electronique/ # Ticketing (events + Cars)
 └── README.md
@@ -39,4 +40,4 @@ flutter pub get
 flutter run
 ```
 
-Keep the three folders as siblings — `pubspec.yaml` uses `path: ../mr_immo` and `path: ../billetterie_electronique`.
+Keep the four folders as siblings — `pubspec.yaml` uses `path: ../peya_pay`, `../mr_immo`, and `../billetterie_electronique`.

@@ -36,7 +36,6 @@ class _NteriBubbleState extends State<NteriBubble> with SingleTickerProviderStat
   Offset? _position;
   var _isDragging = false;
   var _dragMoved = false;
-  var _loaded = false;
 
   @override
   void initState() {
@@ -78,10 +77,9 @@ class _NteriBubbleState extends State<NteriBubble> with SingleTickerProviderStat
     final x = prefs.getDouble(_prefsX);
     final y = prefs.getDouble(_prefsY);
     if (!mounted) return;
-    setState(() {
-      if (x != null && y != null) _position = Offset(x, y);
-      _loaded = true;
-    });
+    if (x != null && y != null) {
+      setState(() => _position = Offset(x, y));
+    }
   }
 
   Future<void> _savePosition(Offset position) async {
@@ -146,18 +144,20 @@ class _NteriBubbleState extends State<NteriBubble> with SingleTickerProviderStat
 
   void _onPanUpdate(DragUpdateDetails details, BuildContext context) {
     if (widget.expanded) return;
-    if (details.delta.distance > 1) _dragMoved = true;
+    if (details.delta.distance > 8) _dragMoved = true;
     setState(() => _position = _clamp(_resolvedPosition(context) + details.delta, context));
   }
 
   void _onPanEnd(DragEndDetails details, BuildContext context) {
     if (widget.expanded) return;
+    final openMenu = !_dragMoved;
     setState(() => _isDragging = false);
     _savePosition(_resolvedPosition(context));
+    _dragMoved = false;
+    if (openMenu) _toggleMenu();
   }
 
   void _onBubbleTap() {
-    if (_dragMoved) return;
     _toggleMenu();
   }
 
@@ -172,27 +172,23 @@ class _NteriBubbleState extends State<NteriBubble> with SingleTickerProviderStat
         color: _bubbleColor,
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: _onBubbleTap,
-          customBorder: const CircleBorder(),
-          child: Semantics(
-            button: true,
-            label: widget.expanded ? "Fermer le menu N'TERI" : "Ouvrir le menu N'TERI",
-            child: SizedBox(
-              width: NteriBubble.size,
-              height: NteriBubble.size,
-              child: Center(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
-                  child: showClose
-                      ? const Icon(Icons.close, key: ValueKey('close'), color: Colors.white, size: 26)
-                      : const _SamsungGridIcon(
-                          key: ValueKey('grid'),
-                          size: 22,
-                          color: Colors.white,
-                        ),
-                ),
+        child: Semantics(
+          button: true,
+          label: widget.expanded ? "Fermer le menu N'TERI" : "Ouvrir le menu N'TERI",
+          child: SizedBox(
+            width: NteriBubble.size,
+            height: NteriBubble.size,
+            child: Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                child: showClose
+                    ? const Icon(Icons.close, key: ValueKey('close'), color: Colors.white, size: 26)
+                    : const _SamsungGridIcon(
+                        key: ValueKey('grid'),
+                        size: 22,
+                        color: Colors.white,
+                      ),
               ),
             ),
           ),
@@ -250,8 +246,6 @@ class _NteriBubbleState extends State<NteriBubble> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    if (!_loaded) return const SizedBox.shrink();
-
     final position = _resolvedPosition(context);
     final media = MediaQuery.of(context);
     final screenH = media.size.height;
@@ -260,9 +254,11 @@ class _NteriBubbleState extends State<NteriBubble> with SingleTickerProviderStat
     final alignRight = position.dx > media.size.width * 0.5;
 
     final launcher = GestureDetector(
-      onPanStart: _onPanStart,
-      onPanUpdate: (d) => _onPanUpdate(d, context),
-      onPanEnd: (d) => _onPanEnd(d, context),
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.expanded ? _onBubbleTap : null,
+      onPanStart: widget.expanded ? null : _onPanStart,
+      onPanUpdate: widget.expanded ? null : (d) => _onPanUpdate(d, context),
+      onPanEnd: widget.expanded ? null : (d) => _onPanEnd(d, context),
       child: widget.expanded
           ? _buildExpandedPanel(context, panelWidth, expandUp, alignRight)
           : _buildBubbleButton(showClose: false),

@@ -125,10 +125,12 @@ class _AppStackScreenState extends State<AppStackScreen> {
                     ),
                   ),
                 if (AppStackRoute.isModuleRoute(activeName))
-                  NteriBubble(
-                    expanded: state.menuVisible,
-                    activeRouteName: activeName,
-                    currentModuleKey: active.params['moduleKey'] as String?,
+                  Positioned.fill(
+                    child: NteriBubble(
+                      expanded: state.menuVisible,
+                      activeRouteName: activeName,
+                      currentModuleKey: active.params['moduleKey'] as String?,
+                    ),
                   ),
               ],
             ),
@@ -211,7 +213,7 @@ class _MainTabsShellState extends State<MainTabsShell> {
             ),
             Positioned(
               right: 16,
-              bottom: 16 + MediaQuery.of(context).padding.bottom + 56,
+              bottom: 16 + MediaQuery.of(context).padding.bottom + MainBottomNavigationBar.barHeight,
               child: FloatingActionButton.extended(
                 onPressed: () => appStack?.toggleMenu(),
                 icon: const Icon(Icons.apps),
@@ -220,14 +222,9 @@ class _MainTabsShellState extends State<MainTabsShell> {
             ),
           ],
         ),
-        bottomNavigationBar: NavigationBar(
+        bottomNavigationBar: MainBottomNavigationBar(
           selectedIndex: _tab.index,
           onDestinationSelected: (idx) => _selectTab(MainTab.values[idx]),
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.home_outlined), label: 'HOME'),
-            NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), label: 'PEYAPAY'),
-            NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'MY SUBS'),
-          ],
         ),
       ),
     );

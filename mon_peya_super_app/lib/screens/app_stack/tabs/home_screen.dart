@@ -11,7 +11,7 @@ import '../widgets/dynamic_modules_grid.dart';
 import '../widgets/module_scaffold.dart';
 import '../widgets/nteri_news_carousel.dart';
 import '../../../widgets/mon_peya_module_gate.dart';
-import 'peyapay/screens/peyapay_add_money_screen.dart';
+import 'package:peya_pay/screens/peyapay_add_money_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return ModuleScaffold(
       title: 'HOME',
       showAppBar: false,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: EdgeInsets.fromLTRB(16, MediaQuery.viewPaddingOf(context).top + 16, 16, 24),
       children: [
         _HomeTopBar(
           title: 'Bienvenue,',

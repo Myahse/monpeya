@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'widgets/main_bottom_navigation_bar.dart';
 import 'tabs/home_screen.dart';
 import 'tabs/peyapay_screen.dart';
 import 'tabs/subscriptions_screen.dart';
@@ -78,17 +79,9 @@ class _MainTabsShellState extends State<MainTabsShell> {
             ),
           ],
         ),
-        bottomNavigationBar: NavigationBar(
+        bottomNavigationBar: MainBottomNavigationBar(
           selectedIndex: _tab.index,
           onDestinationSelected: (idx) => _selectTab(MainTab.values[idx]),
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.home_outlined), label: 'HOME'),
-            NavigationDestination(
-              icon: Icon(Icons.account_balance_wallet_outlined),
-              label: 'PEYAPAY',
-            ),
-            NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'MY SUBS'),
-          ],
         ),
       ),
     );

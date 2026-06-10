@@ -26,6 +26,8 @@ dependencies:
     path: ../mr_immo
   billetterie_electronique:
     path: ../billetterie_electronique
+  peya_pay:
+    path: ../peya_pay
 
 dev_dependencies:
   flutter_test:
