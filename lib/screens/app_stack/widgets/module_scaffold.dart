@@ -17,6 +17,7 @@ class ModuleScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: CustomScrollView(
+        key: PageStorageKey<String>('module-scroll-$title'),
         slivers: [
           if (showAppBar) SliverAppBar(pinned: true, title: Text(title)),
           SliverPadding(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../app/widgets/pin_keypad.dart';
+import '../widgets/peyapay_review_animations.dart';
 import '../widgets/review_transfer_sheet.dart';
 import 'peyapay_review_transfer_screen.dart';
 
@@ -191,8 +192,8 @@ class _PeyapayPaymentAmountScreenState extends State<PeyapayPaymentAmountScreen>
                                   ? null
                                   : () async {
                                       final ok = await Navigator.of(context).push<bool>(
-                                        MaterialPageRoute<bool>(
-                                          builder: (_) => PeyapayReviewTransferScreen(
+                                        peyapayReviewTransferRoute(
+                                          PeyapayReviewTransferScreen(
                                             type: PeyapayTransactionType.payment,
                                             amount: _amount,
                                             fee: 0,

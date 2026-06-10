@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../utils/formatters.dart';
-import '../widgets/review_transfer_sheet.dart' show PeyapayRecipient, PeyapaySender, PeyapayTransactionType;
 import '../widgets/peyapay_party_cards_stack.dart';
+import '../widgets/peyapay_review_animations.dart';
+import '../widgets/peyapay_slide_to_confirm.dart';
+import '../widgets/review_transfer_sheet.dart' show PeyapayRecipient, PeyapaySender, PeyapayTransactionType;
 
 class PeyapayReviewTransferScreen extends StatefulWidget {
   const PeyapayReviewTransferScreen({
@@ -33,40 +35,13 @@ class _PeyapayReviewTransferScreenState extends State<PeyapayReviewTransferScree
   bool _leaving = false;
 
   late final AnimationController _anim;
-  late final Animation<Offset> _leftSlide;
-  late final Animation<Offset> _rightSlide;
-  late final Animation<double> _arrowFade;
-  late final Animation<double> _circleScale;
-  late final Animation<Offset> _sheetSlide;
-  late final Animation<double> _sheetFade;
-  late final Animation<double> _sheetScale;
+  late final PeyapayReviewEntranceAnimations _entrance;
 
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 780));
-
-    final cardsCurve = CurvedAnimation(parent: _anim, curve: const Interval(0.0, 0.62, curve: Curves.easeOutCubic));
-    _leftSlide = Tween<Offset>(begin: const Offset(-0.75, 0), end: Offset.zero).animate(cardsCurve);
-    _rightSlide = Tween<Offset>(begin: const Offset(0.75, 0), end: Offset.zero).animate(cardsCurve);
-
-    _arrowFade = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _anim, curve: const Interval(0.22, 0.85, curve: Curves.easeOut)),
-    );
-    _circleScale = Tween<double>(begin: 0.5, end: 1).animate(
-      CurvedAnimation(parent: _anim, curve: const Interval(0.1, 0.85, curve: Curves.elasticOut)),
-    );
-
-    // Bottom sheet: come from bottom (more distance) + pop
-    _sheetSlide = Tween<Offset>(begin: const Offset(0, 0.9), end: Offset.zero).animate(
-      CurvedAnimation(parent: _anim, curve: const Interval(0.62, 1.0, curve: Curves.easeOutQuart)),
-    );
-    _sheetFade = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _anim, curve: const Interval(0.62, 0.95, curve: Curves.easeOut)),
-    );
-    _sheetScale = Tween<double>(begin: 0.985, end: 1).animate(
-      CurvedAnimation(parent: _anim, curve: const Interval(0.62, 1.0, curve: Curves.easeOutCubic)),
-    );
+    _anim = AnimationController(vsync: this, duration: PeyapayReviewEntranceAnimations.entranceDuration);
+    _entrance = PeyapayReviewEntranceAnimations(_anim);
     _anim.forward();
   }
 
@@ -259,25 +234,18 @@ class _PeyapayReviewTransferScreenState extends State<PeyapayReviewTransferScree
         );
       },
     );
-
-    // After modal is closed, return user to previous flow.
-    if (!mounted) return;
-    Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   Future<void> _leave([bool? result]) async {
     if (_leaving) return;
     _leaving = true;
-    try {
-      if (_anim.isAnimating) {
-        // let current forward finish quickly before reversing
-        await _anim.forward();
-      }
-      await _anim.reverse();
-    } finally {
-      if (!mounted) return;
-      Navigator.of(context).pop(result);
-    }
+    await _anim.animateTo(
+      0,
+      duration: PeyapayReviewEntranceAnimations.exitDuration,
+      curve: Curves.easeInCubic,
+    );
+    if (!mounted) return;
+    Navigator.of(context).pop(result);
   }
 
   // Note: screen now matches RN layout; details are inline in bottom container.
@@ -396,10 +364,10 @@ class _PeyapayReviewTransferScreenState extends State<PeyapayReviewTransferScree
                       arrowBg: Colors.white,
                       arrowBorderColor: const Color(0xFFDDDDDD),
                       arrowIcon: Icons.chevron_right_rounded,
-                      leftSlide: _leftSlide,
-                      rightSlide: _rightSlide,
-                      arrowFade: _arrowFade,
-                      circleScale: _circleScale,
+                      leftSlide: _entrance.leftSlide,
+                      rightSlide: _entrance.rightSlide,
+                      arrowFade: _entrance.arrowFade,
+                      circleScale: _entrance.circleScale,
                     ),
                   ),
                   const Spacer(),
@@ -414,12 +382,10 @@ class _PeyapayReviewTransferScreenState extends State<PeyapayReviewTransferScree
               top: 252,
               bottom: 0,
               child: FadeTransition(
-                opacity: _sheetFade,
+                opacity: _entrance.sheetFade,
                 child: SlideTransition(
-                  position: _sheetSlide,
-                  child: ScaleTransition(
-                    scale: _sheetScale,
-                    child: Container(
+                  position: _entrance.sheetSlide,
+                  child: Container(
                       decoration: BoxDecoration(
                         color: bg,
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -505,17 +471,17 @@ class _PeyapayReviewTransferScreenState extends State<PeyapayReviewTransferScree
                                 SizedBox(
                                   width: double.infinity,
                                   height: 54,
-                                  child: _SlideToPay(
-                                    enabled: !_loading,
-                                    label: switch (widget.type) {
-                                      PeyapayTransactionType.transfer => 'Glisser pour transférer',
-                                      PeyapayTransactionType.payment => 'Glisser pour payer',
-                                      PeyapayTransactionType.deposit => 'Glisser pour confirmer',
-                                    },
-                                    onCompleted: _confirm,
-                                    background: isDark ? cs.surfaceContainerHighest : const Color(0xFF111827),
-                                    foreground: isDark ? Colors.white : const Color(0xFF6B7280),
-                                    textColor: Colors.white,
+                                  child: PeyapaySlideToConfirm(
+                                  enabled: !_loading,
+                                  label: switch (widget.type) {
+                                    PeyapayTransactionType.transfer => 'Glisser pour transférer',
+                                    PeyapayTransactionType.payment => 'Glisser pour payer',
+                                    PeyapayTransactionType.deposit => 'Glisser pour confirmer',
+                                  },
+                                  onCompleted: _confirm,
+                                  background: isDark ? cs.surfaceContainerHighest : const Color(0xFF111827),
+                                  foreground: isDark ? Colors.white : const Color(0xFF6B7280),
+                                  textColor: Colors.white,
                                   ),
                                 ),
                               ],
@@ -527,7 +493,6 @@ class _PeyapayReviewTransferScreenState extends State<PeyapayReviewTransferScree
                   ),
                 ),
               ),
-            ),
           ],
           ),
         ),
@@ -596,141 +561,4 @@ Widget _receiptRow(
     ],
   );
 }
-
-class _SlideToPay extends StatefulWidget {
-  const _SlideToPay({
-    required this.enabled,
-    required this.label,
-    required this.onCompleted,
-    required this.background,
-    required this.foreground,
-    required this.textColor,
-  });
-
-  final bool enabled;
-  final String label;
-  final Future<void> Function() onCompleted;
-  final Color background;
-  final Color foreground;
-  final Color textColor;
-
-  @override
-  State<_SlideToPay> createState() => _SlideToPayState();
-}
-
-class _SlideToPayState extends State<_SlideToPay> {
-  double _dragX = 0;
-  bool _done = false;
-  bool _loading = false;
-
-  Future<void> _finish() async {
-    if (_loading || _done) return;
-    setState(() => _loading = true);
-    await widget.onCompleted();
-    if (!mounted) return;
-    setState(() {
-      _loading = false;
-      _done = true;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const h = 54.0;
-    const thumb = 46.0;
-
-    return LayoutBuilder(
-      builder: (context, c) {
-        final maxLocal = c.maxWidth - thumb;
-        final x = _dragX.clamp(0.0, maxLocal).toDouble();
-        final double progress =
-            maxLocal <= 0 ? 0.0 : (x / maxLocal).clamp(0.0, 1.0).toDouble();
-
-        return AbsorbPointer(
-          absorbing: !widget.enabled || _loading || _done,
-          child: Container(
-            height: h,
-            decoration: BoxDecoration(
-              color: widget.background,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Stack(
-              alignment: Alignment.centerLeft,
-              children: [
-                Positioned.fill(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Center(
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 120),
-                        opacity: _loading ? 0.0 : 1.0,
-                        child: Text(
-                          widget.label,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                            color: widget.textColor.withValues(alpha: 0.75),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: thumb + (x * 0.0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: progress,
-                      child: Container(color: widget.foreground.withValues(alpha: 0.18)),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: x,
-                  top: ((h - thumb) / 2).toDouble(),
-                  child: GestureDetector(
-                    onHorizontalDragUpdate: (d) {
-                      setState(() => _dragX = (_dragX + d.delta.dx).clamp(0, maxLocal));
-                    },
-                    onHorizontalDragEnd: (_) async {
-                      if (_dragX >= maxLocal * 0.92) {
-                        setState(() => _dragX = maxLocal);
-                        await _finish();
-                      } else {
-                        setState(() => _dragX = 0);
-                      }
-                    },
-                    child: Container(
-                      width: thumb,
-                      height: thumb,
-                      decoration: BoxDecoration(
-                        color: widget.foreground,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      alignment: Alignment.center,
-                      child: _loading
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Icon(Icons.arrow_forward_rounded, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
 

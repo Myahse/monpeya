@@ -78,5 +78,34 @@ class AuthStore {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(PrefsKeys.isRegistered, value);
   }
+
+  /// JWT for Spring Boot API calls and WebView auth handoff.
+  static Future<String?> authToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(PrefsKeys.authToken);
+  }
+
+  static Future<void> setAuthToken(String? token) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (token == null || token.isEmpty) {
+      await prefs.remove(PrefsKeys.authToken);
+      return;
+    }
+    await prefs.setString(PrefsKeys.authToken, token);
+  }
+
+  static Future<String?> immoUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(PrefsKeys.immoUserId);
+  }
+
+  static Future<void> setImmoUserId(String? userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (userId == null || userId.isEmpty) {
+      await prefs.remove(PrefsKeys.immoUserId);
+      return;
+    }
+    await prefs.setString(PrefsKeys.immoUserId, userId);
+  }
 }
 

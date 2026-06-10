@@ -17,6 +17,15 @@ dependencies:
   shared_preferences: ^2.3.2
   image_picker: ^1.1.2
   flutter_contacts: ^1.1.9+2
+  http: ^1.2.2
+  webview_flutter: ^4.10.0
+  webview_flutter_android: ^4.10.0
+  webview_flutter_wkwebview: ^3.23.0
+  webview_windows: ^0.4.0
+  mr_immo:
+    path: ../mr_immo
+  billetterie_electronique:
+    path: ../billetterie_electronique
 
 dev_dependencies:
   flutter_test:
@@ -35,3 +44,5 @@ flutter:
     - assets/logo/
     - assets/logo/banks/
     - assets/logo/cards/
+    - assets/modules/
+    - packages/mr_immo/assets/logo/immo/

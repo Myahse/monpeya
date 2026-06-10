@@ -1,14 +1,27 @@
 import 'package:flutter/material.dart';
 
+import '../modules/adapters/billetterie_host_adapter.dart';
+import '../modules/adapters/immo_host_adapter.dart';
 import 'routing/routes.dart';
+
+void _registerModuleHosts() {
+  MonPeyaImmoHostAdapter.register();
+  MonPeyaBilletterieHostAdapter.register();
+}
 
 class MonPeyaSuperApp extends StatelessWidget {
   const MonPeyaSuperApp({super.key});
 
   static const _textScale = 0.90;
 
+  static bool _hostsRegistered = false;
+
   @override
   Widget build(BuildContext context) {
+    if (!_hostsRegistered) {
+      _registerModuleHosts();
+      _hostsRegistered = true;
+    }
     return MaterialApp(
       title: 'Mon Peya',
       debugShowCheckedModeBanner: false,

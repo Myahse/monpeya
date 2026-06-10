@@ -1,4 +1,4 @@
-/// Bank / debit-card entries — mirrors RN `Deposit.tsx` static lists.
+
 class FundSourceItem {
   const FundSourceItem({
     required this.id,

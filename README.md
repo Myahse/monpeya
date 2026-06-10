@@ -90,9 +90,11 @@ The project is a **Flutter port** of an existing React Native app. PeyaPay and t
 | Feature | Description |
 |---------|-------------|
 | **My Subs** | Subscription list and generic module launcher |
-| **Billetterie** | Electronic ticketing (`billetterie-electronique`) — placeholder |
-| **Mr Immo** | Rental, Construction, Collection — placeholders |
-| **ServiceModule** | Generic loader by `moduleId` + `bundleUrl` — placeholder |
+| **Billetterie** | Electronic ticketing module (`billetterie_electronique` package) — events, cars, Peya Pay checkout |
+| **Mr Immo** | Rental, Construction, Collection (`mr_immo` package) — rental UI ported from React Native |
+| **ServiceModule** | Generic loader by `moduleId` + `bundleUrl` (WebView / asset bundle) |
+
+Embedded modules run as overlays on the app stack. Mon Peya provides auth and payments through **host bridges**; the packages do not import the shell directly.
 
 ---
 
@@ -111,6 +113,42 @@ assets/screenshots/
 ---
 
 ## Architecture
+
+### Workspace layout
+
+Mon Peya is the **host shell**. Mr Immo and Billetterie are **separate Flutter packages** linked via path dependencies. For local development, clone or copy all three side by side:
+
+```
+Mon peya/
+├── mon_peya_super_app/       # This repo — auth, Peya Pay, navigation, module launcher
+├── mr_immo/                  # Rental, Construction, Collection
+└── billetterie_electronique/ # Ticketing (events + cars)
+```
+
+Each module has its own `pubspec.yaml` and no `main.dart` — they run only inside Mon Peya.
+
+### Module integration
+
+At startup the shell registers host adapters (`lib/app/app.dart`):
+
+| Package | Bridge | Mon Peya provides |
+|---------|--------|-------------------|
+| `mr_immo` | `ImmoHostBridge` | Phone/PIN auth, JWT sync, exit to home |
+| `billetterie_electronique` | `BilletterieHostBridge` | Peya Pay review/payment flow, exit to home |
+
+Modules are opened from **Mes services** or the home grid. `AppStackScreen` pushes them onto an internal stack (overlay on home tabs). Use `AppStackScope.goBack()` / bridge `exitModule()` — not `Navigator.pop()` at the root — to return to Mon Peya home.
+
+```
+MonPeyaSuperApp
+└── AppStackScreen
+    ├── AppStackController — module stack + N'TERI menu
+    ├── MainTabsShell (HOME | PEYAPAY | MY SUBS)
+    └── Module overlay (cached)
+        ├── BilletterieModuleScreen   ← billetterie_electronique
+        ├── MrImmoRentalScreen        ← mr_immo
+        ├── MrImmoConstructionScreen
+        └── MrImmoCollectionScreen
+```
 
 ### Navigation layers
 
@@ -165,6 +203,7 @@ No Riverpod, Bloc, or Provider. The app uses:
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) compatible with Dart `^3.10.8`
 - Android Studio / Xcode (for mobile targets)
 - A device or emulator
+- Sibling packages `mr_immo` and `billetterie_electronique` next to this project (see [Workspace layout](#workspace-layout))
 
 Verify your setup:
 
@@ -178,6 +217,14 @@ flutter doctor
 cd mon_peya_super_app
 flutter pub get
 flutter run
+```
+
+Optional API endpoints (Mr Immo / Billetterie backends):
+
+```powershell
+flutter run `
+  --dart-define=IMMO_API_URL=http://YOUR_IP:8081 `
+  --dart-define=BILLETTERIE_API_URL=http://YOUR_IP:8089/api/billetterie-electronique
 ```
 
 Run on a specific device:
@@ -260,7 +307,17 @@ PeyaPay → Banks & insurance → Link bank or card → Add money → Review
 ### Open a service module
 
 ```
-Home grid or N'TERI menu → App stack pushes module screen
+Home grid or Mes services → App stack pushes module overlay
+                          → MonPeyaModuleGate (registration check)
+                          → mr_immo / billetterie_electronique UI
+Exit module → host bridge → AppStackScope.goBack() → Mon Peya home
+```
+
+### Billetterie payment
+
+```
+Billetterie → checkout → BilletterieHostBridge.requestPayment()
+           → PeyaPay review screen → confirm → back to Billetterie
 ```
 
 ---
@@ -276,17 +333,24 @@ mon_peya_super_app/
 ├── macos/                       # macOS desktop
 ├── assets/
 │   ├── images/                  # Onboarding photos, SVGs
-│   └── logo/
-│       ├── banks/               # CI bank logos
-│       └── cards/               # Card brand assets
+│   ├── logo/
+│   │   ├── banks/               # CI bank logos
+│   │   └── cards/               # Card brand assets
+│   └── modules/                 # Bundled module assets (WebView)
 ├── lib/
 │   ├── main.dart                # App entry point
 │   ├── app/
-│   │   ├── app.dart             # MaterialApp, theme
+│   │   ├── app.dart             # MaterialApp, theme, host adapter registration
 │   │   ├── routing/routes.dart  # Named routes
 │   │   ├── storage/             # AuthStore, PrefsKeys
-│   │   ├── assets/asset_paths.dart
+│   │   ├── modules/             # Bundled module catalog
 │   │   └── widgets/             # Shared UI (PIN keypad, scaffolds)
+│   ├── modules/
+│   │   ├── adapters/            # Immo + Billetterie host bridges
+│   │   ├── immo_module_registry.dart
+│   │   └── billetterie_module_registry.dart
+│   ├── widgets/
+│   │   └── mon_peya_module_gate.dart
 │   └── screens/
 │       ├── splash/
 │       ├── onboarding/
@@ -304,9 +368,20 @@ mon_peya_super_app/
 | Path | Purpose |
 |------|---------|
 | `lib/screens/app_stack/tabs/peyapay/` | Wallet module (screens, widgets, models) |
-| `lib/screens/app_stack/services/` | Billetterie, Mr Immo, generic service loader |
+| `lib/screens/app_stack/services/` | Re-exports Billetterie + Mr Immo entry screens |
+| `lib/modules/adapters/` | Wires AuthStore / Peya Pay into module host bridges |
 | `lib/app/storage/` | Local session and auth persistence |
 | `assets/logo/banks/` | Bank logos for source-of-funds linking |
+
+### Path dependencies (`pubspec.yaml`)
+
+```yaml
+dependencies:
+  mr_immo:
+    path: ../mr_immo
+  billetterie_electronique:
+    path: ../billetterie_electronique
+```
 
 ---
 
@@ -318,12 +393,15 @@ mon_peya_super_app/
 | Language | Dart `^3.10.8` |
 | UI | Material 3 |
 | Persistence | `shared_preferences` |
+| HTTP | `http` (Mr Immo API client) |
+| WebView | `webview_flutter` (+ platform implementations) |
 | SVG assets | `flutter_svg` |
 | Contacts | `flutter_contacts` |
 | ID photo capture | `image_picker` |
+| Embedded modules | `mr_immo`, `billetterie_electronique` (path packages) |
 | Linting | `flutter_lints` |
 
-**Not yet integrated:** HTTP client, Firebase, Supabase, go_router, Riverpod/Bloc, environment config (`.env`).
+**Not yet integrated:** Firebase, Supabase, go_router, Riverpod/Bloc, centralized `.env` config.
 
 ---
 
@@ -389,6 +467,12 @@ void main() => runApp(const MonPeyaSuperApp());
 
 ## Roadmap
 
+- [x] Embed Mr Immo and Billetterie as path packages with host bridges
+- [x] Mr Immo rental tab UI (React Native parity)
+- [x] Listing / tenant creation wizards (rental)
+- [x] Faster PIN login (non-blocking module auth sync)
+- [x] Peya Pay review screen animation polish
+- [ ] Publish `mr_immo` and `billetterie_electronique` to GitLab (sibling repos or monorepo)
 - [ ] Backend API integration (auth, wallet, payments, bills)
 - [ ] Service module bundle loader (webview / native runtime)
 - [ ] Reset PIN flow

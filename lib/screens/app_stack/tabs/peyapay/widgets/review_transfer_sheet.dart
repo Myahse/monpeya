@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../utils/formatters.dart';
 import 'peyapay_party_cards_stack.dart';
+import 'peyapay_review_animations.dart';
 
 enum PeyapayTransactionType { payment, transfer, deposit }
 
@@ -80,24 +81,13 @@ class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet
   bool _successShown = false;
 
   late final AnimationController _anim;
-  late final Animation<Offset> _leftSlide;
-  late final Animation<Offset> _rightSlide;
-  late final Animation<double> _arrowFade;
-  late final Animation<double> _circleScale;
+  late final PeyapayReviewEntranceAnimations _entrance;
 
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 520));
-    final curve = CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic);
-    _leftSlide = Tween<Offset>(begin: const Offset(-0.45, 0), end: Offset.zero).animate(curve);
-    _rightSlide = Tween<Offset>(begin: const Offset(0.45, 0), end: Offset.zero).animate(curve);
-    _arrowFade = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _anim, curve: const Interval(0.2, 0.85, curve: Curves.easeOut)),
-    );
-    _circleScale = Tween<double>(begin: 0.5, end: 1).animate(
-      CurvedAnimation(parent: _anim, curve: const Interval(0.1, 0.85, curve: Curves.elasticOut)),
-    );
+    _anim = AnimationController(vsync: this, duration: PeyapayReviewEntranceAnimations.entranceDuration);
+    _entrance = PeyapayReviewEntranceAnimations(_anim);
     _anim.forward();
   }
 
@@ -305,9 +295,6 @@ class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet
         );
       },
     );
-
-    if (!mounted) return;
-    Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   @override
@@ -356,7 +343,11 @@ class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet
                   right: 0,
                   top: 220,
                   bottom: 0,
-                  child: Container(
+                  child: FadeTransition(
+                    opacity: _entrance.sheetFade,
+                    child: SlideTransition(
+                      position: _entrance.sheetSlide,
+                      child: Container(
                     decoration: BoxDecoration(
                       color: bg,
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -464,6 +455,8 @@ class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet
                         ),
                       ],
                     ),
+                      ),
+                    ),
                   ),
                 ),
 
@@ -524,10 +517,10 @@ class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet
                           arrowBg: Colors.white,
                           arrowBorderColor: const Color(0xFFDDDDDD),
                           arrowIcon: Icons.chevron_right_rounded,
-                          leftSlide: _leftSlide,
-                          rightSlide: _rightSlide,
-                          arrowFade: _arrowFade,
-                          circleScale: _circleScale,
+                          leftSlide: _entrance.leftSlide,
+                          rightSlide: _entrance.rightSlide,
+                          arrowFade: _entrance.arrowFade,
+                          circleScale: _entrance.circleScale,
                         ),
                       ),
                     ],

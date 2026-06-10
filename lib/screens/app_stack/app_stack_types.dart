@@ -5,6 +5,9 @@ class AppStackRoute {
   static const mrImmoConstruction = 'MrImmoConstruction';
   static const mrImmoCollection = 'MrImmoCollection';
   static const serviceModule = 'ServiceModule';
+  static const webModule = 'WebModule';
+
+  static bool isModuleRoute(String name) => name != main;
 }
 
 class AppStackItem {

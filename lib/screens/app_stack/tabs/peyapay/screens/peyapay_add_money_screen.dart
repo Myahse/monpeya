@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../utils/formatters.dart';
 import '../widgets/peyapay_card_brand_badge.dart';
+import '../widgets/peyapay_review_animations.dart';
 import '../widgets/review_transfer_sheet.dart';
 import 'peyapay_review_transfer_screen.dart';
 
@@ -68,9 +69,8 @@ class _PeyapayAddMoneyScreenState extends State<PeyapayAddMoneyScreen> {
     if (_amount <= 0) return;
 
     final ok = await Navigator.of(context, rootNavigator: true).push<bool>(
-      MaterialPageRoute<bool>(
-        fullscreenDialog: true,
-        builder: (_) => PeyapayReviewTransferScreen(
+      peyapayReviewTransferRoute(
+        PeyapayReviewTransferScreen(
           type: PeyapayTransactionType.deposit,
           amount: _amount,
           fee: _transferFee,

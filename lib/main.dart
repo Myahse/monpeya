@@ -192,7 +192,7 @@ class _AppStackScreenState extends State<AppStackScreen> {
 
           final activeScreen = switch (activeName) {
             AppStackRoute.main => const MainTabsShell(),
-            AppStackRoute.billetterie => BilletterieScreen(moduleId: (active.params['moduleId'] as String?) ?? ''),
+            AppStackRoute.billetterie => const BilletterieModuleScreen(),
             AppStackRoute.mrImmoRental => MrImmoRentalScreen(moduleId: (active.params['moduleId'] as String?) ?? ''),
             AppStackRoute.mrImmoConstruction => MrImmoConstructionScreen(moduleId: (active.params['moduleId'] as String?) ?? ''),
             AppStackRoute.mrImmoCollection => MrImmoCollectionScreen(moduleId: (active.params['moduleId'] as String?) ?? ''),

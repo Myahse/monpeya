@@ -9,6 +9,8 @@ enum MainTab { home, peyapay, subscriptions }
 class MainTabsShell extends StatefulWidget {
   const MainTabsShell({super.key});
 
+  static const storageKey = PageStorageKey<String>('main-tabs-shell');
+
   @override
   State<MainTabsShell> createState() => _MainTabsShellState();
 }

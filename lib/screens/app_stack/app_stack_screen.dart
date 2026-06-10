@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'app_stack_controller.dart';
 import 'app_stack_scope.dart';
 import 'app_stack_types.dart';
+import '../../widgets/mon_peya_module_gate.dart';
 import 'main_tabs_shell.dart';
 import 'services/billetterie_screen.dart';
 import 'services/mr_immo_screens.dart';
 import 'services/service_module_screen.dart';
-import 'widgets/nteri_menu_sheet.dart';
+import 'modules/module_web_view_screen.dart';
+import 'widgets/nteri_bubble.dart';
 
 class AppStackScreen extends StatefulWidget {
   const AppStackScreen({super.key});
@@ -20,10 +22,62 @@ class AppStackScreen extends StatefulWidget {
 class _AppStackScreenState extends State<AppStackScreen> {
   final _controller = AppStackController();
 
+  /// Keeps module WebViews alive when returning home (scroll, page, form state).
+  final Map<String, Widget> _moduleCache = {};
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  String _moduleCacheKey(AppStackItem item) {
+    final moduleKey = item.params['moduleKey'] as String?;
+    if (moduleKey != null && moduleKey.isNotEmpty) return moduleKey;
+    return '${item.name}-${item.id}';
+  }
+
+  String? _activeModuleCacheKey(AppStackState state) {
+    final current = state.current;
+    if (!AppStackRoute.isModuleRoute(current.name)) return null;
+    return _moduleCacheKey(current);
+  }
+
+  void _ensureModuleCached(AppStackItem item) {
+    final key = _moduleCacheKey(item);
+    _moduleCache.putIfAbsent(
+      key,
+      () => KeyedSubtree(
+        key: ValueKey('cached-module-$key'),
+        child: _buildModuleScreen(item),
+      ),
+    );
+  }
+
+  Widget _buildModuleScreen(AppStackItem item) {
+    final params = item.params;
+    return switch (item.name) {
+      AppStackRoute.billetterie => const MonPeyaModuleGate(child: BilletterieModuleScreen()),
+      AppStackRoute.mrImmoRental => const MonPeyaModuleGate(child: MrImmoRentalScreen()),
+      AppStackRoute.mrImmoConstruction => const MonPeyaModuleGate(child: MrImmoConstructionScreen()),
+      AppStackRoute.mrImmoCollection => const MonPeyaModuleGate(child: MrImmoCollectionScreen()),
+      AppStackRoute.serviceModule => ServiceModuleScreen(
+          moduleId: (params['moduleId'] as String?) ?? '',
+          bundleUrl: params['bundleUrl'] as String?,
+          url: params['url'] as String?,
+          title: params['title'] as String?,
+        ),
+      AppStackRoute.webModule => ModuleWebViewScreen(
+          title: (params['title'] as String?) ?? 'Module',
+          url: (params['url'] as String?) ?? '',
+          moduleId: params['moduleId'] as String?,
+          isAssetModule: params['isAssetModule'] as bool? ?? false,
+          assetPath: params['assetPath'] as String?,
+          partnerId: params['partnerId'] as String?,
+          moduleKey: params['moduleKey'] as String?,
+        ),
+      _ => const SizedBox.shrink(),
+    };
   }
 
   @override
@@ -36,22 +90,11 @@ class _AppStackScreenState extends State<AppStackScreen> {
           final active = state.current;
           final activeName = active.name;
 
-          final activeScreen = switch (activeName) {
-            AppStackRoute.main => const MainTabsShell(),
-            AppStackRoute.billetterie =>
-              BilletterieScreen(moduleId: (active.params['moduleId'] as String?) ?? ''),
-            AppStackRoute.mrImmoRental =>
-              MrImmoRentalScreen(moduleId: (active.params['moduleId'] as String?) ?? ''),
-            AppStackRoute.mrImmoConstruction =>
-              MrImmoConstructionScreen(moduleId: (active.params['moduleId'] as String?) ?? ''),
-            AppStackRoute.mrImmoCollection =>
-              MrImmoCollectionScreen(moduleId: (active.params['moduleId'] as String?) ?? ''),
-            AppStackRoute.serviceModule => ServiceModuleScreen(
-                moduleId: (active.params['moduleId'] as String?) ?? '',
-                bundleUrl: active.params['bundleUrl'] as String?,
-              ),
-            _ => const MainTabsShell(),
-          };
+          if (AppStackRoute.isModuleRoute(activeName)) {
+            _ensureModuleCached(active);
+          }
+
+          final visibleModuleKey = _activeModuleCacheKey(state);
 
           return PopScope(
             canPop: false,
@@ -64,22 +107,29 @@ class _AppStackScreenState extends State<AppStackScreen> {
               Navigator.of(context).pop();
             },
             child: Stack(
+              fit: StackFit.expand,
               children: [
-                activeScreen,
-                if (state.menuVisible) ...[
+                // Home + tabs stay mounted — preserves scroll, tab, and form state.
+                const MainTabsShell(key: MainTabsShell.storageKey),
+                for (final entry in _moduleCache.entries)
                   Positioned.fill(
-                    child: GestureDetector(
-                      onTap: _controller.toggleMenu,
-                      child: Container(color: Colors.black.withValues(alpha: 0.35)),
+                    child: Offstage(
+                      offstage: entry.key != visibleModuleKey,
+                      child: TickerMode(
+                        enabled: entry.key == visibleModuleKey,
+                        child: IgnorePointer(
+                          ignoring: entry.key != visibleModuleKey,
+                          child: entry.value,
+                        ),
+                      ),
                     ),
                   ),
-                  const Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: 16,
-                    child: NteriMenuSheet(),
+                if (AppStackRoute.isModuleRoute(activeName))
+                  NteriBubble(
+                    expanded: state.menuVisible,
+                    activeRouteName: activeName,
+                    currentModuleKey: active.params['moduleKey'] as String?,
                   ),
-                ],
               ],
             ),
           );

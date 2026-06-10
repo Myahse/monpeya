@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../widgets/mon_peya_module_gate.dart';
 import 'app_stack_scope.dart';
 import 'app_stack_types.dart';
 
@@ -66,22 +67,30 @@ class MonPeyaMyServicesScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _ServicesGrid(
-                    onOpenBilletterie: () => appStack?.openService(
-                      AppStackRoute.billetterie,
-                      params: const {'moduleId': 'billetterie-electronique'},
-                    ),
-                    onOpenRental: () => appStack?.openService(
-                      AppStackRoute.mrImmoRental,
-                      params: const {'moduleId': 'mr-immo-rental'},
-                    ),
-                    onOpenConstruction: () => appStack?.openService(
-                      AppStackRoute.mrImmoConstruction,
-                      params: const {'moduleId': 'mr-immo-construction'},
-                    ),
-                    onOpenCollection: () => appStack?.openService(
-                      AppStackRoute.mrImmoCollection,
-                      params: const {'moduleId': 'mr-immo-collection'},
-                    ),
+                    onOpenBilletterie: () => openModuleIfRegistered(context, () {
+                      appStack?.openService(
+                        AppStackRoute.billetterie,
+                        params: const {'moduleId': 'billetterie-electronique'},
+                      );
+                    }),
+                    onOpenRental: () => openModuleIfRegistered(context, () {
+                      appStack?.openService(
+                        AppStackRoute.mrImmoRental,
+                        params: const {'moduleId': 'mr-immo-rental'},
+                      );
+                    }),
+                    onOpenConstruction: () => openModuleIfRegistered(context, () {
+                      appStack?.openService(
+                        AppStackRoute.mrImmoConstruction,
+                        params: const {'moduleId': 'mr-immo-construction'},
+                      );
+                    }),
+                    onOpenCollection: () => openModuleIfRegistered(context, () {
+                      appStack?.openService(
+                        AppStackRoute.mrImmoCollection,
+                        params: const {'moduleId': 'mr-immo-collection'},
+                      );
+                    }),
                   ),
                 ],
               ),

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../widgets/peyapay_review_animations.dart';
 import '../widgets/review_transfer_sheet.dart';
 import 'peyapay_review_transfer_screen.dart';
 
@@ -142,8 +143,8 @@ class _PeyapayCieSodeciPaymentScreenState extends State<PeyapayCieSodeciPaymentS
 
     final fee = max(0, (_amount * 0.005).ceil());
     final ok = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => PeyapayReviewTransferScreen(
+      peyapayReviewTransferRoute(
+        PeyapayReviewTransferScreen(
           type: PeyapayTransactionType.payment,
           amount: _amount,
           fee: fee,

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/assets/asset_paths.dart';
+import '../../../app/modules/app_module.dart';
+import '../../../app/modules/module_repository.dart';
 import '../../../app/routing/routes.dart';
 import '../../../app/storage/auth_store.dart';
 import '../app_stack_scope.dart';
-import '../app_stack_types.dart';
 import '../mon_peya_my_services_screen.dart';
+import '../widgets/dynamic_modules_grid.dart';
 import '../widgets/module_scaffold.dart';
 import '../widgets/nteri_news_carousel.dart';
+import '../../../widgets/mon_peya_module_gate.dart';
 import 'peyapay/screens/peyapay_add_money_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,22 +22,32 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _showBalance = false;
-  bool _immoFolderOpen = false;
+  final _moduleRepository = ModuleRepository();
+  late Future<ModuleFetchResult> _modulesFuture;
 
   static const _fakeBalance = 5000.0;
 
-  void _openService(String routeName, {required String moduleId}) {
-    final appStack = AppStackScope.maybeOf(context);
-    appStack?.openService(routeName, params: {'moduleId': moduleId});
+  @override
+  void initState() {
+    super.initState();
+    _modulesFuture = _loadModules();
   }
 
-  void _openImmoFolder() => setState(() => _immoFolderOpen = true);
-  void _closeImmoFolder() => setState(() => _immoFolderOpen = false);
+  Future<ModuleFetchResult> _loadModules() => _moduleRepository.fetchModulesResult();
+
+  void _refreshModules() {
+    setState(() => _modulesFuture = _loadModules());
+  }
+
+  void _openModule(AppModule module) {
+    openModuleIfRegistered(context, () {
+      AppStackScope.maybeOf(context)?.openModule(module);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final servicesCount = 1 /* folder */ + 1 /* billetterie */ + 1 /* placeholder */;
 
     return ModuleScaffold(
       title: 'HOME',
@@ -93,78 +106,62 @@ class _HomeScreenState extends State<HomeScreen> {
 
         const SizedBox(height: 18),
 
-        // Mes services
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Mes services',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    '3 services disponibles',
-                    style: TextStyle(fontSize: 11, color: Colors.black54),
-                  ),
-                ],
-              ),
-            ),
-            if (servicesCount > 0)
-              Text(
-                '$servicesCount',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
+        // Mes services (dynamic — loaded from Spring Boot / mock)
+        FutureBuilder<ModuleFetchResult>(
+          future: _modulesFuture,
+          builder: (context, snapshot) {
+            final result = snapshot.data;
+            final modules = result?.modules ?? const <AppModule>[];
+            final loading = snapshot.connectionState != ConnectionState.done;
+            final count = modules.length;
+            final offline = result != null && result.usedBundledFallback;
 
-        Stack(
-          children: [
-            _ServicesGrid(
-              onOpenImmoFolder: _openImmoFolder,
-              onOpenBilletterie: () => _openService(
-                AppStackRoute.billetterie,
-                moduleId: 'billetterie-electronique',
-              ),
-              onOpenPlaceholder: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Service: à brancher.')),
-                );
-              },
-            ),
-            if (_immoFolderOpen) ...[
-              Positioned.fill(
-                child: GestureDetector(
-                  onTap: _closeImmoFolder,
-                  child: Container(color: Colors.black.withValues(alpha: 0.25)),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Mes services',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            loading
+                                ? 'Chargement...'
+                                : '$count service${count == 1 ? '' : 's'} disponible${count == 1 ? '' : 's'}',
+                            style: const TextStyle(fontSize: 11, color: Colors.black54),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (count > 0)
+                      Text(
+                        '$count',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                      ),
+                  ],
                 ),
-              ),
-              Positioned(
-                left: 12,
-                right: 12,
-                top: 12,
-                child: _ImmoFolderCard(
-                  onClose: _closeImmoFolder,
-                  onOpenRental: () => _openService(
-                    AppStackRoute.mrImmoRental,
-                    moduleId: 'mr-immo-rental',
+                if (result != null && (offline || result.stats.partnerCount > 0 || result.loadMode == ModuleLoadMode.bundledOnly)) ...[
+                  const SizedBox(height: 8),
+                  ModulesStatusBanner(result: result, onRetry: _refreshModules),
+                ],
+                const SizedBox(height: 12),
+                if (loading)
+                  const ModulesLoadingGrid()
+                else
+                  DynamicModulesGrid(
+                    modules: modules,
+                    onOpenModule: _openModule,
                   ),
-                  onOpenConstruction: () => _openService(
-                    AppStackRoute.mrImmoConstruction,
-                    moduleId: 'mr-immo-construction',
-                  ),
-                  onOpenCollection: () => _openService(
-                    AppStackRoute.mrImmoCollection,
-                    moduleId: 'mr-immo-collection',
-                  ),
-                ),
-              ),
-            ],
-          ],
+              ],
+            );
+          },
         ),
       ],
     );
@@ -204,7 +201,7 @@ class _HomeTopBar extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Left "avatar dot" placeholder (like NTERI home header)
+                  // Left "avatar dot" placeholder 
                   InkWell(
                     onTap: onPressProfile,
                     borderRadius: BorderRadius.circular(999),
@@ -505,170 +502,3 @@ class _BalanceCard extends StatelessWidget {
     );
   }
 }
-
-class _ServicesGrid extends StatelessWidget {
-  const _ServicesGrid({
-    required this.onOpenImmoFolder,
-    required this.onOpenBilletterie,
-    required this.onOpenPlaceholder,
-  });
-
-  final VoidCallback onOpenImmoFolder;
-  final VoidCallback onOpenBilletterie;
-  final VoidCallback onOpenPlaceholder;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const columns = 4;
-        const gap = 12.0;
-        final tileW = (constraints.maxWidth - gap * (columns - 1)) / columns;
-        final iconSize = tileW < 80 ? 44.0 : 52.0;
-
-        Widget tile({
-          required Widget icon,
-          required String label,
-          required VoidCallback onTap,
-        }) {
-          return SizedBox(
-            width: tileW,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                child: Column(
-                  children: [
-                    Container(
-                      width: iconSize + 15,
-                      height: iconSize + 8,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F5),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(child: icon),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }
-
-        return Wrap(
-          spacing: gap,
-          runSpacing: 14,
-          children: [
-            tile(
-              icon: const Text('🏠', style: TextStyle(fontSize: 26)),
-              label: 'Mr Immo',
-              onTap: onOpenImmoFolder,
-            ),
-            tile(
-              icon: const Icon(Icons.confirmation_number_outlined, size: 28, color: Colors.black87),
-              label: 'Billetterie',
-              onTap: onOpenBilletterie,
-            ),
-            tile(
-              icon: const Text('🛒', style: TextStyle(fontSize: 26)),
-              label: 'Mon Marché',
-              onTap: onOpenPlaceholder,
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _ImmoFolderCard extends StatelessWidget {
-  const _ImmoFolderCard({
-    required this.onClose,
-    required this.onOpenRental,
-    required this.onOpenConstruction,
-    required this.onOpenCollection,
-  });
-
-  final VoidCallback onClose;
-  final VoidCallback onOpenRental;
-  final VoidCallback onOpenConstruction;
-  final VoidCallback onOpenCollection;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Material(
-      elevation: 12,
-      borderRadius: BorderRadius.circular(20),
-      clipBehavior: Clip.antiAlias,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: cs.surface),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Mr Immo',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                  ),
-                ),
-                IconButton(onPressed: onClose, icon: const Icon(Icons.close)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            GridView.count(
-              crossAxisCount: 3,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: 1,
-              children: [
-                _FolderItem(icon: Icons.home_work_outlined, label: 'Rental', onTap: onOpenRental),
-                _FolderItem(icon: Icons.construction_outlined, label: 'Construction', onTap: onOpenConstruction),
-                _FolderItem(icon: Icons.collections_bookmark_outlined, label: 'Collection', onTap: onOpenCollection),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FolderItem extends StatelessWidget {
-  const _FolderItem({required this.icon, required this.label, required this.onTap});
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 28),
-            const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, maxLines: 2),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
