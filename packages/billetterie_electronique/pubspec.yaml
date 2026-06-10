@@ -1,0 +1,22 @@
+name: billetterie_electronique
+description: Billetterie électronique — independent Flutter module for N'TERI / Mon Peya.
+publish_to: 'none'
+version: 1.0.0
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.2
+  qr_flutter: ^4.1.0
+  shared_preferences: ^2.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

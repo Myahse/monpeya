@@ -116,16 +116,19 @@ assets/screenshots/
 
 ### Workspace layout
 
-Mon Peya is the **host shell**. Mr Immo and Billetterie are **separate Flutter packages** linked via path dependencies. For local development, clone or copy all three side by side:
+Mon Peya is the **host shell**. Mr Immo and Billetterie live in this same repository under `packages/`:
 
 ```
-Mon peya/
-├── mon_peya_super_app/       # This repo — auth, Peya Pay, navigation, module launcher
-├── mr_immo/                  # Rental, Construction, Collection
-└── billetterie_electronique/ # Ticketing (events + cars)
+mon_peya_super_app/           # GitLab repo root (Mon Peya shell)
+├── packages/
+│   ├── mr_immo/              # Rental, Construction, Collection
+│   └── billetterie_electronique/  # Ticketing (events + cars)
+├── lib/
+├── assets/
+└── pubspec.yaml
 ```
 
-Each module has its own `pubspec.yaml` and no `main.dart` — they run only inside Mon Peya.
+Each module has its own `pubspec.yaml` and no `main.dart` — they run only inside Mon Peya via path dependencies.
 
 ### Module integration
 
@@ -203,7 +206,6 @@ No Riverpod, Bloc, or Provider. The app uses:
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) compatible with Dart `^3.10.8`
 - Android Studio / Xcode (for mobile targets)
 - A device or emulator
-- Sibling packages `mr_immo` and `billetterie_electronique` next to this project (see [Workspace layout](#workspace-layout))
 
 Verify your setup:
 
@@ -326,6 +328,9 @@ Billetterie → checkout → BilletterieHostBridge.requestPayment()
 
 ```
 mon_peya_super_app/
+├── packages/
+│   ├── mr_immo/                 # Mr Immo module (rental, construction, collection)
+│   └── billetterie_electronique/ # Billetterie module
 ├── android/                     # Android build (READ_CONTACTS)
 ├── ios/                         # iOS build (contacts usage description)
 ├── windows/                     # Windows desktop
@@ -378,9 +383,9 @@ mon_peya_super_app/
 ```yaml
 dependencies:
   mr_immo:
-    path: ../mr_immo
+    path: packages/mr_immo
   billetterie_electronique:
-    path: ../billetterie_electronique
+    path: packages/billetterie_electronique
 ```
 
 ---
@@ -468,11 +473,7 @@ void main() => runApp(const MonPeyaSuperApp());
 ## Roadmap
 
 - [x] Embed Mr Immo and Billetterie as path packages with host bridges
-- [x] Mr Immo rental tab UI (React Native parity)
-- [x] Listing / tenant creation wizards (rental)
-- [x] Faster PIN login (non-blocking module auth sync)
-- [x] Peya Pay review screen animation polish
-- [ ] Publish `mr_immo` and `billetterie_electronique` to GitLab (sibling repos or monorepo)
+- [x] Monorepo — `packages/mr_immo` and `packages/billetterie_electronique` in same GitLab repo
 - [ ] Backend API integration (auth, wallet, payments, bills)
 - [ ] Service module bundle loader (webview / native runtime)
 - [ ] Reset PIN flow

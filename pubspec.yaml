@@ -23,9 +23,9 @@ dependencies:
   webview_flutter_wkwebview: ^3.23.0
   webview_windows: ^0.4.0
   mr_immo:
-    path: ../mr_immo
+    path: packages/mr_immo
   billetterie_electronique:
-    path: ../billetterie_electronique
+    path: packages/billetterie_electronique
 
 dev_dependencies:
   flutter_test:
