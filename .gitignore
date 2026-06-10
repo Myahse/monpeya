@@ -28,6 +28,7 @@ migrate_working_dir/
 /build/
 /coverage/
 /apps/
+/scripts/
 
 # Symbolication related
 app.*.symbols
