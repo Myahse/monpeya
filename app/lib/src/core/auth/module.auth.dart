@@ -6,7 +6,7 @@ import 'package:app/src/core/session/mon_peya.session.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/features/auth/presentation/login_pin/screens/login_pin.screen.dart';
 
-/// Ensures an active Mon Peya session before opening a native service module.
+/// Ensures the user is registered and signed in before a transaction or payment.
 class ModuleAuth {
   ModuleAuth._();
 

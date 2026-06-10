@@ -35,9 +35,9 @@ class PinKeypad extends StatelessWidget {
   final VoidCallback? onBiometric;
   final bool biometricEnabled;
 
-  static const _keyWidth = 74.0;
-  static const _keyHeight = 56.0;
-  static const _keyFontSize = 22.0;
+  static const _keyWidth = 64.0;
+  static const _keyHeight = 48.0;
+  static const _keyFontSize = 20.0;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +83,7 @@ class PinKeypad extends StatelessWidget {
             child: Icon(
               Icons.fingerprint,
               color: biometricEnabled ? const Color(0xFF006D56) : textColor.withValues(alpha: 0.35),
-              size: 26,
+              size: 22,
             ),
           ),
         ),

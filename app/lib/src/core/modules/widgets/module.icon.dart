@@ -38,6 +38,11 @@ String? _iconKeyAsset(String? iconKey) {
   };
 }
 
+bool isImmoBrandedModuleIcon({String? moduleKey, String? iconKey}) {
+  final asset = moduleIconAsset(moduleKey: moduleKey, iconKey: iconKey);
+  return asset != null && asset.contains('/immo/');
+}
+
 /// Maps server icon keys to Material icons when no branded asset exists.
 IconData moduleIconData(String iconKey) {
   return switch (iconKey.toLowerCase()) {
@@ -84,15 +89,36 @@ class ModuleIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final asset = moduleIconAsset(moduleKey: moduleKey, iconKey: iconKey);
     if (asset != null) {
-      return Image.asset(
-        asset,
-        width: size,
-        height: size,
-        fit: fit,
-        errorBuilder: (context, error, stackTrace) => Icon(
-          moduleIconData(iconKey),
-          size: size,
-          color: color ?? Theme.of(context).colorScheme.onSurface,
+      final errorIcon = Icon(
+        moduleIconData(iconKey),
+        size: size,
+        color: color ?? Theme.of(context).colorScheme.onSurface,
+      );
+
+      if (!isImmoBrandedModuleIcon(moduleKey: moduleKey, iconKey: iconKey)) {
+        return Image.asset(
+          asset,
+          width: size,
+          height: size,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => errorIcon,
+        );
+      }
+
+      // Mr Immo PNGs have wide margins — scale up inside the tile to fill the box.
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(size * 0.28),
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Transform.scale(
+            scale: 1.38,
+            child: Image.asset(
+              asset,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => errorIcon,
+            ),
+          ),
         ),
       );
     }

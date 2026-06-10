@@ -4,6 +4,7 @@ import 'package:app/src/core/modules/app.module.dart';
 import 'package:app/src/core/modules/widgets/module.icon.dart';
 import 'package:app/src/core/modules/mergers/module.merger.dart';
 import 'package:app/src/core/modules/repositories/module.repository.dart';
+import 'package:app/src/features/shell/widgets/vertical_service_tile.widget.dart';
 
 class DynamicModulesGrid extends StatelessWidget {
   const DynamicModulesGrid({
@@ -33,15 +34,13 @@ class DynamicModulesGrid extends StatelessWidget {
           runSpacing: 14,
           children: [
             for (final module in modules)
-              SizedBox(
-                width: tileW,
-                child: _ModuleTile(
-                  module: module,
-                  label: module.name,
-                  isPartner: module.isPartnerModule,
-                  iconBoxSize: iconSize,
-                  onTap: () => onOpenModule(module),
-                ),
+              _ModuleTile(
+                module: module,
+                label: module.name,
+                isPartner: module.isPartnerModule,
+                iconBoxSize: iconSize,
+                tileWidth: tileW,
+                onTap: () => onOpenModule(module),
               ),
           ],
         );
@@ -55,6 +54,7 @@ class _ModuleTile extends StatelessWidget {
     required this.module,
     required this.label,
     required this.iconBoxSize,
+    required this.tileWidth,
     required this.onTap,
     this.isPartner = false,
   });
@@ -62,69 +62,24 @@ class _ModuleTile extends StatelessWidget {
   final AppModule module;
   final String label;
   final double iconBoxSize;
+  final double tileWidth;
   final VoidCallback onTap;
   final bool isPartner;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return InkWell(
+    final immoBranded = isImmoBrandedModuleIcon(
+      moduleKey: module.moduleKey,
+      iconKey: module.icon,
+    );
+    final iconSize = immoBranded ? iconBoxSize * 0.72 : iconBoxSize * 0.48;
+
+    return VerticalServiceTile(
+      width: tileWidth,
+      label: label,
+      showPartnerDot: isPartner,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-        child: Column(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: iconBoxSize + 15,
-                  height: iconBoxSize + 8,
-                  decoration: BoxDecoration(
-                    color: cs.brightness == Brightness.dark
-                        ? cs.surfaceContainerHighest
-                        : const Color(0xFFF5F5F5),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Center(
-                    child: ModuleIcon.forModule(
-                      module,
-                      size: iconBoxSize * 0.55,
-                    ),
-                  ),
-                ),
-                if (isPartner)
-                  Positioned(
-                    right: -2,
-                    top: -2,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: cs.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: cs.surface, width: 1.5),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: cs.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ),
+      icon: ModuleIcon.forModule(module, size: iconSize),
     );
   }
 }
@@ -159,28 +114,13 @@ class ModulesLoadingGrid extends StatelessWidget {
           runSpacing: 14,
           children: List.generate(
             4,
-            (_) => SizedBox(
+            (_) => Container(
               width: tileW,
-              child: Column(
-                children: [
-                  Container(
-                    width: 67,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.black12,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: tileW * 0.7,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: Colors.black12,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ],
+              height: tileW * VerticalServiceTile.tileAspectRatio,
+              decoration: BoxDecoration(
+                color: Colors.black12,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.black12),
               ),
             ),
           ),

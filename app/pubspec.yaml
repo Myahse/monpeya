@@ -1,5 +1,5 @@
 name: app
-description: "A new Flutter project."
+description: "Mon Peya — super app shell."
 
 publish_to: 'none' 
 version: 1.0.0+1
@@ -35,6 +35,25 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  image: ^4.5.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo/app-icons/mon peya.png"
+  image_path_android: "assets/logo/app-icons/mon peya.png"
+  image_path_ios: "assets/logo/app-icons/mon peya.png"
+  image_path_ios_dark_transparent: "assets/logo/app-icons/mon peya-dark.png"
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
+  windows:
+    generate: true
+    image_path: "assets/logo/app-icons/mon peya.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/logo/app-icons/mon peya.png"
 
 
 flutter:
@@ -45,6 +64,7 @@ flutter:
   assets:
     - assets/images/
     - assets/logo/
+    - assets/logo/app-icons/
     - assets/logo/banks/
     - assets/logo/cards/
     - assets/modules/

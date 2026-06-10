@@ -7,11 +7,15 @@ class PeyapayDraggableBottomSheet extends StatefulWidget {
     required this.onDismiss,
     required this.heightFactor,
     required this.child,
+    this.scrollable = true,
   });
 
   final VoidCallback onDismiss;
   final double heightFactor;
   final Widget child;
+
+  /// When false, [child] must provide its own scrolling (e.g. [ListView]).
+  final bool scrollable;
 
   @override
   PeyapayDraggableBottomSheetState createState() => PeyapayDraggableBottomSheetState();
@@ -121,7 +125,14 @@ class PeyapayDraggableBottomSheetState extends State<PeyapayDraggableBottomSheet
                             behavior: HitTestBehavior.translucent,
                             child: PeyapayBottomSheetHandle(color: cs.outlineVariant),
                           ),
-                          Expanded(child: widget.child),
+                          Expanded(
+                            child: widget.scrollable
+                                ? SingleChildScrollView(
+                                    physics: const ClampingScrollPhysics(),
+                                    child: widget.child,
+                                  )
+                                : widget.child,
+                          ),
                         ],
                       ),
                     ),

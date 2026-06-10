@@ -3,7 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:peyapay/src/core/host/peyapay_host.bridge.dart';
 import 'package:peyapay/src/presentation/widgets/review_transfer_sheet.widget.dart';
 
-/// Default wallet sender built from the Mon Peya shell session.
+
+Future<bool> peyapayEnsureRegisteredForTransaction(BuildContext context) async {
+  final guard = PeyapayHostBridge.ensureRegisteredForTransaction;
+  if (guard != null) return guard(context);
+
+  final auth = PeyapayHostBridge.auth;
+  if (auth == null) return false;
+  if (!await auth.hasAccount()) return false;
+  return auth.isSessionActive();
+}
+
+
 Future<PeyapaySender?> peyapayPrimarySender() async {
   final auth = PeyapayHostBridge.auth;
   if (auth == null) return null;

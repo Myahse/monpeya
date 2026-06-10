@@ -5,6 +5,9 @@ abstract class ImmoHostAuth {
   /// Whether the user completed Mon Peya phone + PIN registration.
   Future<bool> isRegistered();
 
+  /// Whether the user entered their PIN this app session.
+  Future<bool> isSessionActive();
+
   Future<String?> getPhone();
   Future<String?> getPinForPhone(String phone);
   Future<String?> authToken();

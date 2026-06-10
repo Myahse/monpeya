@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:app/src/core/assets/constants/asset.paths.dart';
-import 'package:app/src/core/auth/module.auth.dart';
+import 'package:app/src/core/utils/status_bar.util.dart';
 import 'package:app/src/core/modules/app.module.dart';
 import 'package:app/src/core/modules/repositories/module.repository.dart';
 import 'package:app/src/core/routing/routes.dart';
@@ -10,7 +10,6 @@ import 'package:app/src/features/shell/screens/mon_peya_my_services.screen.dart'
 import 'package:app/src/features/shell/widgets/dynamic_modules_grid.widget.dart';
 import 'package:app/src/features/shell/widgets/module_scaffold.widget.dart';
 import 'package:app/src/features/shell/widgets/nteri_news_carousel.widget.dart';
-import 'package:app/src/features/shell/widgets/mon_peya_module_gate.widget.dart';
 import 'package:peyapay/peyapay.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -40,9 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openModule(AppModule module) {
-    openModuleIfRegistered(context, () {
-      AppStackScope.maybeOf(context)?.openModule(module);
-    });
+    AppStackScope.maybeOf(context)?.openModule(module);
   }
 
   void _showHomeActionSnack(BuildContext context, String label) {
@@ -58,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return ModuleScaffold(
       title: 'HOME',
       showAppBar: false,
-      padding: EdgeInsets.fromLTRB(16, MediaQuery.viewPaddingOf(context).top + 16, 16, 24),
+      padding: shellScrollPadding(context),
       children: [
         _HomeTopBar(
           title: 'Bienvenue,',
@@ -81,10 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // Mon Peya (mini card under balance)
         _MonPeyaMiniCard(
-          onTap: () async {
-            final ok = await ModuleAuth.ensureRegistered(context);
-            if (!context.mounted || !ok) return;
-
+          onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => const MonPeyaMyServicesScreen(),
@@ -187,81 +181,61 @@ class _HomeTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final screenW = MediaQuery.sizeOf(context).width;
     return SizedBox(
       height: 40,
-      child: OverflowBox(
+      child: Stack(
         alignment: Alignment.center,
-        minWidth: 0,
-        maxWidth: screenW,
-        child: SizedBox(
-          width: screenW,
-          height: 40,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: isDark ? Border(bottom: BorderSide(color: cs.outlineVariant)) : null,
-            ),
-            child: Padding(
-              // Keep content aligned with page padding while border goes edge-to-edge.
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      InkWell(
-                        onTap: onPressProfile,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              InkWell(
+                onTap: onPressProfile,
+                borderRadius: BorderRadius.circular(999),
+                child: SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: Center(
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: cs.onSurface,
                         borderRadius: BorderRadius.circular(999),
-                        child: SizedBox(
-                          width: 36,
-                          height: 36,
-                          child: Center(
-                            child: Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                color: cs.onSurface,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                            ),
-                          ),
-                        ),
                       ),
-                      const Spacer(),
-                      _HomeTopBarIconButton(
-                        icon: Icons.notifications_none_rounded,
-                        tooltip: 'Notifications',
-                        onPressed: onPressNotifications,
-                        color: cs.onSurface,
-                      ),
-                      const SizedBox(width: 4),
-                      _HomeTopBarIconButton(
-                        icon: Icons.headset_mic_outlined,
-                        tooltip: 'Assistance',
-                        onPressed: onPressAssistance,
-                        color: cs.onSurface,
-                      ),
-                    ],
-                  ),
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: cs.onSurface,
-                      height: 1.1,
                     ),
                   ),
-                ],
+                ),
               ),
+              const Spacer(),
+              _HomeTopBarIconButton(
+                icon: Icons.notifications_none_rounded,
+                tooltip: 'Notifications',
+                onPressed: onPressNotifications,
+                color: cs.onSurface,
+              ),
+              const SizedBox(width: 4),
+              _HomeTopBarIconButton(
+                icon: Icons.headset_mic_outlined,
+                tooltip: 'Assistance',
+                onPressed: onPressAssistance,
+                color: cs.onSurface,
+              ),
+            ],
+          ),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: cs.onSurface,
+              height: 1.1,
             ),
           ),
-        ),
+        ],
       ),
     );
   }

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-/// In-memory Mon Peya login session (PIN validated). Cleared on logout or app restart.
+/// In-memory Mon Peya login session (PIN validated). Cleared on logout or when the app leaves the foreground.
 class MonPeyaSession extends ChangeNotifier {
   MonPeyaSession._();
 

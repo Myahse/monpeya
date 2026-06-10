@@ -91,7 +91,8 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
       body: Stack(
         children: [
           SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
+            clipBehavior: Clip.none,
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             child: Padding(
               padding: EdgeInsets.only(
                 top: peyapayStatusBarTop(context),

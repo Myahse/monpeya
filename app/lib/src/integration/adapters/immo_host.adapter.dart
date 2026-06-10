@@ -24,7 +24,10 @@ class MonPeyaImmoHostAdapter implements ImmoHostAuth {
   }
 
   @override
-  Future<bool> isRegistered() async => MonPeyaSession.instance.isSessionActive;
+  Future<bool> isRegistered() => AuthStore.hasAccount();
+
+  @override
+  Future<bool> isSessionActive() async => MonPeyaSession.instance.isSessionActive;
 
   @override
   Future<String?> authToken() => AuthStore.authToken();

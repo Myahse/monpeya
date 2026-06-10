@@ -1,11 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:peyapay/peyapay.dart';
 
+import 'package:app/src/core/auth/module.auth.dart';
 import 'package:app/src/core/routing/routes.dart';
 import 'package:app/src/core/session/mon_peya.session.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/features/shell/widgets/nteri_news_carousel.widget.dart';
 
-/// Connects Mon Peya shell auth, routes, and shared UI to the Peya Pay package.
+
 class MonPeyaPeyapayHostAdapter implements PeyapayHostAuth {
   const MonPeyaPeyapayHostAdapter();
 
@@ -17,6 +19,9 @@ class MonPeyaPeyapayHostAdapter implements PeyapayHostAuth {
     };
     PeyapayHostBridge.buildNewsCarousel = (context, {height = 200}) {
       return NteriNewsCarousel(height: height);
+    };
+    PeyapayHostBridge.ensureRegisteredForTransaction = (BuildContext context) {
+      return ModuleAuth.ensureRegistered(context);
     };
   }
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import 'package:app/src/core/system/system_ui.config.dart';
 import 'package:app/src/integration/adapters/billetterie_host.adapter.dart';
 import 'package:app/src/integration/adapters/immo_host.adapter.dart';
 import 'package:app/src/integration/adapters/peyapay_host.adapter.dart';
@@ -11,9 +13,14 @@ void _registerModuleHosts() {
   MonPeyaBilletterieHostAdapter.register();
 }
 
-class MonPeyaSuperApp extends StatelessWidget {
+class MonPeyaSuperApp extends StatefulWidget {
   const MonPeyaSuperApp({super.key});
 
+  @override
+  State<MonPeyaSuperApp> createState() => _MonPeyaSuperAppState();
+}
+
+class _MonPeyaSuperAppState extends State<MonPeyaSuperApp> {
   static const _textScale = 0.90;
 
   static bool _hostsRegistered = false;
@@ -45,6 +52,8 @@ class MonPeyaSuperApp extends StatelessWidget {
       builder: (context, child) {
         final media = MediaQuery.of(context);
         final childWidget = child ?? const SizedBox.shrink();
+        final brightness = Theme.of(context).brightness;
+        final overlay = monPeyaSystemUiOverlay(brightness);
 
         // Fixed app typography: ignore OS display/font size (accessibility text scale).
         final fixedMedia = media.copyWith(
@@ -52,7 +61,10 @@ class MonPeyaSuperApp extends StatelessWidget {
           boldText: false,
         );
 
-        return MediaQuery(data: fixedMedia, child: childWidget);
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: overlay,
+          child: MediaQuery(data: fixedMedia, child: childWidget),
+        );
       },
       navigatorKey: rootNavKey,
       initialRoute: Routes.splash,

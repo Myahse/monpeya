@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:app/src/core/auth/module.auth.dart';
 import 'package:app/src/core/session/mon_peya.session.dart';
 import 'package:app/src/features/shell/tabs/screens/home.screen.dart';
 import 'package:app/src/features/shell/tabs/screens/peyapay_tab.shell.dart';
@@ -47,15 +48,15 @@ class _MainTabsShellState extends State<MainTabsShell> {
       return;
     }
 
+    if (next == MainTab.peyapay) {
+      final ok = await ModuleAuth.ensureRegistered(context);
+      if (!ok || !mounted) return;
+    }
+
     setState(() => _tab = next);
   }
 
-  bool _hideBottomNav() {
-    final session = MonPeyaSession.instance;
-    if (session.isAuthOverlayVisible) return true;
-    if (_tab == MainTab.peyapay && !session.isSessionActive) return true;
-    return false;
-  }
+  bool _hideBottomNav() => MonPeyaSession.instance.isAuthOverlayVisible;
 
   @override
   Widget build(BuildContext context) {
@@ -74,9 +75,14 @@ class _MainTabsShellState extends State<MainTabsShell> {
           },
           child: Scaffold(
             extendBody: hideNav,
-            body: Stack(
-              children: [
-                IndexedStack(
+            extendBodyBehindAppBar: true,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            body: ColoredBox(
+              color: Theme.of(context).colorScheme.surface,
+              child: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: IndexedStack(
                   index: _tab.index,
                   children: [
                     _TabNavigator(navigatorKey: _navKeys[MainTab.home]!, root: const HomeScreen()),
@@ -90,7 +96,7 @@ class _MainTabsShellState extends State<MainTabsShell> {
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
             bottomNavigationBar: hideNav
                 ? null

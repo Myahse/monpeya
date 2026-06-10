@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:peyapay/src/core/utils/peyapay_session.util.dart';
 import 'package:peyapay/src/presentation/widgets/pin_keypad.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_card_brand_badge.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_review_animations.widget.dart';
@@ -94,6 +95,9 @@ class _PeyapayAddMoneyScreenState extends State<PeyapayAddMoneyScreen> with Sing
 
   Future<void> _continueToReview() async {
     if (_amount <= 0) return;
+
+    final allowed = await peyapayEnsureRegisteredForTransaction(context);
+    if (!mounted || !allowed) return;
 
     final ok = await Navigator.of(context).push<bool>(
       peyapayReviewTransferRoute(

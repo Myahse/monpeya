@@ -197,7 +197,6 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     final bg = isDark ? cs.surface : Colors.white;
     final ink = isDark ? cs.onSurface : const Color(0xFF111827);
     final logoPath = isDark ? AssetPaths.logoDark : AssetPaths.logo;
-    final viewPadding = MediaQuery.viewPaddingOf(context);
 
     if (phoneNumber == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -223,30 +222,30 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
 
     return Scaffold(
       backgroundColor: bg,
-      resizeToAvoidBottomInset: false,
-      body: Padding(
-        padding: EdgeInsets.fromLTRB(18, viewPadding.top + 16, 18, viewPadding.bottom + 16),
-        child: Column(
-          children: [
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
                 children: [
+                  const SizedBox(height: 24),
                   Image.asset(
                     logoPath,
-                    width: 220,
-                    height: 100,
+                    width: 200,
+                    height: 90,
                     fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                   Text(
                     'Entrez votre code PIN',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ink),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: ink),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 18),
                   Container(
-                    width: 256,
+                    width: 240,
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     decoration: BoxDecoration(
                       color: isDark ? cs.surfaceContainerHighest : Colors.white,
@@ -260,8 +259,8 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(4, (i) {
                         return Container(
-                          width: 48,
-                          height: 48,
+                          width: 44,
+                          height: 44,
                           margin: const EdgeInsets.symmetric(horizontal: 4),
                           decoration: BoxDecoration(
                             color: isDark ? cs.surface : const Color(0xFFF3F4F6),
@@ -271,7 +270,7 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
                           child: Text(
                             _pin.length > i ? '•' : '',
                             style: TextStyle(
-                              fontSize: 28,
+                              fontSize: 24,
                               fontWeight: FontWeight.w700,
                               color: ink,
                             ),
@@ -282,7 +281,7 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
                   ),
                   if (_showError)
                     const Padding(
-                      padding: EdgeInsets.only(top: 8),
+                      padding: EdgeInsets.only(top: 6),
                       child: Text(
                         'Code PIN incorrect. Réessayez.',
                         textAlign: TextAlign.center,
@@ -291,40 +290,47 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
                     ),
                 ],
               ),
-            ),
-            PinKeypad(
-              keypad: _keypad,
-              onKeyPress: _onKeyPress,
-              onDelete: _onDelete,
-              onLongDelete: _onLongDelete,
-              textColor: ink,
-              showBiometric: showBiometric,
-              onBiometric: () => _tryBiometricLogin(),
-              biometricEnabled: !_submitting,
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: _pin.length == 4 ? const Color(0xFF006D56) : const Color(0xFFB9D8CF),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 18),
+                child: Column(
+                  children: [
+                    PinKeypad(
+                      keypad: _keypad,
+                      onKeyPress: _onKeyPress,
+                      onDelete: _onDelete,
+                      onLongDelete: _onLongDelete,
+                      textColor: ink,
+                      showBiometric: showBiometric,
+                      onBiometric: () => _tryBiometricLogin(),
+                      biometricEnabled: !_submitting,
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: MediaQuery.sizeOf(context).width * 0.8,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _pin.length == 4 ? const Color(0xFF006D56) : const Color(0xFFB9D8CF),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: (_pin.length == 4 && phoneNumber != null && !_submitting)
+                            ? () => _submit(phoneNumber)
+                            : null,
+                        child: _submitting
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Valider', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
                 ),
-                onPressed: (_pin.length == 4 && phoneNumber != null && !_submitting)
-                    ? () => _submit(phoneNumber)
-                    : null,
-                child: _submitting
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Valider', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

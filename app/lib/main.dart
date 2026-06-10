@@ -1,5 +1,10 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:app/app.dart';
+import 'package:app/src/core/system/system_ui.config.dart';
 
-void main() => runApp(const MonPeyaSuperApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await configureMonPeyaSystemUi();
+  runApp(const MonPeyaSuperApp());
+}

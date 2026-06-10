@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'package:app/src/features/shell/widgets/mon_peya_module_gate.widget.dart';
+import 'package:app/src/core/modules/widgets/module.icon.dart';
 import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
 import 'package:app/src/features/shell/types/app_stack.types.dart';
+import 'package:app/src/features/shell/widgets/vertical_service_tile.widget.dart';
 
 class MonPeyaMyServicesScreen extends StatelessWidget {
   const MonPeyaMyServicesScreen({super.key});
@@ -67,30 +68,30 @@ class MonPeyaMyServicesScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _ServicesGrid(
-                    onOpenBilletterie: () => openModuleIfRegistered(context, () {
+                    onOpenBilletterie: () {
                       appStack?.openService(
                         AppStackRoute.billetterie,
                         params: const {'moduleId': 'billetterie-electronique'},
                       );
-                    }),
-                    onOpenRental: () => openModuleIfRegistered(context, () {
+                    },
+                    onOpenRental: () {
                       appStack?.openService(
                         AppStackRoute.mrImmoRental,
                         params: const {'moduleId': 'mr-immo-rental'},
                       );
-                    }),
-                    onOpenConstruction: () => openModuleIfRegistered(context, () {
+                    },
+                    onOpenConstruction: () {
                       appStack?.openService(
                         AppStackRoute.mrImmoConstruction,
                         params: const {'moduleId': 'mr-immo-construction'},
                       );
-                    }),
-                    onOpenCollection: () => openModuleIfRegistered(context, () {
+                    },
+                    onOpenCollection: () {
                       appStack?.openService(
                         AppStackRoute.mrImmoCollection,
                         params: const {'moduleId': 'mr-immo-collection'},
                       );
-                    }),
+                    },
                   ),
                 ],
               ),
@@ -129,40 +130,11 @@ class _ServicesGrid extends StatelessWidget {
           required String label,
           required VoidCallback onTap,
         }) {
-          return SizedBox(
+          return VerticalServiceTile(
             width: tileW,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                child: Column(
-                  children: [
-                    Container(
-                      width: iconSize + 15,
-                      height: iconSize + 8,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(child: icon),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            label: label,
+            icon: icon,
+            onTap: onTap,
           );
         }
 
@@ -176,17 +148,17 @@ class _ServicesGrid extends StatelessWidget {
               onTap: onOpenBilletterie,
             ),
             tile(
-              icon: const Icon(Icons.home_work_outlined, size: 28),
+              icon: ModuleIcon(iconKey: 'immo-rental', moduleKey: 'mr-immo-rental', size: iconSize * 0.72),
               label: 'Mr Immo Rental',
               onTap: onOpenRental,
             ),
             tile(
-              icon: const Icon(Icons.construction_outlined, size: 28),
+              icon: ModuleIcon(iconKey: 'immo-construction', moduleKey: 'mr-immo-construction', size: iconSize * 0.72),
               label: 'Construction',
               onTap: onOpenConstruction,
             ),
             tile(
-              icon: const Icon(Icons.collections_bookmark_outlined, size: 28),
+              icon: ModuleIcon(iconKey: 'immo-collection', moduleKey: 'mr-immo-collection', size: iconSize * 0.72),
               label: 'Collection',
               onTap: onOpenCollection,
             ),

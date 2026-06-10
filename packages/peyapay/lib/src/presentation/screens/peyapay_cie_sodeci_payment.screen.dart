@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import 'package:peyapay/src/core/constants/peya_pay.assets.dart';
+import 'package:peyapay/src/core/utils/peyapay_session.util.dart';
 
 import 'package:peyapay/src/presentation/widgets/peyapay_review_animations.widget.dart';
 import 'package:peyapay/src/presentation/widgets/review_transfer_sheet.widget.dart';
@@ -142,6 +143,9 @@ class _PeyapayCieSodeciPaymentScreenState extends State<PeyapayCieSodeciPaymentS
 
   Future<void> _pay() async {
     if (!_showBill) return;
+
+    final allowed = await peyapayEnsureRegisteredForTransaction(context);
+    if (!mounted || !allowed) return;
 
     final fee = max(0, (_amount * 0.005).ceil());
     final ok = await Navigator.of(context).push<bool>(

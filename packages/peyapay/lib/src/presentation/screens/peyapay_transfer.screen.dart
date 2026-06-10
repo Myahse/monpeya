@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:peyapay/src/core/utils/peyapay_session.util.dart';
 import 'package:peyapay/src/presentation/widgets/pin_keypad.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_review_animations.widget.dart';
 import 'package:peyapay/src/presentation/widgets/review_transfer_sheet.widget.dart';
@@ -202,6 +203,9 @@ class _PeyapayTransferScreenState extends State<PeyapayTransferScreen>
                               onPressed: !canNext
                                   ? null
                                   : () async {
+                                      final allowed = await peyapayEnsureRegisteredForTransaction(context);
+                                      if (!context.mounted || !allowed) return;
+
                                       final recipientName = _recipientCtrl.text.trim();
                                       final ok = await Navigator.of(context).push<bool>(
                                         peyapayReviewTransferRoute(

@@ -6,6 +6,7 @@ import 'package:app/src/core/modules/repositories/module.repository.dart';
 import 'package:app/src/core/routing/routes.dart';
 import 'package:app/src/features/settings/presentation/screens/settings.screen.dart';
 import 'package:app/src/features/shell/widgets/mon_peya_module_gate.widget.dart';
+import 'package:app/src/features/shell/widgets/vertical_service_tile.widget.dart';
 import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
 import 'package:app/src/features/shell/types/app_stack.types.dart';
 
@@ -145,7 +146,7 @@ class _NteriMenuPanelState extends State<NteriMenuPanel> {
                           physics: const NeverScrollableScrollPhysics(),
                           mainAxisSpacing: 4,
                           crossAxisSpacing: 4,
-                          childAspectRatio: 0.92,
+                          childAspectRatio: 0.78,
                           children: [
                             for (final module in modules)
                               _ModuleMenuTile(
@@ -252,40 +253,30 @@ class _ModuleMenuTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: selected ? cs.primaryContainer : null,
-          borderRadius: BorderRadius.circular(16),
-          border: selected ? Border.all(color: cs.primary, width: 1.5) : null,
-        ),
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ModuleIcon.forModule(
-              module,
-              size: 32,
-              color: selected ? cs.primary : cs.onSurface,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: cs.onSurface,
-                height: 1.15,
-              ),
-            ),
-          ],
-        ),
-      ),
+    final immoBranded = isImmoBrandedModuleIcon(
+      moduleKey: module.moduleKey,
+      iconKey: module.icon,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final iconSize = immoBranded
+            ? (constraints.maxHeight * 0.42).clamp(22.0, 32.0)
+            : (constraints.maxHeight * 0.36).clamp(20.0, 28.0);
+
+        return VerticalServiceTile(
+          width: constraints.maxWidth,
+          height: constraints.maxHeight,
+          label: label,
+          selected: selected,
+          onTap: onTap,
+          icon: ModuleIcon.forModule(
+            module,
+            size: iconSize,
+            color: selected ? cs.primary : cs.onSurface,
+          ),
+        );
+      },
     );
   }
 }

@@ -540,7 +540,7 @@ class _TransferMethodSheet extends StatelessWidget {
 
     return PeyapayDraggableBottomSheet(
       onDismiss: onClose,
-      heightFactor: 0.30,
+      heightFactor: 0.36,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -596,27 +596,28 @@ class _BankPickerSheet extends StatelessWidget {
       heightFactor: 0.72,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text('Choisir une banque', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: ink)),
           const SizedBox(height: 6),
           Text('Sélectionnez une banque à connecter', style: TextStyle(fontSize: 12, color: muted)),
           const SizedBox(height: 12),
-          Expanded(
-            child: ListView.separated(
-              itemCount: banks.length,
-              separatorBuilder: (_, __) => Divider(height: 1, color: cs.outlineVariant),
-              itemBuilder: (_, i) {
-                final bank = banks[i];
-                return ListTile(
-                  leading: _Logo(item: bank),
-                  title: Text(bank.name, style: TextStyle(fontWeight: FontWeight.w800, color: ink)),
-                  trailing: bank.isAdded
-                      ? const Icon(Icons.check_circle, color: Color(0xFF006D56), size: 22)
-                      : const Icon(Icons.add_circle_outline, color: Color(0xFF006D56)),
-                  onTap: () => onSelect(bank),
-                );
-              },
-            ),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: banks.length,
+            separatorBuilder: (_, __) => Divider(height: 1, color: cs.outlineVariant),
+            itemBuilder: (_, i) {
+              final bank = banks[i];
+              return ListTile(
+                leading: _Logo(item: bank),
+                title: Text(bank.name, style: TextStyle(fontWeight: FontWeight.w800, color: ink)),
+                trailing: bank.isAdded
+                    ? const Icon(Icons.check_circle, color: Color(0xFF006D56), size: 22)
+                    : const Icon(Icons.add_circle_outline, color: Color(0xFF006D56)),
+                onTap: () => onSelect(bank),
+              );
+            },
           ),
         ],
       ),
@@ -715,6 +716,7 @@ class _CreditCardSheetState extends State<_CreditCardSheet> {
       key: _sheetKey,
       onDismiss: widget.onClose,
       heightFactor: 0.68,
+      scrollable: false,
       child: ListView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),

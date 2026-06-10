@@ -7,18 +7,20 @@ class ModuleScaffold extends StatelessWidget {
     required this.children,
     this.showAppBar = true,
     this.padding = const EdgeInsets.fromLTRB(16, 12, 16, 24),
-    this.safeAreaTop = false,
   });
+
   final String title;
   final List<Widget> children;
   final bool showAppBar;
+  /// Scrollable inset — when the user scrolls up, content can move behind the status bar.
   final EdgeInsets padding;
-  final bool safeAreaTop;
 
   @override
   Widget build(BuildContext context) {
-    final scroll = CustomScrollView(
+    return CustomScrollView(
       key: PageStorageKey<String>('module-scroll-$title'),
+      clipBehavior: Clip.none,
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       slivers: [
         if (showAppBar) SliverAppBar(pinned: true, title: Text(title)),
         SliverPadding(
@@ -27,11 +29,6 @@ class ModuleScaffold extends StatelessWidget {
         ),
       ],
     );
-
-    if (safeAreaTop) {
-      return SafeArea(top: true, bottom: false, child: scroll);
-    }
-    return scroll;
   }
 }
 
@@ -90,4 +87,3 @@ class ModuleTile extends StatelessWidget {
     );
   }
 }
-

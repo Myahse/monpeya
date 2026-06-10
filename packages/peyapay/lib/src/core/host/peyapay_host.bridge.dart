@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Shell route names forwarded through [PeyapayHostBridge.openRoute].
+
 class PeyapayHostRoutes {
   PeyapayHostRoutes._();
 
@@ -13,7 +13,7 @@ abstract class PeyapayHostAuth {
   /// True when the user entered PIN this session (in-memory).
   Future<bool> isSessionActive();
 
-  /// True when phone + PIN are stored on device (registered account).
+
   Future<bool> hasAccount();
 
   Future<String?> getPhone();
@@ -25,6 +25,9 @@ typedef PeyapayHostRouteOpener = Future<void> Function(String routeName);
 
 typedef PeyapayHostNewsBuilder = Widget Function(BuildContext context, {double height});
 
+/// Called before a wallet payment, transfer, or deposit is confirmed.
+typedef PeyapayHostTransactionGuard = Future<bool> Function(BuildContext context);
+
 /// Registered by Mon Peya before opening Peya Pay.
 class PeyapayHostBridge {
   PeyapayHostBridge._();
@@ -33,7 +36,10 @@ class PeyapayHostBridge {
   static PeyapayHostRouteOpener? openRoute;
   static PeyapayHostNewsBuilder? buildNewsCarousel;
 
-  /// Fired when Mon Peya login / logout changes (shell registers this).
+  /// Mon Peya shell registers this to require sign-up / PIN before transactions.
+  static PeyapayHostTransactionGuard? ensureRegisteredForTransaction;
+
+ 
   static Listenable? sessionChanges;
 
   static PeyapayHostAuth get requireAuth {
