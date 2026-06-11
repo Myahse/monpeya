@@ -19,3 +19,25 @@ String formatFrDateOnly(String iso) {
   return '$d/$m/$y';
 }
 
+String formatFrDateTime(String iso) {
+  final dt = DateTime.tryParse(iso)?.toLocal();
+  if (dt == null) return '';
+  final h = dt.hour.toString().padLeft(2, '0');
+  final min = dt.minute.toString().padLeft(2, '0');
+  return '${formatFrDateOnly(iso)} à $h:$min';
+}
+
+String formatFrDateSectionLabel(String iso) {
+  final dt = DateTime.tryParse(iso)?.toLocal();
+  if (dt == null) return 'Autres';
+
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final day = DateTime(dt.year, dt.month, dt.day);
+  final diff = today.difference(day).inDays;
+
+  if (diff == 0) return 'Aujourd\'hui';
+  if (diff == 1) return 'Hier';
+  return formatFrDateOnly(iso);
+}
+

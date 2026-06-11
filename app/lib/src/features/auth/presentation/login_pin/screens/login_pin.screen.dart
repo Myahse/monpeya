@@ -44,15 +44,9 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     _bootstrap();
   }
 
-  Future<bool> _hasBiometricToken() async {
-    final token = await AuthStore.authToken();
-    return token != null && token.isNotEmpty;
-  }
-
   Future<void> _refreshBiometricState() async {
     final available = await BiometricAuth.canUseBiometrics();
     final enabled = await BiometricAuth.isEnabledInSettings();
-    final hasToken = await _hasBiometricToken();
     if (!mounted) return;
     setState(() {
       _biometricAvailable = available;
@@ -65,9 +59,7 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     final hasPin = await AuthStore.hasPinForPhone(phone);
     if (!mounted || !hasPin) return;
 
-    if (hasToken || enabled) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _tryBiometricLogin(auto: true));
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tryBiometricLogin(auto: true));
   }
 
   Future<void> _bootstrap() async {
@@ -166,15 +158,22 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     if (auto) {
       if (_autoBiometricAttempted) return;
       _autoBiometricAttempted = true;
-      final hasToken = await _hasBiometricToken();
-      if (!_biometricEnabled && !hasToken) return;
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (!mounted || _submitting) return;
     }
     if (!_biometricAvailable) return;
 
     final phone = _phoneNumber;
     if (phone == null) return;
 
-    final ok = await BiometricAuth.authenticate();
+    final hasPin = await AuthStore.hasPinForPhone(phone);
+    if (!mounted || !hasPin) return;
+
+    final ok = await BiometricAuth.authenticate(
+      reason: widget.embeddedInModule
+          ? 'Déverrouillez PeyaPay avec la biométrie'
+          : 'Déverrouillez Mon Peya avec la biométrie',
+    );
     if (!mounted || !ok) return;
 
     if (!_biometricEnabled) {

@@ -6,6 +6,7 @@ import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/modules/app.module.dart';
 import 'package:app/src/core/modules/bundled.modules.dart';
 import 'package:app/src/core/modules/config/module_api.config.dart';
+import 'package:app/src/core/modules/config/module_visibility.config.dart';
 import 'package:app/src/core/modules/mergers/module.merger.dart';
 
 class ModuleRepository {
@@ -21,25 +22,25 @@ class ModuleRepository {
     final bundled = List<AppModule>.from(BundledModules.catalog);
 
     if (mode == ModuleLoadMode.bundledOnly) {
-      return ModuleFetchResult(
+      return _visibleResult(ModuleFetchResult(
         modules: ModuleMerger.merge(mode: mode, remote: const [], bundled: bundled),
         loadMode: mode,
         apiReachable: false,
         usedBundledFallback: true,
         stats: ModuleFetchStats.fromModules(bundled),
-      );
+      ));
     }
 
     try {
       final remote = await _fetchFromApi();
       final merged = ModuleMerger.merge(mode: mode, remote: remote, bundled: bundled);
-      return ModuleFetchResult(
+      return _visibleResult(ModuleFetchResult(
         modules: merged,
         loadMode: mode,
         apiReachable: true,
         usedBundledFallback: false,
         stats: ModuleFetchStats.fromModules(merged),
-      );
+      ));
     } catch (_) {
       if (mode == ModuleLoadMode.remoteOnly) {
         rethrow;
@@ -50,14 +51,25 @@ class ModuleRepository {
         remote: const [],
         bundled: bundled,
       );
-      return ModuleFetchResult(
+      return _visibleResult(ModuleFetchResult(
         modules: fallback,
         loadMode: mode,
         apiReachable: false,
         usedBundledFallback: true,
         stats: ModuleFetchStats.fromModules(fallback),
-      );
+      ));
     }
+  }
+
+  ModuleFetchResult _visibleResult(ModuleFetchResult result) {
+    final modules = ModuleVisibility.filterVisible(result.modules);
+    return ModuleFetchResult(
+      modules: modules,
+      loadMode: result.loadMode,
+      apiReachable: result.apiReachable,
+      usedBundledFallback: result.usedBundledFallback,
+      stats: ModuleFetchStats.fromModules(modules),
+    );
   }
 
   Future<List<AppModule>> fetchModules() async {

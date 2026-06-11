@@ -9,8 +9,10 @@ import 'package:peyapay/src/presentation/widgets/peyapay_slide_panel.widget.dart
 import 'package:peyapay/src/presentation/widgets/peyapay_top_bar.widget.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_payment_services.screen.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_source_of_funds.screen.dart';
+import 'package:peyapay/src/presentation/screens/peyapay_transaction_detail.screen.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_transactions.screen.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_transfer_contacts.screen.dart';
+import 'package:peyapay/src/presentation/widgets/peyapay_transaction_list_tile.widget.dart';
 
 class PeyapayScreen extends StatefulWidget {
   const PeyapayScreen({super.key});
@@ -27,9 +29,33 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
   // TODO: Wire to the same data source as the RN dashboardDataCache.
   final int _balance = 125000;
   final List<TransactionItem> _recent = const [
-    TransactionItem(id: '1', recipient: 'Supermarché', dateIso: '2026-04-15T10:10:00.000Z', amount: -12500),
-    TransactionItem(id: '2', recipient: 'Oumar D.', dateIso: '2026-04-14T16:22:00.000Z', amount: 25000),
-    TransactionItem(id: '3', recipient: 'Orange Money', dateIso: '2026-04-13T09:05:00.000Z', amount: 10000),
+    TransactionItem(
+      id: '1',
+      recipient: 'Supermarché Prosuma',
+      dateIso: '2026-04-15T10:10:00.000Z',
+      amount: -12500,
+      type: TransactionType.payment,
+      reference: 'TXN-20260415-001',
+      description: 'Paiement courses',
+    ),
+    TransactionItem(
+      id: '2',
+      recipient: 'Oumar D.',
+      dateIso: '2026-04-14T16:22:00.000Z',
+      amount: 25000,
+      type: TransactionType.transfer,
+      reference: 'TXN-20260414-018',
+      description: 'Transfert reçu',
+    ),
+    TransactionItem(
+      id: '3',
+      recipient: 'Orange Money',
+      dateIso: '2026-04-13T09:05:00.000Z',
+      amount: 10000,
+      type: TransactionType.deposit,
+      reference: 'TXN-20260413-004',
+      description: 'Recharge compte',
+    ),
   ];
 
   @override
@@ -281,62 +307,16 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
                             Column(
                               children: [
                                 for (final item in _recent)
-                                  GestureDetector(
-                                    onTap: () => _showTxAlert(context, item),
-                                    child: Container(
-                                      margin: const EdgeInsets.only(bottom: 10),
-                                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                                      decoration: BoxDecoration(
-                                        color: bg,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(color: border),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Row(
-                                              children: [
-                                                Container(
-                                                  width: 36,
-                                                  height: 36,
-                                                  decoration: BoxDecoration(
-                                                    color: iconBgGrey,
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  alignment: Alignment.center,
-                                                  child: Icon(Icons.swap_horiz_rounded, size: 18, color: ink),
-                                                ),
-                                                const SizedBox(width: 10),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                                    children: [
-                                                      Text(
-                                                        item.recipient,
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
-                                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: ink),
-                                                      ),
-                                                      const SizedBox(height: 4),
-                                                      Text(
-                                                        formatFrDateOnly(item.dateIso),
-                                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: muted),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Text(
-                                            '${formatFrMoneySigned(item.amount)} XOF',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: ink),
-                                          ),
-                                        ],
-                                      ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: PeyapayTransactionListTile(
+                                      item: item,
+                                      ink: ink,
+                                      muted: muted,
+                                      border: border,
+                                      iconBg: iconBgGrey,
+                                      surface: bg,
+                                      onTap: () => openPeyapayTransactionDetail(context, item),
                                     ),
                                   ),
                               ],
@@ -376,17 +356,6 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
         ),
     );
   }
-}
-
-void _showTxAlert(BuildContext context, TransactionItem item) {
-  showDialog<void>(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text('Transaction'),
-      content: Text('${item.recipient}\n${formatFrMoneySigned(item.amount)} XOF'),
-      actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
-    ),
-  );
 }
 
 class _AuthModal extends StatelessWidget {

@@ -1,25 +1,44 @@
 import 'package:flutter/material.dart';
 
-import 'package:app/src/core/modules/widgets/module.icon.dart';
+import 'package:app/src/core/modules/app.module.dart';
+import 'package:app/src/core/modules/repositories/module.repository.dart';
+import 'package:app/src/core/utils/status_bar.util.dart';
 import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
-import 'package:app/src/features/shell/types/app_stack.types.dart';
-import 'package:app/src/features/shell/widgets/vertical_service_tile.widget.dart';
+import 'package:app/src/features/shell/widgets/dynamic_modules_grid.widget.dart';
 
-class MonPeyaMyServicesScreen extends StatelessWidget {
+class MonPeyaMyServicesScreen extends StatefulWidget {
   const MonPeyaMyServicesScreen({super.key});
+
+  @override
+  State<MonPeyaMyServicesScreen> createState() => _MonPeyaMyServicesScreenState();
+}
+
+class _MonPeyaMyServicesScreenState extends State<MonPeyaMyServicesScreen> {
+  final _repository = ModuleRepository();
+  late Future<ModuleFetchResult> _modulesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _modulesFuture = _repository.fetchModulesResult();
+  }
+
+  void _openModule(AppModule module) {
+    AppStackScope.maybeOf(context)?.openModule(module);
+  }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final appStack = AppStackScope.maybeOf(context);
 
     return Scaffold(
       backgroundColor: cs.surface,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      body: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, shellContentTop(context) + 12, 16, 12),
+            child: SizedBox(
+              height: 40,
               child: Row(
                 children: [
                   InkWell(
@@ -49,123 +68,47 @@ class MonPeyaMyServicesScreen extends StatelessWidget {
                 ],
               ),
             ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                children: [
-                  Text(
-                    'Mes services',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: cs.onSurface,
+          ),
+          Expanded(
+            child: FutureBuilder<ModuleFetchResult>(
+              future: _modulesFuture,
+              builder: (context, snapshot) {
+                final loading = snapshot.connectionState != ConnectionState.done;
+                final modules = snapshot.data?.modules ?? const <AppModule>[];
+
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  children: [
+                    Text(
+                      'Mes services',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: cs.onSurface,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Services disponibles sur votre compte',
-                    style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 14),
-                  _ServicesGrid(
-                    onOpenBilletterie: () {
-                      appStack?.openService(
-                        AppStackRoute.billetterie,
-                        params: const {'moduleId': 'billetterie-electronique'},
-                      );
-                    },
-                    onOpenRental: () {
-                      appStack?.openService(
-                        AppStackRoute.mrImmoRental,
-                        params: const {'moduleId': 'mr-immo-rental'},
-                      );
-                    },
-                    onOpenConstruction: () {
-                      appStack?.openService(
-                        AppStackRoute.mrImmoConstruction,
-                        params: const {'moduleId': 'mr-immo-construction'},
-                      );
-                    },
-                    onOpenCollection: () {
-                      appStack?.openService(
-                        AppStackRoute.mrImmoCollection,
-                        params: const {'moduleId': 'mr-immo-collection'},
-                      );
-                    },
-                  ),
-                ],
-              ),
+                    const SizedBox(height: 2),
+                    Text(
+                      loading
+                          ? 'Chargement...'
+                          : 'Services disponibles sur votre compte',
+                      style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 14),
+                    if (loading)
+                      const ModulesLoadingGrid()
+                    else
+                      DynamicModulesGrid(
+                        modules: modules,
+                        onOpenModule: _openModule,
+                      ),
+                  ],
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
-
-class _ServicesGrid extends StatelessWidget {
-  const _ServicesGrid({
-    required this.onOpenBilletterie,
-    required this.onOpenRental,
-    required this.onOpenConstruction,
-    required this.onOpenCollection,
-  });
-
-  final VoidCallback onOpenBilletterie;
-  final VoidCallback onOpenRental;
-  final VoidCallback onOpenConstruction;
-  final VoidCallback onOpenCollection;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const columns = 4;
-        const gap = 12.0;
-        final tileW = (constraints.maxWidth - gap * (columns - 1)) / columns;
-        final iconSize = tileW < 80 ? 44.0 : 52.0;
-
-        Widget tile({
-          required Widget icon,
-          required String label,
-          required VoidCallback onTap,
-        }) {
-          return VerticalServiceTile(
-            width: tileW,
-            label: label,
-            icon: icon,
-            onTap: onTap,
-          );
-        }
-
-        return Wrap(
-          spacing: gap,
-          runSpacing: 14,
-          children: [
-            tile(
-              icon: const Icon(Icons.confirmation_number_outlined, size: 28),
-              label: 'Billetterie',
-              onTap: onOpenBilletterie,
-            ),
-            tile(
-              icon: ModuleIcon(iconKey: 'immo-rental', moduleKey: 'mr-immo-rental', size: iconSize * 0.72),
-              label: 'Mr Immo Rental',
-              onTap: onOpenRental,
-            ),
-            tile(
-              icon: ModuleIcon(iconKey: 'immo-construction', moduleKey: 'mr-immo-construction', size: iconSize * 0.72),
-              label: 'Construction',
-              onTap: onOpenConstruction,
-            ),
-            tile(
-              icon: ModuleIcon(iconKey: 'immo-collection', moduleKey: 'mr-immo-collection', size: iconSize * 0.72),
-              label: 'Collection',
-              onTap: onOpenCollection,
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
