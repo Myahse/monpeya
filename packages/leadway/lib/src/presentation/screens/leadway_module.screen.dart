@@ -23,6 +23,12 @@ import 'package:leadway/src/data/models/leadway_api_payment_init_request.model.d
 import 'package:leadway/src/data/models/leadway_api_payment_request.model.dart';
 import 'package:leadway/src/data/models/leadway_api_payment_check_request.model.dart';
 
+enum LeadwayServiceType {
+  none,
+  life,
+  nonLife,
+}
+
 /// Parcours assurance Leadway — 4 étapes.
 class LeadwayModuleScreen extends StatefulWidget {
   const LeadwayModuleScreen({
@@ -45,6 +51,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
   ];
 
   int _step = 0;
+  LeadwayServiceType _selectedService = LeadwayServiceType.none;
 
   List<Map<String, dynamic>> _subscriptions = [];
   bool _viewingSubscriptions = false;
@@ -232,19 +239,28 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
   Future<void> _calculatePremium() async {
     final valeurInitiale = int.tryParse(_valeurInitialeCtrl.text.replaceAll(RegExp(r'\s'), '')) ?? 0;
     final valeurVenale = int.tryParse(_valeurVenaleCtrl.text.replaceAll(RegExp(r'\s'), '')) ?? 0;
+    final ageVehicule = int.tryParse(_ageVehiculeCtrl.text.trim()) ?? 0;
 
-    final ageVehicule = int.tryParse(_ageVehiculeCtrl.text.trim()) ?? -1;
-    if (ageVehicule < 0 || ageVehicule > 100) {
-      _showToast('Veuillez renseigner un âge de véhicule valide (0 à 100 ans).', LeadwayToastType.error);
-      return;
+    if (_ageVehiculeCtrl.text.trim().isNotEmpty) {
+      final parsedAge = int.tryParse(_ageVehiculeCtrl.text.trim()) ?? -1;
+      if (parsedAge < 0 || parsedAge > 100) {
+        _showToast('Veuillez renseigner un âge de véhicule valide (0 à 100 ans).', LeadwayToastType.error);
+        return;
+      }
     }
-    if (valeurInitiale <= 0) {
-      _showToast('La valeur à neuf doit être supérieure à 0.', LeadwayToastType.error);
-      return;
+    if (_valeurInitialeCtrl.text.replaceAll(RegExp(r'\s'), '').isNotEmpty) {
+      final parsedInitiale = int.tryParse(_valeurInitialeCtrl.text.replaceAll(RegExp(r'\s'), '')) ?? -1;
+      if (parsedInitiale <= 0) {
+        _showToast('La valeur à neuf doit être supérieure à 0.', LeadwayToastType.error);
+        return;
+      }
     }
-    if (valeurVenale <= 0) {
-      _showToast('La valeur vénale doit être supérieure à 0.', LeadwayToastType.error);
-      return;
+    if (_valeurVenaleCtrl.text.replaceAll(RegExp(r'\s'), '').isNotEmpty) {
+      final parsedVenale = int.tryParse(_valeurVenaleCtrl.text.replaceAll(RegExp(r'\s'), '')) ?? -1;
+      if (parsedVenale <= 0) {
+        _showToast('La valeur vénale doit être supérieure à 0.', LeadwayToastType.error);
+        return;
+      }
     }
 
     setState(() => _loading = true);
@@ -315,11 +331,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
       _showToast('Veuillez renseigner le nom complet du souscripteur.', LeadwayToastType.error);
       return;
     }
-    if (_emailCtrl.text.trim().isEmpty) {
-      _showToast('Veuillez renseigner l\'adresse e-mail du souscripteur.', LeadwayToastType.error);
-      return;
-    }
-    if (!_emailCtrl.text.contains('@')) {
+    if (_emailCtrl.text.trim().isNotEmpty && !_emailCtrl.text.contains('@')) {
       _showToast('Veuillez renseigner une adresse e-mail valide.', LeadwayToastType.error);
       return;
     }
@@ -414,7 +426,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
       _showToast('Veuillez saisir votre numéro de téléphone de paiement.', LeadwayToastType.error);
       return;
     }
-    if (_paymentEmailCtrl.text.trim().isEmpty || !_paymentEmailCtrl.text.contains('@')) {
+    if (_paymentEmailCtrl.text.trim().isNotEmpty && !_paymentEmailCtrl.text.contains('@')) {
       _showToast('Veuillez renseigner une adresse e-mail valide pour le paiement.', LeadwayToastType.error);
       return;
     }
@@ -858,16 +870,21 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
 
   void _back() {
     if (_viewingSubscriptions) {
-      LeadwayHostBridge.exitModule(context);
+      setState(() {
+        _selectedService = LeadwayServiceType.none;
+      });
       return;
     }
     if (_step == 0) {
-      if (_subscriptions.isNotEmpty) {
+      final hasMatching = _subscriptions.any((sub) => (sub['vehicleType'] ?? 'moto') == _vehicleType.code);
+      if (hasMatching) {
         setState(() {
           _viewingSubscriptions = true;
         });
       } else {
-        LeadwayHostBridge.exitModule(context);
+        setState(() {
+          _selectedService = LeadwayServiceType.none;
+        });
       }
       return;
     }
@@ -886,6 +903,17 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    switch (_selectedService) {
+      case LeadwayServiceType.none:
+        return _buildServiceSelectionView();
+      case LeadwayServiceType.life:
+        return _buildLifeInsuranceView();
+      case LeadwayServiceType.nonLife:
+        return _buildNonLifeView();
+    }
+  }
+
+  Widget _buildNonLifeView() {
     if (_viewingSubscriptions) {
       return Scaffold(
         backgroundColor: const Color(0xFFF8F8F8),
@@ -936,6 +964,542 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildServiceSelectionView() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F8F8),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Retour',
+                    onPressed: () => LeadwayHostBridge.exitModule(context),
+                    icon: const Icon(Icons.chevron_left, color: LeadwayBrand.textDark),
+                  ),
+                  Image.asset(
+                    'assets/logo/leadway.png',
+                    package: 'leadway',
+                    height: 40,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Icon(
+                      Icons.shield_outlined,
+                      color: LeadwayBrand.primary,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Leadway Assurance',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: LeadwayBrand.textDark,
+                          ),
+                        ),
+                        Text(
+                          'Partenaire de votre sécurité',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Nos Solutions d\'Assurance',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        color: LeadwayBrand.textDark,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Sélectionnez une catégorie de service pour simuler vos cotisations et souscrire en toute simplicité.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    
+                    // Card 1: Non-Vie (Moto, Auto)
+                    _buildSelectionCard(
+                      title: 'Assurance Non-Vie',
+                      subtitle: 'Auto & Moto',
+                      description: 'Protégez vos véhicules contre les accidents, le vol et les incendies. Calculez votre prime et obtenez votre attestation instantanément.',
+                      icon: Icons.two_wheeler_rounded,
+                      badgeText: 'Disponible',
+                      badgeColor: LeadwayBrand.primary,
+                      onTap: () {
+                        setState(() {
+                          _selectedService = LeadwayServiceType.nonLife;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Card 2: Vie
+                    _buildSelectionCard(
+                      title: 'Assurance Vie',
+                      subtitle: 'Famille, Épargne & Retraite',
+                      description: 'Sécurisez l\'avenir de vos proches, financez l\'éducation de vos enfants et constituez-vous une épargne retraite sur mesure.',
+                      icon: Icons.favorite_rounded,
+                      badgeText: 'Nouveau',
+                      badgeColor: Colors.blue[700]!,
+                      onTap: () {
+                        setState(() {
+                          _selectedService = LeadwayServiceType.life;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionCard({
+    required String title,
+    required String subtitle,
+    required String description,
+    required IconData icon,
+    required String badgeText,
+    required Color badgeColor,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey[200]!, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: LeadwayBrand.primary.withOpacity(0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        icon,
+                        color: LeadwayBrand.primary,
+                        size: 28,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        badgeText.toUpperCase(),
+                        style: TextStyle(
+                          color: badgeColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: LeadwayBrand.textDark,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: LeadwayBrand.primary.withOpacity(0.8),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Colors.grey[600],
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text(
+                      'Accéder au service',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: LeadwayBrand.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 14,
+                      color: LeadwayBrand.primary,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLifeInsuranceView() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F8F8),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Retour',
+                    onPressed: () {
+                      setState(() {
+                        _selectedService = LeadwayServiceType.none;
+                      });
+                    },
+                    icon: const Icon(Icons.chevron_left, color: LeadwayBrand.textDark),
+                  ),
+                  Image.asset(
+                    'assets/logo/leadway.png',
+                    package: 'leadway',
+                    height: 40,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Icon(
+                      Icons.favorite_rounded,
+                      color: LeadwayBrand.primary,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Assurance Vie',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: LeadwayBrand.textDark,
+                          ),
+                        ),
+                        Text(
+                          'Leadway Assurance',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top banner with gradient background
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: LeadwayBrand.gradient,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: LeadwayBrand.primary.withOpacity(0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.family_restroom_rounded,
+                            color: Colors.white,
+                            size: 36,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Protégez ce qui compte le plus',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Planifiez sereinement l\'avenir de votre famille grâce à nos solutions d\'Assurance Vie flexibles et adaptées à vos besoins.',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Nos formules disponibles bientôt',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: LeadwayBrand.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    _buildLifeProductCard(
+                      title: 'Leadway Prévoyance',
+                      description: 'Assurez un capital financier à vos proches pour faire face aux aléas de la vie en cas d\'invalidité ou de décès.',
+                      icon: Icons.shield_rounded,
+                    ),
+                    const SizedBox(height: 14),
+                    _buildLifeProductCard(
+                      title: 'Leadway Retraite',
+                      description: 'Constituez-vous une épargne solide tout au long de votre vie active pour maintenir votre niveau de vie une fois à la retraite.',
+                      icon: Icons.volunteer_activism_rounded,
+                    ),
+                    const SizedBox(height: 14),
+                    _buildLifeProductCard(
+                      title: 'Leadway Éducation',
+                      description: 'Préparez le financement des études de vos enfants avec une épargne ciblée et sécurisée.',
+                      icon: Icons.school_rounded,
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLifeProductCard({
+    required String title,
+    required String description,
+    required IconData icon,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[100]!, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.01),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: LeadwayBrand.primary.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: LeadwayBrand.primary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: LeadwayBrand.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 32,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: LeadwayBrand.primary, width: 1.2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        foregroundColor: LeadwayBrand.primary,
+                      ),
+                      onPressed: () => _showLifeProductComingSoonDialog(title),
+                      child: const Text(
+                        'En savoir plus',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLifeProductComingSoonDialog(String productTitle) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          icon: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: LeadwayBrand.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.hourglass_empty_rounded,
+              color: LeadwayBrand.primary,
+              size: 40,
+            ),
+          ),
+          title: Text(
+            productTitle,
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              color: LeadwayBrand.textDark,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: Text(
+            'Ce produit d\'assurance vie est en cours de développement.\n\nNos équipes travaillent activement pour vous proposer une expérience de souscription fluide et 100% digitale très prochainement.',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 13,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: LeadwayBrand.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  elevation: 0,
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Compris',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1615,109 +2179,91 @@ class _PremiumStep extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        _cardSection(
-          title: '1. Véhicule',
-          children: [
-            Text('Type de véhicule *', style: _labelStyle),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: ChoiceChip(
-                    avatar: Icon(
-                      Icons.directions_car,
-                      color: vehicleType == LeadwayVehicleType.auto
-                          ? LeadwayBrand.primary
-                          : Colors.grey,
-                    ),
-                    label: const Center(child: Text('Voiture / Auto')),
-                    selected: vehicleType == LeadwayVehicleType.auto,
-                    selectedColor: LeadwayBrand.primary.withValues(alpha: 0.15),
-                    labelStyle: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: vehicleType == LeadwayVehicleType.auto
-                          ? LeadwayBrand.primary
-                          : LeadwayBrand.textDark,
-                    ),
-                    side: BorderSide(
-                      color: vehicleType == LeadwayVehicleType.auto
-                          ? LeadwayBrand.primary
-                          : const Color(0xFFE0E0E0),
-                    ),
-                    onSelected: (selected) {
-                      if (selected) onVehicleTypeChanged(LeadwayVehicleType.auto);
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ChoiceChip(
-                    avatar: Icon(
-                      Icons.two_wheeler,
-                      color: vehicleType == LeadwayVehicleType.moto
-                          ? LeadwayBrand.primary
-                          : Colors.grey,
-                    ),
-                    label: const Center(child: Text('Moto')),
-                    selected: vehicleType == LeadwayVehicleType.moto,
-                    selectedColor: LeadwayBrand.primary.withValues(alpha: 0.15),
-                    labelStyle: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: vehicleType == LeadwayVehicleType.moto
-                          ? LeadwayBrand.primary
-                          : LeadwayBrand.textDark,
-                    ),
-                    side: BorderSide(
-                      color: vehicleType == LeadwayVehicleType.moto
-                          ? LeadwayBrand.primary
-                          : const Color(0xFFE0E0E0),
-                    ),
-                    onSelected: (selected) {
-                      if (selected) onVehicleTypeChanged(LeadwayVehicleType.moto);
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _Field(
-              label: 'Valeur à neuf (FCFA) *',
-              controller: valeurInitialeCtrl,
-              hint: 'Ex. 1 500 000',
-              keyboard: TextInputType.number,
-              onChanged: (_) => onRecalculate(),
-            ),
-            const SizedBox(height: 12),
-            _Field(
-              label: 'Valeur vénale (FCFA) *',
-              controller: valeurVenaleCtrl,
-              hint: 'Ex. 600 000',
-              keyboard: TextInputType.number,
-              onChanged: (_) => onRecalculate(),
-            ),
-            const SizedBox(height: 12),
-            _Field(
-              label: 'Âge du véhicule (ans) *',
-              controller: ageVehiculeCtrl,
-              hint: 'Ex. 4',
-              keyboard: TextInputType.number,
-              onChanged: (_) => onRecalculate(),
-            ),
-            if (_needsChargeUtile) ...[
-              const SizedBox(height: 12),
-              _Field(
-                label: 'Charge utile (kg) *',
-                controller: chargeUtileCtrl,
-                hint: 'Ex. 3500',
-                keyboard: TextInputType.number,
-                onChanged: (_) => onRecalculate(),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
-          ],
+            border: Border.all(color: const Color(0xFFEEEEEE)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Type de véhicule *', style: _labelStyle),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: ChoiceChip(
+                      avatar: Icon(
+                        Icons.directions_car,
+                        color: vehicleType == LeadwayVehicleType.auto
+                            ? LeadwayBrand.primary
+                            : Colors.grey,
+                      ),
+                      label: const Center(child: Text('Voiture / Auto')),
+                      selected: vehicleType == LeadwayVehicleType.auto,
+                      selectedColor: LeadwayBrand.primary.withValues(alpha: 0.15),
+                      labelStyle: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: vehicleType == LeadwayVehicleType.auto
+                            ? LeadwayBrand.primary
+                            : LeadwayBrand.textDark,
+                      ),
+                      side: BorderSide(
+                        color: vehicleType == LeadwayVehicleType.auto
+                            ? LeadwayBrand.primary
+                            : const Color(0xFFE0E0E0),
+                      ),
+                      onSelected: (selected) {
+                        if (selected) onVehicleTypeChanged(LeadwayVehicleType.auto);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ChoiceChip(
+                      avatar: Icon(
+                        Icons.two_wheeler,
+                        color: vehicleType == LeadwayVehicleType.moto
+                            ? LeadwayBrand.primary
+                            : Colors.grey,
+                      ),
+                      label: const Center(child: Text('Moto')),
+                      selected: vehicleType == LeadwayVehicleType.moto,
+                      selectedColor: LeadwayBrand.primary.withValues(alpha: 0.15),
+                      labelStyle: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: vehicleType == LeadwayVehicleType.moto
+                            ? LeadwayBrand.primary
+                            : LeadwayBrand.textDark,
+                      ),
+                      side: BorderSide(
+                        color: vehicleType == LeadwayVehicleType.moto
+                            ? LeadwayBrand.primary
+                            : const Color(0xFFE0E0E0),
+                      ),
+                      onSelected: (selected) {
+                        if (selected) onVehicleTypeChanged(LeadwayVehicleType.moto);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
+        const SizedBox(height: 16),
 
         _cardSection(
-          title: '2. Contrat',
+          title: '1. Contrat',
           children: [
             DropdownButtonFormField<LeadwayProductCode>(
               value: codeProduit,
@@ -1773,6 +2319,45 @@ class _PremiumStep extends StatelessWidget {
                 if (val != null) onDureeChanged(val);
               },
             ),
+          ],
+        ),
+
+        _cardSection(
+          title: '2. Véhicule',
+          children: [
+            _Field(
+              label: 'Valeur à neuf (FCFA)',
+              controller: valeurInitialeCtrl,
+              hint: 'Ex. 1 500 000',
+              keyboard: TextInputType.number,
+              onChanged: (_) => onRecalculate(),
+            ),
+            const SizedBox(height: 12),
+            _Field(
+              label: 'Valeur vénale (FCFA)',
+              controller: valeurVenaleCtrl,
+              hint: 'Ex. 600 000',
+              keyboard: TextInputType.number,
+              onChanged: (_) => onRecalculate(),
+            ),
+            const SizedBox(height: 12),
+            _Field(
+              label: 'Âge du véhicule (ans)',
+              controller: ageVehiculeCtrl,
+              hint: 'Ex. 4',
+              keyboard: TextInputType.number,
+              onChanged: (_) => onRecalculate(),
+            ),
+            if (_needsChargeUtile) ...[
+              const SizedBox(height: 12),
+              _Field(
+                label: 'Charge utile (kg) *',
+                controller: chargeUtileCtrl,
+                hint: 'Ex. 3500',
+                keyboard: TextInputType.number,
+                onChanged: (_) => onRecalculate(),
+              ),
+            ],
           ],
         ),
 
@@ -2023,7 +2608,7 @@ class _QuoteStep extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _Field(
-                label: 'Adresse e-mail *',
+                label: 'Adresse e-mail',
                 controller: emailCtrl,
                 hint: 'Ex. jean.dupont@email.com',
                 keyboard: TextInputType.emailAddress,
@@ -2348,7 +2933,7 @@ class _PaymentStep extends StatelessWidget {
               title: '1. Informations de paiement',
               children: [
                 _Field(
-                  label: 'Adresse e-mail *',
+                  label: 'Adresse e-mail',
                   controller: emailCtrl,
                   hint: 'Ex. bernard@example.com',
                   keyboard: TextInputType.emailAddress,

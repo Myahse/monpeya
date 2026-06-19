@@ -80,7 +80,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: const Color(0xFFE66B27).withOpacity(0.08),
+                color: const Color(0xFF006D56).withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
               child: Container(
@@ -99,7 +99,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                 child: const Icon(
                   Icons.shield_outlined,
                   size: 48,
-                  color: Color(0xFFE66B27),
+                  color: Color(0xFF006D56),
                 ),
               ),
             ),
@@ -128,14 +128,14 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
               width: double.infinity,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFF26522), Color(0xFFE66B27)],
+                  colors: [Color(0xFF006D56), Color(0xFF00453B)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFE66B27).withOpacity(0.3),
+                    color: const Color(0xFF006D56).withOpacity(0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -184,7 +184,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border(
-                    left: const BorderSide(color: Color(0xFFE66B27), width: 5),
+                    left: const BorderSide(color: Color(0xFF006D56), width: 5),
                     top: BorderSide(color: Colors.grey[200]!, width: 1),
                     right: BorderSide(color: Colors.grey[200]!, width: 1),
                     bottom: BorderSide(color: Colors.grey[200]!, width: 1),
@@ -209,10 +209,10 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE66B27).withOpacity(0.08),
+                              color: const Color(0xFF006D56).withOpacity(0.08),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.two_wheeler_rounded, color: Color(0xFFE66B27), size: 24),
+                            child: const Icon(Icons.two_wheeler_rounded, color: Color(0xFF006D56), size: 24),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -287,14 +287,14 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
             child: Container(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFF26522), Color(0xFFE66B27)],
+                  colors: [Color(0xFF006D56), Color(0xFF00453B)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFE66B27).withOpacity(0.2),
+                    color: const Color(0xFF006D56).withOpacity(0.2),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -351,7 +351,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE66B27)),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF006D56)),
               ),
             )
           : (_subscriptions.isEmpty ? _buildEmptyState() : _buildSubscriptionsList()),

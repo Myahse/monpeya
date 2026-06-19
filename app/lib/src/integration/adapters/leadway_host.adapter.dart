@@ -45,7 +45,7 @@ class MonPeyaLeadwayHostAdapter {
             name: request.recipientName,
             reference: request.reference ?? request.label,
             icon: Icons.two_wheeler_outlined,
-            color: const Color(0xFFE66B27),
+            color: const Color(0xFF006D56),
           ),
         ),
       ),

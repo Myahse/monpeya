@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 /// Leadway Assurance brand tokens (from official logo).
 abstract final class LeadwayBrand {
-  /// Orange « Assurance » — couleur principale du service.
-  static const primary = Color(0xFFE66B27);
+  /// Vert de la super app — couleur principale du service.
+  static const primary = Color(0xFF006D56);
 
-  /// Orange dégradé haut (emblème).
-  static const gradientTop = Color(0xFFF26522);
+  /// Vert dégradé haut.
+  static const gradientTop = Color(0xFF006D56);
 
-  /// Jaune dégradé bas (emblème).
-  static const gradientBottom = Color(0xFFFFCB05);
+  /// Vert dégradé bas.
+  static const gradientBottom = Color(0xFF00453B);
 
   static const onPrimary = Colors.white;
   static const textDark = Color(0xFF1A1A1A);
