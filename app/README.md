@@ -259,15 +259,16 @@ flutter build windows --release
 
 ## Demo credentials
 
-A built-in demo account is available for testing login without completing registration:
+Built-in mock accounts (see `packages/mocks`) for testing without SMS or backend:
 
-| Field | Value |
-|-------|-------|
-| Phone (local) | `0777146737` |
-| Phone (full) | `+2250777146737` |
-| PIN | `1234` |
+| Phone (local) | Phone (full) | PIN / OTP |
+|---------------|--------------|-----------|
+| `0777146737` | `+2250777146737` | `1234` |
+| `0758237837` | `+2250758237837` | `1234` |
 
-To force guest mode during debug builds, set `AuthStore.forceGuestInDebug = true` in `lib/app/storage/auth_store.dart`.
+Mock users skip the OTP sheet and go straight to PIN login. For other numbers, any 4-digit OTP is accepted in dev.
+
+To force guest mode during debug builds, set `AuthStore.forceGuestInDebug = true` in `lib/src/core/storage/auth.store.dart`.
 
 ---
 

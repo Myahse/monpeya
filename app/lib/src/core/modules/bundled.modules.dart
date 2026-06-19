@@ -7,6 +7,16 @@ class BundledModules {
 
   static const catalog = [
     AppModule(
+      id: 0,
+      moduleKey: 'peyapay',
+      name: 'Peya Pay',
+      icon: 'wallet',
+      url: 'native:peyapay',
+      type: ModuleLaunchType.native,
+      source: ModuleSource.bundled,
+      sortOrder: 0,
+    ),
+    AppModule(
       id: 1,
       moduleKey: 'real-estate',
       name: 'Mr Immo Location',
@@ -35,6 +45,16 @@ class BundledModules {
       type: ModuleLaunchType.native,
       source: ModuleSource.bundled,
       sortOrder: 3,
+    ),
+    AppModule(
+      id: 6,
+      moduleKey: 'leadway-assurance',
+      name: 'Leadway Moto',
+      icon: 'leadway',
+      url: 'native:leadway',
+      type: ModuleLaunchType.native,
+      source: ModuleSource.bundled,
+      sortOrder: 4,
     ),
     AppModule(
       id: 5,

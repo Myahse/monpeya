@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:immo/immo.dart';
 
 import 'package:app/src/core/assets/constants/asset.paths.dart';
+import 'package:app/src/core/auth/auth.navigation.dart';
 import 'package:app/src/core/auth/biometric.auth.dart';
 import 'package:app/src/core/routing/routes.dart';
 import 'package:app/src/core/storage/auth.store.dart';
+import 'package:app/src/core/widgets/auth_back_button.widget.dart';
 import 'package:app/src/core/widgets/pin_keypad.widget.dart';
 import 'package:app/src/integration/adapters/peyapay_host.adapter.dart';
 
@@ -131,7 +133,7 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
       }
       return;
     }
-    Navigator.of(context).pushReplacementNamed(Routes.app);
+    AuthNavigation.completeAuthFlow(context);
   }
 
   Future<void> _submit(String phone) async {
@@ -151,6 +153,14 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
       _showError = true;
       _pin = '';
     });
+  }
+
+  void _handleBack() {
+    if (_submitting) return;
+    AuthNavigation.backFromLoginPin(
+      context,
+      embeddedInModule: widget.embeddedInModule,
+    );
   }
 
   Future<void> _tryBiometricLogin({bool auto = false}) async {
@@ -219,114 +229,129 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
 
     final showBiometric = _biometricAvailable && phoneNumber != null;
 
-    return Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _handleBack();
+      },
+      child: Scaffold(
+        backgroundColor: bg,
+        body: SafeArea(
+          child: Stack(
             children: [
-              Column(
-                children: [
-                  const SizedBox(height: 24),
-                  Image.asset(
-                    logoPath,
-                    width: 200,
-                    height: 90,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Entrez votre code PIN',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: ink),
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
-                    width: 240,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isDark ? cs.surfaceContainerHighest : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _showError ? const Color(0xFFEF4444) : const Color(0xFF9CA3AF),
-                        width: 2,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(4, (i) {
-                        return Container(
-                          width: 44,
-                          height: 44,
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      children: [
+                        const SizedBox(height: 24),
+                        Image.asset(
+                          logoPath,
+                          width: 200,
+                          height: 90,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Entrez votre code PIN',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: ink),
+                        ),
+                        const SizedBox(height: 18),
+                        Container(
+                          width: 240,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                           decoration: BoxDecoration(
-                            color: isDark ? cs.surface : const Color(0xFFF3F4F6),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            _pin.length > i ? '•' : '',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              color: ink,
+                            color: isDark ? cs.surfaceContainerHighest : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _showError ? const Color(0xFFEF4444) : const Color(0xFF9CA3AF),
+                              width: 2,
                             ),
                           ),
-                        );
-                      }),
-                    ),
-                  ),
-                  if (_showError)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 6),
-                      child: Text(
-                        'Code PIN incorrect. Réessayez.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Color(0xFFEF4444)),
-                      ),
-                    ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: Column(
-                  children: [
-                    PinKeypad(
-                      keypad: _keypad,
-                      onKeyPress: _onKeyPress,
-                      onDelete: _onDelete,
-                      onLongDelete: _onLongDelete,
-                      textColor: ink,
-                      showBiometric: showBiometric,
-                      onBiometric: () => _tryBiometricLogin(),
-                      biometricEnabled: !_submitting,
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: MediaQuery.sizeOf(context).width * 0.8,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _pin.length == 4 ? const Color(0xFF006D56) : const Color(0xFFB9D8CF),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(4, (i) {
+                              return Container(
+                                width: 44,
+                                height: 44,
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                decoration: BoxDecoration(
+                                  color: isDark ? cs.surface : const Color(0xFFF3F4F6),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  _pin.length > i ? '•' : '',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    color: ink,
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
                         ),
-                        onPressed: (_pin.length == 4 && phoneNumber != null && !_submitting)
-                            ? () => _submit(phoneNumber)
-                            : null,
-                        child: _submitting
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Text('Valider', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                        if (_showError)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 6),
+                            child: Text(
+                              'Code PIN incorrect. Réessayez.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Color(0xFFEF4444)),
+                            ),
+                          ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 18),
+                      child: Column(
+                        children: [
+                          PinKeypad(
+                            keypad: _keypad,
+                            onKeyPress: _onKeyPress,
+                            onDelete: _onDelete,
+                            onLongDelete: _onLongDelete,
+                            textColor: ink,
+                            showBiometric: showBiometric,
+                            onBiometric: () => _tryBiometricLogin(),
+                            biometricEnabled: !_submitting,
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: MediaQuery.sizeOf(context).width * 0.8,
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: _pin.length == 4 ? const Color(0xFF006D56) : const Color(0xFFB9D8CF),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              onPressed: (_pin.length == 4 && phoneNumber != null && !_submitting)
+                                  ? () => _submit(phoneNumber)
+                                  : null,
+                              child: _submitting
+                                  ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Text('Valider', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
+              ),
+              Positioned(
+                left: 0,
+                top: 0,
+                child: AuthBackButton(onPressed: _handleBack),
               ),
             ],
           ),

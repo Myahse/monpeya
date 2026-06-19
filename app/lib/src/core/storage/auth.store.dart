@@ -1,29 +1,26 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mocks/mocks.dart';
 
 import 'package:app/src/core/storage/constants/prefs.keys.dart';
 
 class AuthStore {
-  static String _pinKey(String phone) => 'pin:$phone';
-  // Demo credentials (used when user chooses to login).
-  static const String demoPhoneLocal = '0777146737';
-  static const String demoPhoneFull = '+2250777146737';
-  static const String demoPin = '1234';
+  AuthStore._();
 
+  static const _mockAuth = MockAuthService();
+
+  static String _pinKey(String phone) => 'pin:$phone';
+
+  /// First catalog user — kept for backwards compatibility in docs / tooling.
+  static MockUser get primaryMockUser => MockAuthCatalog.users.first;
 
   static const bool forceGuestInDebug = false;
 
   static bool get _forceGuest => kDebugMode && forceGuestInDebug;
 
-  static String _normalizePhone(String phone) {
-    final p = phone.trim().replaceAll(' ', '');
-    if (p.startsWith('+')) return p;
-    
-    if (p == demoPhoneLocal) return demoPhoneFull;
-    return p;
-  }
+  static String _normalizePhone(String phone) => _mockAuth.normalizePhone(phone);
 
-  static bool _isDemoPhone(String phone) => _normalizePhone(phone) == demoPhoneFull;
+  static bool _isMockPhone(String phone) => _mockAuth.isMockUser(phone);
 
   static Future<String?> getPhone() async {
     final prefs = await SharedPreferences.getInstance();
@@ -38,7 +35,7 @@ class AuthStore {
   static Future<bool> hasPinForPhone(String phone) async {
     final prefs = await SharedPreferences.getInstance();
     final normalized = _normalizePhone(phone);
-    if (_isDemoPhone(normalized)) {
+    if (_isMockPhone(normalized)) {
       return true;
     }
     return prefs.containsKey(_pinKey(normalized));
@@ -47,11 +44,10 @@ class AuthStore {
   static Future<String?> getPinForPhone(String phone) async {
     final prefs = await SharedPreferences.getInstance();
     final normalized = _normalizePhone(phone);
-    if (_isDemoPhone(normalized)) {
-      // Always accept demo PIN, even if prefs were cleared.
-      // We still seed prefs to keep the rest of the app consistent.
-      await prefs.setString(_pinKey(demoPhoneFull), demoPin);
-      return demoPin;
+    final mockPin = _mockAuth.pinForPhone(normalized);
+    if (mockPin != null) {
+      await prefs.setString(_pinKey(normalized), mockPin);
+      return mockPin;
     }
     return prefs.getString(_pinKey(normalized));
   }
@@ -81,10 +77,11 @@ class AuthStore {
     await setAuthToken(null);
   }
 
-  static Future<void> loginDemoUser() async {
+  static Future<void> loginMockUser([MockUser? user]) async {
+    final mock = user ?? primaryMockUser;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(PrefsKeys.phoneNumber, demoPhoneFull);
-    await prefs.setString(_pinKey(demoPhoneFull), demoPin);
+    await prefs.setString(PrefsKeys.phoneNumber, mock.fullPhone);
+    await prefs.setString(_pinKey(mock.fullPhone), mock.pin);
     await prefs.setBool(PrefsKeys.isRegistered, true);
   }
 
@@ -122,4 +119,3 @@ class AuthStore {
     await prefs.setString(PrefsKeys.immoUserId, userId);
   }
 }
-

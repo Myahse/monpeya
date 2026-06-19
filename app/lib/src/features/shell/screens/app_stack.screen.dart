@@ -6,6 +6,7 @@ import 'package:app/src/features/shell/types/app_stack.types.dart';
 import 'package:app/src/features/shell/widgets/mon_peya_module_gate.widget.dart';
 import 'package:app/src/features/shell/widgets/main_tabs.shell.dart';
 import 'package:app/src/features/shell/services/screens/billetterie.screen.dart';
+import 'package:app/src/features/shell/services/screens/leadway_assurance.screen.dart';
 import 'package:app/src/features/shell/services/mr_immo.screens.dart';
 import 'package:app/src/features/shell/services/screens/service_module.screen.dart';
 import 'package:app/src/features/shell/modules/screens/module_web_view.screen.dart';
@@ -58,6 +59,7 @@ class _AppStackScreenState extends State<AppStackScreen> {
     final params = item.params;
     return switch (item.name) {
       AppStackRoute.billetterie => const MonPeyaModuleGate(child: BilletterieModuleScreen()),
+      AppStackRoute.leadwayAssurance => const MonPeyaModuleGate(child: LeadwayModuleScreen()),
       AppStackRoute.mrImmoRental => const MonPeyaModuleGate(child: MrImmoRentalScreen()),
       AppStackRoute.mrImmoConstruction => const MonPeyaModuleGate(child: MrImmoConstructionScreen()),
       AppStackRoute.mrImmoCollection => const MonPeyaModuleGate(child: MrImmoCollectionScreen()),
@@ -104,7 +106,9 @@ class _AppStackScreenState extends State<AppStackScreen> {
                 _controller.goBack();
                 return;
               }
-              Navigator.of(context).pop();
+              final navigator = Navigator.of(context);
+              if (!navigator.canPop()) return;
+              navigator.pop();
             },
             child: Stack(
               fit: StackFit.expand,
@@ -214,10 +218,21 @@ class _MainTabsShellState extends State<MainTabsShell> {
             Positioned(
               right: 16,
               bottom: 16 + MediaQuery.of(context).padding.bottom + MainBottomNavigationBar.barHeight,
-              child: FloatingActionButton.extended(
-                onPressed: () => appStack?.toggleMenu(),
-                icon: const Icon(Icons.apps),
-                label: const Text('NTERI'),
+              child: SizedBox(
+                height: 40,
+                child: FloatingActionButton.extended(
+                  onPressed: () => appStack?.toggleMenu(),
+                  icon: const Icon(Icons.apps, size: 18),
+                  label: const Text(
+                    'NTERI',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  extendedPadding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
               ),
             ),
           ],

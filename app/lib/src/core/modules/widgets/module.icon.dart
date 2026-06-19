@@ -24,6 +24,9 @@ String? moduleIconAsset({String? moduleKey, String? iconKey}) {
     'immo/collection' ||
     'mr-immo-collection' =>
       'packages/immo/assets/logo/immo/collection.png',
+    'peyapay' || 'peya' || 'wallet' => 'assets/logo/banks/logo peya.png',
+    'leadway-assurance' || 'leadway' =>
+      'packages/leadway/assets/logo/leadway.png',
     _ => _iconKeyAsset(iconKey),
   };
 }
@@ -34,6 +37,7 @@ String? _iconKeyAsset(String? iconKey) {
     'immo-rental' => 'packages/immo/assets/logo/immo/rental.png',
     'immo-construction' => 'packages/immo/assets/logo/immo/construction.png',
     'immo-collection' => 'packages/immo/assets/logo/immo/collection.png',
+    'leadway' || 'insurance' => 'packages/leadway/assets/logo/leadway.png',
     _ => null,
   };
 }

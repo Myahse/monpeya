@@ -15,6 +15,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_svg: ^2.2.0
   shared_preferences: ^2.3.2
+  share_plus: ^7.2.1
   image_picker: ^1.1.2
   flutter_contacts: ^1.1.9+2
   http: ^1.2.2
@@ -26,8 +27,12 @@ dependencies:
     path: ../packages/immo
   billetterie:
     path: ../packages/billetterie
+  leadway:
+    path: ../packages/leadway
   peyapay:
     path: ../packages/peyapay
+  mocks:
+    path: ../packages/mocks
   local_auth: ^2.3.0
 
 dev_dependencies:
@@ -67,5 +72,5 @@ flutter:
     - assets/logo/app-icons/
     - assets/logo/banks/
     - assets/logo/cards/
-    - assets/modules/
     - ../packages/immo/assets/logo/immo/
+    - ../packages/leadway/assets/logo/

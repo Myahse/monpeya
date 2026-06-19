@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:app/src/core/navigation/app.navigation.dart';
 import 'package:app/src/core/routing/routes.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/storage/constants/prefs.keys.dart';
@@ -331,7 +332,7 @@ class _SettingsHeader extends StatelessWidget {
       child: Row(
         children: [
           InkWell(
-            onTap: () => Navigator.of(context).maybePop(),
+            onTap: () => AppNavigation.pop(context),
             borderRadius: BorderRadius.circular(999),
             child: const SizedBox(
               width: 40,

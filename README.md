@@ -10,7 +10,8 @@ Mon Peya/
 ├── packages/
 │   ├── peyapay/                # Wallet & payments
 │   ├── immo/                   # Rental, construction, collection
-│   └── billetterie/            # Electronic ticketing
+│   ├── billetterie/            # Electronic ticketing
+│   └── mocks/                  # Dev auth & mock data
 ├── melos.yaml
 └── README.md
 ```

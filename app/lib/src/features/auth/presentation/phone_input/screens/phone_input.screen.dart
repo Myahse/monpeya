@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:mocks/mocks.dart';
 
 import 'package:app/src/core/assets/constants/asset.paths.dart';
+import 'package:app/src/core/auth/auth.navigation.dart';
 import 'package:app/src/core/routing/routes.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/widgets/pin_keypad.widget.dart';
@@ -19,6 +21,8 @@ class PhoneInputScreen extends StatefulWidget {
 }
 
 class _PhoneInputScreenState extends State<PhoneInputScreen> {
+  static const _mockAuth = MockAuthService();
+
   static const _countries = <({String code, String flag, String name})>[
     (code: '+225', flag: '🇨🇮', name: "Côte d'Ivoire"),
     (code: '+33', flag: '🇫🇷', name: 'France'),
@@ -135,13 +139,13 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
 
     if (hasPin) {
       if (widget.embeddedInModule) {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (_) => LoginPinScreen(embeddedInModule: true, phoneNumber: fullPhone),
           ),
         );
       } else {
-        Navigator.of(context).pushReplacementNamed(
+        Navigator.of(context).pushNamed(
           Routes.loginPin,
           arguments: {'phoneNumber': fullPhone},
         );
@@ -158,36 +162,41 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
       return;
     }
 
-    Navigator.of(context).pushReplacementNamed(Routes.registrationFlow);
+    Navigator.of(context).pushNamed(Routes.registrationFlow);
+  }
+
+  Future<void> _openLoginPin(String fullPhone) async {
+    if (widget.embeddedInModule) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => LoginPinScreen(embeddedInModule: true, phoneNumber: fullPhone),
+        ),
+      );
+    } else {
+      Navigator.of(context).pushNamed(
+        Routes.loginPin,
+        arguments: {'phoneNumber': fullPhone},
+      );
+    }
   }
 
   Future<void> _handleNext() async {
     if (!_isValidPhone || _submitting) return;
 
     final digits = _digitsOnly(_controller.text);
-  
-    if (digits == AuthStore.demoPhoneLocal) {
-      final fullPhone = AuthStore.demoPhoneFull;
+    final mockUser = _mockAuth.userForPhone(digits);
+
+    if (mockUser != null) {
       setState(() => _submitting = true);
-      await AuthStore.setPhone(fullPhone);
-     
-      await AuthStore.hasPinForPhone(fullPhone);
+      await AuthStore.setPhone(mockUser.fullPhone);
+      await AuthStore.hasPinForPhone(mockUser.fullPhone);
       if (!mounted) return;
       setState(() => _submitting = false);
-      if (widget.embeddedInModule) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => LoginPinScreen(embeddedInModule: true, phoneNumber: fullPhone),
-          ),
-        );
-      } else {
-        Navigator.of(context).pushReplacementNamed(
-          Routes.loginPin,
-          arguments: {'phoneNumber': fullPhone},
-        );
-      }
+      await _openLoginPin(mockUser.fullPhone);
       return;
     }
+
+    final fullPhone = '${_country.code}$digits';
 
     final ok = await showModalBottomSheet<bool>(
       context: context,
@@ -195,8 +204,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => _OtpBottomSheet(
         onSubmit: (code) async {
-     
-          if (code.length != 4) return false;
+          if (!_mockAuth.verifyOtp(fullPhone, code)) return false;
           Navigator.of(context).pop(true);
           await _continueAfterOtp();
           return true;
@@ -216,13 +224,10 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
 
     return AuthFlowScaffold(
       logoPath: logoPath,
-      onBack: () {
-        if (widget.embeddedInModule) {
-          Navigator.of(context).pop(false);
-        } else {
-          Navigator.of(context).pushReplacementNamed(Routes.onboarding);
-        }
-      },
+      onBack: () => AuthNavigation.backFromPhoneInput(
+        context,
+        embeddedInModule: widget.embeddedInModule,
+      ),
       title: const Text('Saisissez votre numéro de téléphone'),
       subtitle: const Text('Utilisez votre numéro de téléphone pour vous inscrire ou vous connecter.'),
       body: SingleChildScrollView(

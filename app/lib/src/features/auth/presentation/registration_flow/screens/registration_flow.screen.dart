@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:app/src/core/assets/constants/asset.paths.dart';
-import 'package:app/src/core/routing/routes.dart';
+import 'package:app/src/core/auth/auth.navigation.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/widgets/pin_keypad.widget.dart';
 import 'package:app/src/features/auth/presentation/widgets/auth_flow_scaffold.widget.dart';
@@ -279,17 +279,16 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
       Navigator.of(context).popUntil((route) => route.isFirst);
       return;
     }
-    Navigator.of(context).pushReplacementNamed(Routes.app);
+    AuthNavigation.completeAuthFlow(context);
   }
 
   void _back() {
     if (_busy) return;
     if (_step == 0) {
-      if (widget.embeddedInModule) {
-        Navigator.of(context).pop();
-      } else {
-        Navigator.of(context).pushReplacementNamed(Routes.phoneInput);
-      }
+      AuthNavigation.backFromRegistration(
+        context,
+        embeddedInModule: widget.embeddedInModule,
+      );
       return;
     }
     setState(() => _step -= 1);

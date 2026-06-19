@@ -1,19 +1,3 @@
-enum ModuleLoadMode {
-  bundledOnly,
-  remoteOnly,
-  hybrid,
-}
-
-extension ModuleLoadModeParsing on ModuleLoadMode {
-  static ModuleLoadMode fromString(String raw) {
-    return switch (raw.toLowerCase()) {
-      'bundled' || 'bundledonly' || 'local' => ModuleLoadMode.bundledOnly,
-      'remote' || 'remoteonly' || 'api' => ModuleLoadMode.remoteOnly,
-      _ => ModuleLoadMode.hybrid,
-    };
-  }
-}
-
 enum ModuleSource {
   bundled,
   platform,
@@ -127,33 +111,4 @@ extension ModuleSourceApi on ModuleSource {
         ModuleSource.platform => 'platform',
         ModuleSource.bundled => 'bundled',
       };
-}
-
-class ModulesResponse {
-  const ModulesResponse({required this.modules});
-
-  final List<AppModule> modules;
-
-  factory ModulesResponse.fromJson(Map<String, dynamic> json) {
-    final raw = json['modules'] as List<dynamic>? ?? const [];
-    return ModulesResponse(
-      modules: raw
-          .map((e) => AppModule.fromJson(e as Map<String, dynamic>))
-          .where((m) => m.active && _isAllowedRemoteModule(m))
-          .toList(),
-    );
-  }
-}
-
-bool _isAllowedRemoteModule(AppModule module) {
-  if (module.isAssetModule) return false;
-  if (module.url.startsWith('https://')) return true;
-  return _isDevHttpUrl(module.url);
-}
-
-bool _isDevHttpUrl(String url) {
-  return url.startsWith('http://localhost') ||
-      url.startsWith('http://127.0.0.1') ||
-      url.startsWith('http://10.0.2.2') ||
-      RegExp(r'^http://192\.168\.\d+\.\d+').hasMatch(url);
 }

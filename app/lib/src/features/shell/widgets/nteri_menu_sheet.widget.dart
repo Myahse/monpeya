@@ -30,14 +30,7 @@ class NteriMenuPanel extends StatefulWidget {
 }
 
 class _NteriMenuPanelState extends State<NteriMenuPanel> {
-  final _repository = ModuleRepository();
-  late Future<ModuleFetchResult> _modulesFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _modulesFuture = _repository.fetchModulesResult();
-  }
+  List<AppModule> get _modules => ModuleRepository.modules;
 
   void _closeAnd(VoidCallback action) {
     final appStack = AppStackScope.of(context);
@@ -94,24 +87,9 @@ class _NteriMenuPanelState extends State<NteriMenuPanel> {
             constraints: BoxConstraints(maxHeight: maxH),
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-              child: FutureBuilder<ModuleFetchResult>(
-                future: _modulesFuture,
-                builder: (context, snapshot) {
-                  final loading = snapshot.connectionState != ConnectionState.done;
-                  final modules = snapshot.data?.modules ?? const <AppModule>[];
-
-                  if (loading) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(
-                        child: SizedBox(
-                          width: 26,
-                          height: 26,
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        ),
-                      ),
-                    );
-                  }
+              child: Builder(
+                builder: (context) {
+                  final modules = _modules;
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,

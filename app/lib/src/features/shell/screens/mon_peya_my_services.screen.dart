@@ -1,35 +1,23 @@
 import 'package:flutter/material.dart';
 
+import 'package:app/src/core/navigation/app.navigation.dart';
 import 'package:app/src/core/modules/app.module.dart';
 import 'package:app/src/core/modules/repositories/module.repository.dart';
 import 'package:app/src/core/utils/status_bar.util.dart';
-import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
+import 'package:app/src/features/shell/services/module_launcher.service.dart';
 import 'package:app/src/features/shell/widgets/dynamic_modules_grid.widget.dart';
 
-class MonPeyaMyServicesScreen extends StatefulWidget {
+class MonPeyaMyServicesScreen extends StatelessWidget {
   const MonPeyaMyServicesScreen({super.key});
 
-  @override
-  State<MonPeyaMyServicesScreen> createState() => _MonPeyaMyServicesScreenState();
-}
-
-class _MonPeyaMyServicesScreenState extends State<MonPeyaMyServicesScreen> {
-  final _repository = ModuleRepository();
-  late Future<ModuleFetchResult> _modulesFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _modulesFuture = _repository.fetchModulesResult();
-  }
-
-  void _openModule(AppModule module) {
-    AppStackScope.maybeOf(context)?.openModule(module);
+  void _openModule(BuildContext context, AppModule module) {
+    ModuleLauncher.open(context, module);
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final modules = ModuleRepository.modules;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -42,7 +30,7 @@ class _MonPeyaMyServicesScreenState extends State<MonPeyaMyServicesScreen> {
               child: Row(
                 children: [
                   InkWell(
-                    onTap: () => Navigator.of(context).maybePop(),
+                    onTap: () => AppNavigation.pop(context),
                     borderRadius: BorderRadius.circular(999),
                     child: const SizedBox(
                       width: 40,
@@ -70,41 +58,28 @@ class _MonPeyaMyServicesScreenState extends State<MonPeyaMyServicesScreen> {
             ),
           ),
           Expanded(
-            child: FutureBuilder<ModuleFetchResult>(
-              future: _modulesFuture,
-              builder: (context, snapshot) {
-                final loading = snapshot.connectionState != ConnectionState.done;
-                final modules = snapshot.data?.modules ?? const <AppModule>[];
-
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                  children: [
-                    Text(
-                      'Mes services',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: cs.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      loading
-                          ? 'Chargement...'
-                          : 'Services disponibles sur votre compte',
-                      style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
-                    ),
-                    const SizedBox(height: 14),
-                    if (loading)
-                      const ModulesLoadingGrid()
-                    else
-                      DynamicModulesGrid(
-                        modules: modules,
-                        onOpenModule: _openModule,
-                      ),
-                  ],
-                );
-              },
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              children: [
+                Text(
+                  'Mes services',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: cs.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Services disponibles sur votre compte',
+                  style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 14),
+                DynamicModulesGrid(
+                  modules: modules,
+                  onOpenModule: (module) => _openModule(context, module),
+                ),
+              ],
             ),
           ),
         ],

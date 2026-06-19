@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:app/src/core/auth/module.auth.dart';
 import 'package:app/src/core/session/mon_peya.session.dart';
+import 'package:app/src/features/shell/scopes/main_tabs.scope.dart';
 import 'package:app/src/features/shell/tabs/screens/home.screen.dart';
 import 'package:app/src/features/shell/tabs/screens/peyapay_tab.shell.dart';
 import 'package:app/src/features/shell/tabs/screens/subscriptions.screen.dart';
@@ -64,7 +65,9 @@ class _MainTabsShellState extends State<MainTabsShell> {
       listenable: MonPeyaSession.instance,
       builder: (context, _) {
         final hideNav = _hideBottomNav();
-        return PopScope(
+        return MainTabsScope(
+          selectTab: _selectTab,
+          child: PopScope(
           canPop: false,
           onPopInvokedWithResult: (didPop, result) async {
             if (didPop) return;
@@ -104,6 +107,7 @@ class _MainTabsShellState extends State<MainTabsShell> {
                     selectedIndex: _tab.index,
                     onDestinationSelected: (idx) => _selectTab(MainTab.values[idx]),
                   ),
+          ),
           ),
         );
       },

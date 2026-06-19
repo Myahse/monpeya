@@ -2,6 +2,7 @@ import 'package:app/src/core/modules/app.module.dart';
 import 'package:app/src/core/modules/resolvers/module_url.resolver.dart';
 import 'package:app/src/integration/registries/billetterie_module.registry.dart';
 import 'package:app/src/integration/registries/immo_module.registry.dart';
+import 'package:app/src/integration/registries/leadway_module.registry.dart';
 
 /// Builds AppStack params for native or WebView modules.
 class ModuleNavigation {
@@ -12,6 +13,9 @@ class ModuleNavigation {
       return nativeModuleParams(module);
     }
     if (BilletterieModuleRegistry.isNativeBilletterie(module)) {
+      return nativeModuleParams(module);
+    }
+    if (LeadwayModuleRegistry.isNativeLeadway(module)) {
       return nativeModuleParams(module);
     }
     return webModuleParams(module);
