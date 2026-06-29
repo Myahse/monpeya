@@ -1,0 +1,24 @@
+services:
+  oracle:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: ticketing-oracle
+    ports:
+      - "1521:1521"
+    env_file:
+      - .env
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-oracle_admin}
+      APP_USER: ${DATASOURCE_USERNAME:-ticketing}
+      APP_USER_PASSWORD: ${DATASOURCE_PASSWORD:-ticketing}
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./docker/oracle/init:/container-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+volumes:
+  oracle-data:
