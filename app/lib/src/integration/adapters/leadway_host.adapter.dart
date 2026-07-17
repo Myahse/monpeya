@@ -3,15 +3,70 @@ import 'package:leadway/leadway.dart';
 import 'package:peyapay/peyapay.dart';
 
 import 'package:app/src/core/auth/module.auth.dart';
+import 'package:app/src/core/storage/auth.store.dart';
+import 'package:app/src/core/storage/service_metadata.store.dart';
 import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
 
-/// Connects Mon Peya navigation to the Leadway Assurance package.
+/// Connecte Mon Peya à Leadway : navigation, paiement, **métadonnées app**.
 class MonPeyaLeadwayHostAdapter {
   MonPeyaLeadwayHostAdapter._();
+
+  static const _service = ServiceMetaNames.leadway;
 
   static void register() {
     LeadwayHostBridge.onExitModule = _exitToMonPeyaHome;
     LeadwayHostBridge.onPayment = _handlePayment;
+    LeadwayHostBridge.onSetMeta = setLeadwayMeta;
+    LeadwayHostBridge.onGetMeta = getLeadwayMeta;
+  }
+
+  /// Écriture métadonnée Leadway — implémentation **app**.
+  static Future<void> setLeadwayMeta(String key, String value) {
+    return ServiceMetadataStore.set(_service, key, value);
+  }
+
+  /// Lecture métadonnée Leadway — implémentation **app**.
+  ///
+  /// - `customerId` : lu ou **généré** puis persisté
+  /// - `phone` : meta Leadway ou téléphone session Mon Peya
+  /// - autres clés : lecture seule (ex. `subscriptionRef`)
+  static Future<String?> getLeadwayMeta(String key) async {
+    final normalizedKey = key.trim();
+    if (normalizedKey.isEmpty) return null;
+
+    if (normalizedKey == ServiceMetaKeys.customerId || normalizedKey == LeadwayMetaKeys.customerId) {
+      return ensureLeadwayCustomerId();
+    }
+
+    // subscriptionRef : uniquement la valeur renvoyée par l'API souscription (pas de génération).
+    final stored = await ServiceMetadataStore.get(_service, normalizedKey);
+    if (stored != null && stored.isNotEmpty) return stored;
+
+    if (normalizedKey == ServiceMetaKeys.phone || normalizedKey == LeadwayMetaKeys.phone) {
+      return _sessionPhoneAndPersist();
+    }
+
+    return null;
+  }
+
+  /// customerId stable : réutilise la meta, sinon génère et enregistre.
+  static Future<String> ensureLeadwayCustomerId() async {
+    final existing = await ServiceMetadataStore.get(_service, ServiceMetaKeys.customerId);
+    if (existing != null && existing.trim().isNotEmpty) {
+      return existing.trim();
+    }
+
+    final generated = 'LW-CUST-${DateTime.now().millisecondsSinceEpoch}';
+    await ServiceMetadataStore.set(_service, ServiceMetaKeys.customerId, generated);
+    return generated;
+  }
+
+  static Future<String?> _sessionPhoneAndPersist() async {
+    final phone = await AuthStore.getPhone();
+    final trimmed = phone?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    await ServiceMetadataStore.set(_service, ServiceMetaKeys.phone, trimmed);
+    return trimmed;
   }
 
   static void _exitToMonPeyaHome(BuildContext context) {

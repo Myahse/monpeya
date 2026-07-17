@@ -8,13 +8,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:leadway/src/core/constants/leadway_api.constants.dart';
+import 'package:leadway/src/core/constants/leadway_life.constants.dart';
 import 'package:leadway/src/core/host/leadway_host.bridge.dart';
 import 'package:leadway/src/presentation/constants/leadway.brand.dart';
 import 'package:leadway/src/data/models/leadway_api.exception.dart';
 import 'package:leadway/src/data/models/leadway_premium_request.model.dart';
 import 'package:leadway/src/data/models/leadway_premium_response.model.dart';
 import 'package:leadway/src/data/services/leadway_api.service.dart';
+import 'package:leadway/src/data/services/leadway_life_api.service.dart';
 import 'package:leadway/src/data/services/leadway_pdf.service.dart';
+import 'package:leadway/src/presentation/screens/leadway_life_recurring_payments.screen.dart';
+import 'package:leadway/src/presentation/screens/leadway_life_subscription.screen.dart';
+import 'package:leadway/src/presentation/screens/leadway_life_subscriptions.screen.dart';
 import 'package:leadway/src/presentation/screens/leadway_pdf_viewer.screen.dart';
 import 'package:leadway/src/presentation/widgets/leadway_toast.widget.dart';
 import 'package:leadway/src/data/models/leadway_quote_request.model.dart';
@@ -52,6 +57,8 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
 
   int _step = 0;
   LeadwayServiceType _selectedService = LeadwayServiceType.none;
+  List<LeadwayLifeEnumItem> _lifeProducts = [];
+  bool _lifeProductsLoading = false;
 
   List<Map<String, dynamic>> _subscriptions = [];
   bool _viewingSubscriptions = false;
@@ -304,7 +311,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
         }
       });
     } on LeadwayApiException catch (e) {
-      _showToast(e.message, LeadwayToastType.error);
+      _showToast(e.displayMessage, LeadwayToastType.error);
     } catch (e) {
       _showToast('Erreur lors du calcul de la prime : $e', LeadwayToastType.error);
     } finally {
@@ -405,7 +412,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
       });
       _showToast('Devis enregistré sous le N° ${response.quoteNo}', LeadwayToastType.success);
     } on LeadwayApiException catch (e) {
-      _showToast(e.message, LeadwayToastType.error);
+      _showToast(e.displayMessage, LeadwayToastType.error);
     } catch (e) {
       _showToast('Erreur lors du devis : $e', LeadwayToastType.error);
     } finally {
@@ -470,7 +477,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
         _paymentInitiated = true;
       });
 
-      if (isPeyaPay) {
+      if (isPeyaPay || _paymentOperator == LeadwayPaymentOperator.wave) {
         await _confirmPayment();
         return;
       }
@@ -481,7 +488,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
         LeadwayToastType.success,
       );
     } on LeadwayApiException catch (e) {
-      _showToast(e.message, LeadwayToastType.error);
+      _showToast(e.displayMessage, LeadwayToastType.error);
     } catch (e) {
       _showToast('Erreur lors de l\'initialisation du paiement : $e', LeadwayToastType.error);
     } finally {
@@ -527,7 +534,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
       _showToast('Paiement confirmé. Vérification en cours…', LeadwayToastType.info);
       _startPaymentPolling();
     } on LeadwayApiException catch (e) {
-      _showToast(e.message, LeadwayToastType.error);
+      _showToast(e.displayMessage, LeadwayToastType.error);
     } catch (e) {
       _showToast('Erreur lors de la confirmation du paiement : $e', LeadwayToastType.error);
     } finally {
@@ -743,7 +750,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
           await _savePdfBytes(type, bytes, fileName);
       }
     } on LeadwayApiException catch (e) {
-      _showToast(e.message, LeadwayToastType.error);
+      _showToast(e.displayMessage, LeadwayToastType.error);
     } catch (e) {
       _showToast('Erreur document : $e', LeadwayToastType.error);
     } finally {
@@ -1207,7 +1214,77 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     );
   }
 
+  Future<void> _loadLifeProducts() async {
+    if (_lifeProducts.isNotEmpty || _lifeProductsLoading) return;
+    setState(() => _lifeProductsLoading = true);
+    try {
+      final products = await LeadwayLifeApiService().fetchProductCodes();
+      if (!mounted) return;
+      setState(() {
+        _lifeProducts = products.isNotEmpty
+            ? products
+            : LeadwayLifeProductCode.values
+                .map((e) => LeadwayLifeEnumItem(value: e.code, description: e.label))
+                .toList();
+        _lifeProductsLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _lifeProducts = LeadwayLifeProductCode.values
+            .map((e) => LeadwayLifeEnumItem(value: e.code, description: e.label))
+            .toList();
+        _lifeProductsLoading = false;
+      });
+    }
+  }
+
+  void _openLifeSubscription(LeadwayLifeEnumItem product) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LeadwayLifeSubscriptionScreen(
+          productCode: product.value,
+          productLabel: product.description.isEmpty ? product.value : product.description,
+        ),
+      ),
+    );
+  }
+
+  void _openLifeSubscriptions() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const LeadwayLifeSubscriptionsScreen(),
+      ),
+    );
+  }
+
+  void _openLifeRecurringPayments() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const LeadwayLifeRecurringPaymentsScreen(),
+      ),
+    );
+  }
+
+  IconData _lifeProductIcon(String code) {
+    if (code.contains('FUNER')) return Icons.volunteer_activism_rounded;
+    if (code.contains('BNB') || code.contains('EPARGNE')) return Icons.savings_outlined;
+    return Icons.favorite_rounded;
+  }
+
+  String _lifeProductDescription(String code) {
+    if (code == LeadwayLifeProductCode.funerairesDjogana.code) {
+      return 'Couverture funérailles adaptée à votre famille. Souscrivez en quelques minutes.';
+    }
+    if (code == LeadwayLifeProductCode.bnbDjogana.code) {
+      return 'Produit d\'épargne pour constituer un capital à votre rythme.';
+    }
+    return 'Souscrivez pour démarrer votre parcours Assurance Vie.';
+  }
+
   Widget _buildLifeInsuranceView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadLifeProducts());
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       body: SafeArea(
@@ -1266,89 +1343,134 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top banner with gradient background
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: LeadwayBrand.gradient,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: LeadwayBrand.primary.withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
+              child: _lifeProductsLoading && _lifeProducts.isEmpty
+                  ? const Center(child: CircularProgressIndicator(color: LeadwayBrand.primary))
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.family_restroom_rounded,
-                            color: Colors.white,
-                            size: 36,
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              gradient: LeadwayBrand.gradient,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: LeadwayBrand.primary.withValues(alpha: 0.3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.family_restroom_rounded,
+                                  color: Colors.white,
+                                  size: 36,
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'Protégez ce qui compte le plus',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Choisissez un produit, souscrivez, puis calculez votre cotation.',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 12,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildLifeQuickAction(
+                                  icon: Icons.folder_shared_outlined,
+                                  title: 'Souscriptions',
+                                  onTap: _openLifeSubscriptions,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildLifeQuickAction(
+                                  icon: Icons.autorenew,
+                                  title: 'Paiements récurrents',
+                                  onTap: _openLifeRecurringPayments,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
                           const Text(
-                            'Protégez ce qui compte le plus',
+                            'Nos produits',
                             style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: LeadwayBrand.textDark,
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Planifiez sereinement l\'avenir de votre famille grâce à nos solutions d\'Assurance Vie flexibles et adaptées à vos besoins.',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 12,
-                              height: 1.4,
+                          const SizedBox(height: 16),
+                          for (final product in _lifeProducts) ...[
+                            _buildLifeProductCard(
+                              title: product.description.isEmpty ? product.value : product.description,
+                              description: _lifeProductDescription(product.value),
+                              icon: _lifeProductIcon(product.value),
+                              onPressed: () => _openLifeSubscription(product),
                             ),
-                          ),
+                            const SizedBox(height: 14),
+                          ],
+                          const SizedBox(height: 12),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Nos formules disponibles bientôt',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: LeadwayBrand.textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    _buildLifeProductCard(
-                      title: 'Leadway Prévoyance',
-                      description: 'Assurez un capital financier à vos proches pour faire face aux aléas de la vie en cas d\'invalidité ou de décès.',
-                      icon: Icons.shield_rounded,
-                    ),
-                    const SizedBox(height: 14),
-                    _buildLifeProductCard(
-                      title: 'Leadway Retraite',
-                      description: 'Constituez-vous une épargne solide tout au long de votre vie active pour maintenir votre niveau de vie une fois à la retraite.',
-                      icon: Icons.volunteer_activism_rounded,
-                    ),
-                    const SizedBox(height: 14),
-                    _buildLifeProductCard(
-                      title: 'Leadway Éducation',
-                      description: 'Préparez le financement des études de vos enfants avec une épargne ciblée et sécurisée.',
-                      icon: Icons.school_rounded,
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLifeQuickAction({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFEEEEEE)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: LeadwayBrand.primary, size: 26),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: LeadwayBrand.textDark),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1358,6 +1480,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     required String title,
     required String description,
     required IconData icon,
+    required VoidCallback onPressed,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -1366,7 +1489,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
         border: Border.all(color: Colors.grey[100]!, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.01),
+            color: Colors.black.withValues(alpha: 0.01),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1380,14 +1503,10 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: LeadwayBrand.primary.withOpacity(0.06),
+                color: LeadwayBrand.primary.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                color: LeadwayBrand.primary,
-                size: 24,
-              ),
+              child: Icon(icon, color: LeadwayBrand.primary, size: 24),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -1405,27 +1524,22 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                   const SizedBox(height: 4),
                   Text(
                     description,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                      height: 1.4,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.4),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
                     height: 32,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: LeadwayBrand.primary, width: 1.2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: LeadwayBrand.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        foregroundColor: LeadwayBrand.primary,
                       ),
-                      onPressed: () => _showLifeProductComingSoonDialog(title),
+                      onPressed: onPressed,
                       child: const Text(
-                        'En savoir plus',
+                        'Souscrire',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -1436,70 +1550,6 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  void _showLifeProductComingSoonDialog(String productTitle) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          icon: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: LeadwayBrand.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.hourglass_empty_rounded,
-              color: LeadwayBrand.primary,
-              size: 40,
-            ),
-          ),
-          title: Text(
-            productTitle,
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              color: LeadwayBrand.textDark,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          content: Text(
-            'Ce produit d\'assurance vie est en cours de développement.\n\nNos équipes travaillent activement pour vous proposer une expérience de souscription fluide et 100% digitale très prochainement.',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 13,
-              height: 1.4,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: LeadwayBrand.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  elevation: 0,
-                ),
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'Compris',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -2777,6 +2827,7 @@ class _PaymentStep extends StatelessWidget {
 
   bool get _isPeyaPay => operator == LeadwayPaymentOperator.peyapay;
   bool get _isOrange => operator == LeadwayPaymentOperator.orange;
+  bool get _isWave => operator == LeadwayPaymentOperator.wave;
 
   Widget _buildPhoneField() {
     return Padding(
@@ -2971,6 +3022,15 @@ class _PaymentStep extends StatelessWidget {
                 if (_isOrange) _buildPhoneField(),
                 const SizedBox(height: 8),
                 _PaymentMethodTile(
+                  selected: operator == LeadwayPaymentOperator.wave,
+                  title: 'Wave',
+                  subtitle: 'Requis : numéro de téléphone',
+                  icon: Icons.waves,
+                  onTap: () => onOperatorChanged(LeadwayPaymentOperator.wave),
+                ),
+                if (_isWave) _buildPhoneField(),
+                const SizedBox(height: 8),
+                _PaymentMethodTile(
                   selected: operator == LeadwayPaymentOperator.mtn,
                   title: 'MTN MoMo',
                   subtitle: 'Validation par notification Push (indisponible)',
@@ -2986,15 +3046,6 @@ class _PaymentStep extends StatelessWidget {
                   icon: Icons.phone_android,
                   enabled: false,
                   onTap: () => onOperatorChanged(LeadwayPaymentOperator.moov),
-                ),
-                const SizedBox(height: 8),
-                _PaymentMethodTile(
-                  selected: operator == LeadwayPaymentOperator.wave,
-                  title: 'Wave',
-                  subtitle: 'Validation par notification Push (indisponible)',
-                  icon: Icons.phone_android,
-                  enabled: false,
-                  onTap: () => onOperatorChanged(LeadwayPaymentOperator.wave),
                 ),
               ],
             ),

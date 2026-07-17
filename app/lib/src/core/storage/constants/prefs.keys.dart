@@ -5,5 +5,8 @@ class PrefsKeys {
   static const biometricEnabled = 'biometricEnabled';
   static const authToken = 'authToken';
   static const immoUserId = 'immoUserId';
+
+  /// JSON global des métadonnées par service (`ServiceMetadataStore`).
+  static const serviceMetadata = 'serviceMetadata';
 }
 

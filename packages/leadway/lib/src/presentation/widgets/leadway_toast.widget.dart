@@ -20,8 +20,12 @@ class LeadwayToast extends StatefulWidget {
     BuildContext context, {
     required String message,
     required LeadwayToastType type,
-    Duration duration = const Duration(seconds: 3),
+    Duration? duration,
   }) {
+    final resolvedDuration = duration ??
+        (type == LeadwayToastType.error
+            ? const Duration(seconds: 5)
+            : const Duration(seconds: 3));
     final overlayState = Overlay.of(context);
     late OverlayEntry entry;
 
@@ -35,7 +39,7 @@ class LeadwayToast extends StatefulWidget {
           child: LeadwayToast(
             message: message,
             type: type,
-            duration: duration,
+            duration: resolvedDuration,
             onDismiss: () {
               entry.remove();
             },
@@ -130,16 +134,22 @@ class _LeadwayToastState extends State<LeadwayToast> with SingleTickerProviderSt
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                icon,
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: icon,
+                ),
                 const SizedBox(width: 12),
                 Flexible(
                   child: Text(
                     widget.message,
+                    softWrap: true,
                     style: const TextStyle(
                       color: Color(0xFF1A1A1A),
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
+                      height: 1.35,
                     ),
                   ),
                 ),
