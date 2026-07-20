@@ -3,9 +3,27 @@ import 'package:leadway/leadway.dart';
 import 'package:peyapay/peyapay.dart';
 
 import 'package:app/src/core/auth/module.auth.dart';
+import 'package:app/src/core/peyapay/peyapay_profile.util.dart';
+import 'package:app/src/core/session/mon_peya.session.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/storage/service_metadata.store.dart';
 import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
+
+class MonPeyaLeadwayHostAuth implements LeadwayHostAuth {
+  const MonPeyaLeadwayHostAuth();
+
+  @override
+  Future<bool> isSessionActive() async => MonPeyaSession.instance.isSessionActive;
+
+  @override
+  Future<String?> getPhone() => AuthStore.getPhone();
+
+  @override
+  Future<String?> displayName() async => PeyapayProfileDisplay.clientName();
+
+  @override
+  Future<String?> monPeyaAccessToken() => AuthStore.monPeyaAccessToken();
+}
 
 /// Connecte Mon Peya à Leadway : navigation, paiement, **métadonnées app**.
 class MonPeyaLeadwayHostAdapter {
@@ -14,6 +32,7 @@ class MonPeyaLeadwayHostAdapter {
   static const _service = ServiceMetaNames.leadway;
 
   static void register() {
+    LeadwayHostBridge.auth = const MonPeyaLeadwayHostAuth();
     LeadwayHostBridge.onExitModule = _exitToMonPeyaHome;
     LeadwayHostBridge.onPayment = _handlePayment;
     LeadwayHostBridge.onSetMeta = setLeadwayMeta;

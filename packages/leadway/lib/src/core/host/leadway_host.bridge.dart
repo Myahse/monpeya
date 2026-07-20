@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
 
+/// Host-provided Mon Peya session for Leadway (phone + PIN auth).
+abstract class LeadwayHostAuth {
+  Future<bool> isSessionActive();
+  Future<String?> getPhone();
+  Future<String?> displayName();
+  Future<String?> monPeyaAccessToken();
+}
+
 typedef LeadwayExitHandler = void Function(BuildContext context);
 
 class LeadwayPaymentRequest {
@@ -40,6 +48,7 @@ abstract class LeadwayMetaKeys {
 class LeadwayHostBridge {
   LeadwayHostBridge._();
 
+  static LeadwayHostAuth? auth;
   static LeadwayExitHandler? onExitModule;
   static LeadwayPaymentHandler? onPayment;
 
@@ -48,6 +57,14 @@ class LeadwayHostBridge {
 
   /// Branché par l'app sur [ServiceMetadataStore.get] (+ fallbacks).
   static LeadwayMetaGetter? onGetMeta;
+
+  static LeadwayHostAuth get requireAuth {
+    final host = auth;
+    if (host == null) {
+      throw StateError('LeadwayHostBridge.auth not configured by Mon Peya shell.');
+    }
+    return host;
+  }
 
   static void exitModule(BuildContext context) {
     final handler = onExitModule;

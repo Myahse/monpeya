@@ -4,6 +4,7 @@ import 'package:app/src/features/shell/screens/app_stack.screen.dart';
 import 'package:app/src/features/auth/presentation/login_pin/screens/login_pin.screen.dart';
 import 'package:app/src/features/auth/presentation/phone_input/screens/phone_input.screen.dart';
 import 'package:app/src/features/auth/presentation/registration_flow/screens/registration_flow.screen.dart';
+import 'package:app/src/features/notifications/presentation/screens/notifications.screen.dart';
 import 'package:app/src/features/onboarding/presentation/screens/onboarding.screen.dart';
 import 'package:app/src/features/reset_pin/presentation/screens/reset_pin.screen.dart';
 import 'package:app/src/features/settings/presentation/screens/settings.screen.dart';
@@ -19,6 +20,7 @@ class Routes {
   static const loginPin = LoginPinScreen.routeName;
   static const settings = SettingsScreen.routeName;
   static const resetPin = ResetPinScreen.routeName;
+  static const notifications = NotificationsScreen.routeName;
   static const app = AppStackScreen.routeName;
 }
 
@@ -31,6 +33,7 @@ Map<String, WidgetBuilder> buildRoutes() {
     LoginPinScreen.routeName: (_) => const LoginPinScreen(),
     SettingsScreen.routeName: (_) => const SettingsScreen(),
     ResetPinScreen.routeName: (_) => const ResetPinScreen(),
+    NotificationsScreen.routeName: (_) => const NotificationsScreen(),
     AppStackScreen.routeName: (_) => const AppStackScreen(),
   };
 }

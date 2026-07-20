@@ -191,16 +191,22 @@ class RentalWhiteSheet extends StatelessWidget {
   }
 }
 
-/// Landlord dashboard green header — RN `greenContent`.
-class RentalLandlordHeader extends StatelessWidget {
-  const RentalLandlordHeader({
+/// Home header — adapts copy to landlord vs seeker profile.
+class RentalHomeHeader extends StatelessWidget {
+  const RentalHomeHeader({
     super.key,
+    required this.title,
+    required this.subtitle,
     this.unreadCount = 0,
     this.onNotifications,
+    this.onSwitchProfile,
   });
 
+  final String title;
+  final String subtitle;
   final int unreadCount;
   final VoidCallback? onNotifications;
+  final VoidCallback? onSwitchProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -209,26 +215,35 @@ class RentalLandlordHeader extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
         RentalTheme.spacingLg,
-        top + RentalTheme.spacingXxl,
+        top + RentalTheme.spacingLg,
         RentalTheme.spacingLg,
-        RentalTheme.spacingSm,
+        RentalTheme.spacingMd,
       ),
       decoration: const BoxDecoration(gradient: RentalTheme.headerGradient),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Tableau de bord',
-                  style: TextStyle(
+                  title,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
                 ),
               ),
+              if (onSwitchProfile != null)
+                IconButton(
+                  onPressed: onSwitchProfile,
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Changer de profil',
+                  icon: const Icon(Icons.swap_horiz, color: Colors.white, size: 22),
+                ),
               IconButton(
                 onPressed: onNotifications,
                 padding: const EdgeInsets.all(8),
@@ -264,16 +279,42 @@ class RentalLandlordHeader extends StatelessWidget {
               ),
             ],
           ),
-          const Text(
-            'Gérez vos biens & locataires',
-            style: TextStyle(
-              fontSize: 28,
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 22,
               fontWeight: FontWeight.w700,
               color: Colors.white,
+              height: 1.2,
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Landlord dashboard green header — RN `greenContent`.
+class RentalLandlordHeader extends StatelessWidget {
+  const RentalLandlordHeader({
+    super.key,
+    this.unreadCount = 0,
+    this.onNotifications,
+    this.onSwitchProfile,
+  });
+
+  final int unreadCount;
+  final VoidCallback? onNotifications;
+  final VoidCallback? onSwitchProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    return RentalHomeHeader(
+      title: 'Tableau de bord',
+      subtitle: 'Gérez vos biens & locataires',
+      unreadCount: unreadCount,
+      onNotifications: onNotifications,
+      onSwitchProfile: onSwitchProfile,
     );
   }
 }

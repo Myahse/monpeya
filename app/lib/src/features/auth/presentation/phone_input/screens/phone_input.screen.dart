@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mocks/mocks.dart';
 
 import 'package:app/src/core/assets/constants/asset.paths.dart';
 import 'package:app/src/core/auth/auth.navigation.dart';
@@ -9,6 +8,8 @@ import 'package:app/src/core/widgets/pin_keypad.widget.dart';
 import 'package:app/src/features/auth/presentation/login_pin/screens/login_pin.screen.dart';
 import 'package:app/src/features/auth/presentation/registration_flow/screens/registration_flow.screen.dart';
 import 'package:app/src/features/auth/presentation/widgets/auth_flow_scaffold.widget.dart';
+import 'package:app/src/core/api/mon_peya_api.exception.dart';
+import 'package:app/src/integration/adapters/mon_peya_backend.adapter.dart';
 
 class PhoneInputScreen extends StatefulWidget {
   const PhoneInputScreen({super.key, this.embeddedInModule = false});
@@ -21,8 +22,6 @@ class PhoneInputScreen extends StatefulWidget {
 }
 
 class _PhoneInputScreenState extends State<PhoneInputScreen> {
-  static const _mockAuth = MockAuthService();
-
   static const _countries = <({String code, String flag, String name})>[
     (code: '+225', flag: '🇨🇮', name: "Côte d'Ivoire"),
     (code: '+33', flag: '🇫🇷', name: 'France'),
@@ -127,38 +126,27 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
     setState(() => _country = chosen);
   }
 
-  Future<void> _continueAfterOtp() async {
-    final digits = _digitsOnly(_controller.text);
-    final fullPhone = '${_country.code}$digits';
+  Future<void> _dismissKeyboard() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    // Let the IME finish closing so it does not carry over onto the next screen.
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+  }
 
-    setState(() => _submitting = true);
+  Future<void> _continueAfterOtp(String fullPhone) async {
     await AuthStore.setPhone(fullPhone);
-    final hasPin = await AuthStore.hasPinForPhone(fullPhone);
     if (!mounted) return;
-    setState(() => _submitting = false);
-
-    if (hasPin) {
-      if (widget.embeddedInModule) {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => LoginPinScreen(embeddedInModule: true, phoneNumber: fullPhone),
-          ),
-        );
-      } else {
-        Navigator.of(context).pushNamed(
-          Routes.loginPin,
-          arguments: {'phoneNumber': fullPhone},
-        );
-      }
-      return;
-    }
+    await _dismissKeyboard();
+    if (!mounted) return;
 
     if (widget.embeddedInModule) {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
+      final done = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
           builder: (_) => const RegistrationFlowScreen(embeddedInModule: true),
         ),
       );
+      if (done == true && mounted) {
+        Navigator.of(context).pop(true);
+      }
       return;
     }
 
@@ -166,54 +154,87 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
   }
 
   Future<void> _openLoginPin(String fullPhone) async {
+    await _dismissKeyboard();
+    if (!mounted) return;
+
     if (widget.embeddedInModule) {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => LoginPinScreen(embeddedInModule: true, phoneNumber: fullPhone),
+      final ok = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (_) => LoginPinScreen(
+            embeddedInModule: true,
+            phoneNumber: fullPhone,
+          ),
         ),
       );
-    } else {
-      Navigator.of(context).pushNamed(
-        Routes.loginPin,
-        arguments: {'phoneNumber': fullPhone},
-      );
+      if (ok == true && mounted) {
+        Navigator.of(context).pop(true);
+      }
+      return;
     }
+
+    Navigator.of(context).pushNamed(
+      Routes.loginPin,
+      arguments: {'phoneNumber': fullPhone},
+    );
   }
 
   Future<void> _handleNext() async {
     if (!_isValidPhone || _submitting) return;
 
+    // Close keyboard before lookup / navigation to PIN or OTP.
+    await _dismissKeyboard();
+    if (!mounted) return;
+
     final digits = _digitsOnly(_controller.text);
-    final mockUser = _mockAuth.userForPhone(digits);
-
-    if (mockUser != null) {
-      setState(() => _submitting = true);
-      await AuthStore.setPhone(mockUser.fullPhone);
-      await AuthStore.hasPinForPhone(mockUser.fullPhone);
-      if (!mounted) return;
-      setState(() => _submitting = false);
-      await _openLoginPin(mockUser.fullPhone);
-      return;
-    }
-
     final fullPhone = '${_country.code}$digits';
 
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _OtpBottomSheet(
-        onSubmit: (code) async {
-          if (!_mockAuth.verifyOtp(fullPhone, code)) return false;
-          Navigator.of(context).pop(true);
-          await _continueAfterOtp();
-          return true;
-        },
-      ),
-    );
+    setState(() => _submitting = true);
+    try {
+      final lookup = await monPeyaLookupPhone(fullPhone);
+      if (!mounted) return;
 
-    // If user dismisses sheet, do nothing.
-    if (ok != true) return;
+      await AuthStore.setPhone(fullPhone);
+
+      // Known Peya client → PIN login (no OTP).
+      if (lookup.isRecognized) {
+        await _openLoginPin(fullPhone);
+        return;
+      }
+
+      // Unknown number → OTP + validation-code modal → registration.
+      await monPeyaSendOtp(fullPhone);
+      if (!mounted) return;
+
+      await _dismissKeyboard();
+      if (!mounted) return;
+
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => _OtpBottomSheet(
+          onResend: () => monPeyaSendOtp(fullPhone),
+          onSubmit: (code) async {
+            try {
+              await monPeyaVerifyOtp(phone: fullPhone, code: code);
+              if (!context.mounted) return false;
+              Navigator.of(context).pop();
+              await _continueAfterOtp(fullPhone);
+              return true;
+            } on MonPeyaApiException {
+              return false;
+            }
+          },
+        ),
+      );
+    } on MonPeyaApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -339,8 +360,13 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
 }
 
 class _OtpBottomSheet extends StatefulWidget {
-  const _OtpBottomSheet({required this.onSubmit});
+  const _OtpBottomSheet({
+    required this.onSubmit,
+    required this.onResend,
+  });
+
   final Future<bool> Function(String code) onSubmit;
+  final Future<void> Function() onResend;
 
   @override
   State<_OtpBottomSheet> createState() => _OtpBottomSheetState();
@@ -350,14 +376,33 @@ class _OtpBottomSheetState extends State<_OtpBottomSheet> {
   static const _len = 4;
   String _code = '';
   bool _error = false;
+  bool _resending = false;
   int _timer = 0;
 
   late final List<List<String>> _keypad;
+
+  Future<void> _resend() async {
+    if (_timer > 0 || _resending) return;
+    setState(() => _resending = true);
+    try {
+      await widget.onResend();
+      if (!mounted) return;
+      _startTimer();
+    } on MonPeyaApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } finally {
+      if (mounted) setState(() => _resending = false);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _keypad = generateKeypad3Rows();
+    _startTimer();
   }
 
   void _startTimer() {
@@ -515,9 +560,13 @@ class _OtpBottomSheetState extends State<_OtpBottomSheet> {
                   ],
                   const SizedBox(height: 8),
                   GestureDetector(
-                    onTap: _timer <= 0 ? _startTimer : null,
+                    onTap: (_timer <= 0 && !_resending) ? _resend : null,
                     child: Text(
-                      _timer <= 0 ? 'Renvoyer le code' : 'Renvoyer le code dans : 00:${_timer.toString().padLeft(2, '0')}',
+                      _resending
+                          ? 'Envoi en cours…'
+                          : _timer <= 0
+                              ? 'Renvoyer le code'
+                              : 'Renvoyer le code dans : 00:${_timer.toString().padLeft(2, '0')}',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: _timer <= 0 ? FontWeight.w800 : FontWeight.w600,

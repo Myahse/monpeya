@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
+import 'package:billetterie/billetterie.dart';
 import 'package:app/src/core/modules/app.module.dart';
 import 'package:app/src/core/modules/navigation/module.navigation.dart';
 import 'package:app/src/integration/registries/billetterie_module.registry.dart';
@@ -17,6 +19,45 @@ class AppStackController extends ValueNotifier<AppStackState> {
         );
 
   bool get canGoBack => value.stack.length > 1;
+
+  /// When on [AppStackRoute.main], handles tab / inner navigator back.
+  bool Function()? onMainBack;
+
+  /// When a native module is open, it can handle back internally before exiting.
+  bool Function()? onModuleBack;
+
+  bool get isModuleOpen => AppStackRoute.isModuleRoute(value.current.name);
+
+  void handleSystemBack() {
+    if (isModuleOpen) {
+      if ((value.current.name == AppStackRoute.billetterieTransport ||
+              value.current.name == AppStackRoute.billetterieEvent ||
+              value.current.name == AppStackRoute.billetterie) &&
+          BilletterieHostBridge.tryHandleModuleBack()) {
+        return;
+      }
+      if (onModuleBack?.call() == true) return;
+      exitModule();
+      return;
+    }
+
+    if (onMainBack?.call() == true) return;
+    if (canGoBack) {
+      goBack();
+      return;
+    }
+
+    SystemNavigator.pop();
+  }
+
+  /// Leaves the current service module and returns to Mon Peya home tabs.
+  void exitModule() {
+    if (canGoBack) {
+      goBack();
+      return;
+    }
+    popToHome();
+  }
 
   void toggleMenu() =>
       value = AppStackState(stack: value.stack, menuVisible: !value.menuVisible);

@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 
 import 'package:peyapay/src/core/utils/formatters.util.dart';
 import 'package:peyapay/src/core/utils/screen_insets.util.dart';
+import 'package:peyapay/src/core/utils/peyapay_transaction_share.util.dart';
 import 'package:peyapay/src/data/models/transaction.item.dart';
+import 'package:peyapay/src/presentation/widgets/peyapay_amount_with_cfa.widget.dart';
+import 'package:peyapay/src/presentation/widgets/peyapay_nav_bar_icon.widget.dart';
 
 class PeyapayTransactionDetailScreen extends StatelessWidget {
   const PeyapayTransactionDetailScreen({super.key, required this.item});
@@ -28,7 +31,7 @@ class PeyapayTransactionDetailScreen extends StatelessWidget {
       body: Column(
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(16, peyapayStatusBarTop(context), 16, 12),
+            padding: EdgeInsets.fromLTRB(16, peyapayStatusBarTop(context) + 16, 16, 12),
             child: SizedBox(
               height: 44,
               child: Row(
@@ -46,7 +49,13 @@ class PeyapayTransactionDetailScreen extends StatelessWidget {
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: ink),
                     ),
                   ),
-                  const SizedBox(width: 44),
+                  IconButton(
+                    onPressed: () => sharePeyapayTransactionPdf(context, item),
+                    icon: Icon(Icons.ios_share_rounded, color: ink, size: 22),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    tooltip: 'Partager en PDF',
+                  ),
                 ],
               ),
             ),
@@ -56,35 +65,16 @@ class PeyapayTransactionDetailScreen extends StatelessWidget {
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: (item.isCredit ? _green : ink).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    alignment: Alignment.center,
-                    child: Icon(
-                      item.isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                      color: amountColor,
-                      size: 30,
-                    ),
+                  const PeyaPayNavBarIcon(size: 44, width: 120),
+                  const SizedBox(height: 20),
+                  PeyapayAmountWithCfa(
+                    amount: item.amount,
+                    color: amountColor,
+                    showSign: true,
+                    isCredit: item.isCredit,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '${item.isCredit ? '+' : '-'}${formatFrMoneySigned(item.amount.abs())} XOF',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: amountColor, height: 1.1),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    item.recipient,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: ink),
-                  ),
-                  const SizedBox(height: 10),
-                  _StatusChip(status: item.status),
                   const SizedBox(height: 22),
                   Container(
                     width: double.infinity,
@@ -107,12 +97,27 @@ class PeyapayTransactionDetailScreen extends StatelessWidget {
                         ],
                         if (item.description != null && item.description!.isNotEmpty) ...[
                           _divider(border),
-                          _DetailRow(label: 'Description', value: item.description!, ink: ink, muted: muted),
+                          _DetailRow(label: 'Libellé', value: item.description!, ink: ink, muted: muted),
                         ],
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => sharePeyapayTransactionPdf(context, item),
+                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                      label: const Text('Partager le reçu PDF'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
@@ -147,33 +152,6 @@ class PeyapayTransactionDetailScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Divider(height: 1, color: color),
       );
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-
-  final TransactionStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final (bg, fg) = switch (status) {
-      TransactionStatus.completed => (const Color(0xFFD1FAE5), const Color(0xFF006D56)),
-      TransactionStatus.pending => (const Color(0xFFFEF3C7), const Color(0xFFB45309)),
-      TransactionStatus.failed => (const Color(0xFFFEE2E2), const Color(0xFFDC2626)),
-    };
-
-    final label = switch (status) {
-      TransactionStatus.completed => 'Complétée',
-      TransactionStatus.pending => 'En cours',
-      TransactionStatus.failed => 'Échouée',
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: fg)),
-    );
-  }
 }
 
 class _DetailRow extends StatelessWidget {

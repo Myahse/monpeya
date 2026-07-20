@@ -246,12 +246,10 @@ class _ModuleWebViewScreenState extends State<ModuleWebViewScreen> {
       return;
     }
 
-    if (appStack != null && appStack.canGoBack) {
-      appStack.goBack();
+    if (appStack != null) {
+      appStack.exitModule();
       return;
     }
-
-    if (mounted) Navigator.of(context).maybePop();
   }
 
   Future<void> _reload() async {

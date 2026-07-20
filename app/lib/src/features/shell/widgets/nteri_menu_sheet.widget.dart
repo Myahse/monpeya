@@ -132,7 +132,7 @@ class _NteriMenuPanelState extends State<NteriMenuPanel> {
                                 label: module.name,
                                 selected: module.moduleKey == widget.currentModuleKey,
                                 onTap: () => _closeAnd(
-                                  () => openModuleIfRegistered(context, () => appStack.openModule(module)),
+                                  () => openModuleIfRegistered(context, module),
                                 ),
                               ),
                           ],

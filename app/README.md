@@ -225,7 +225,7 @@ Optional API endpoints (Mr Immo / Billetterie backends):
 ```powershell
 flutter run `
   --dart-define=IMMO_API_URL=http://YOUR_IP:8081 `
-  --dart-define=BILLETTERIE_API_URL=http://YOUR_IP:8089/api/billetterie-electronique
+  --dart-define=BILLETTERIE_API_URL=http://YOUR_IP:8090
 ```
 
 Run on a specific device:
@@ -257,16 +257,7 @@ flutter build windows --release
 
 ---
 
-## Demo credentials
-
-Built-in mock accounts (see `packages/mocks`) for testing without SMS or backend:
-
-| Phone (local) | Phone (full) | PIN / OTP |
-|---------------|--------------|-----------|
-| `0777146737` | `+2250777146737` | `1234` |
-| `0758237837` | `+2250758237837` | `1234` |
-
-Mock users skip the OTP sheet and go straight to PIN login. For other numbers, any 4-digit OTP is accepted in dev.
+## Debug / guest mode
 
 To force guest mode during debug builds, set `AuthStore.forceGuestInDebug = true` in `lib/src/core/storage/auth.store.dart`.
 

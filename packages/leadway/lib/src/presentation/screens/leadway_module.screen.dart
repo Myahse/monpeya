@@ -75,6 +75,36 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
         : LeadwayVehicleCategory.moto;
     _paymentOperator = LeadwayApiConfig.enablePeyaPay ? LeadwayPaymentOperator.peyapay : LeadwayPaymentOperator.orange;
     _loadSubscriptions();
+    _prefillFromMonPeyaAuth();
+  }
+
+  Future<void> _prefillFromMonPeyaAuth() async {
+    final auth = LeadwayHostBridge.auth;
+    if (auth == null) return;
+
+    try {
+      final phone = await auth.getPhone();
+      final name = await auth.displayName();
+      if (!mounted) return;
+
+      if (phone != null && phone.trim().isNotEmpty && _phoneNoCtrl.text.trim().isEmpty) {
+        _phoneNoCtrl.text = _formatPhoneForLeadway(phone);
+      }
+      if (name != null && name.trim().isNotEmpty && _fullNameCtrl.text.trim().isEmpty) {
+        _fullNameCtrl.text = name.trim();
+      }
+      if (mounted) setState(() {});
+    } catch (_) {}
+  }
+
+  static String _formatPhoneForLeadway(String phone) {
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length >= 10) {
+      final local = digits.length > 10 ? digits.substring(digits.length - 10) : digits;
+      return '+225 ${local.substring(0, 2)} ${local.substring(2, 4)} '
+          '${local.substring(4, 6)} ${local.substring(6, 8)} ${local.substring(8)}';
+    }
+    return phone.trim();
   }
 
   Future<void> _loadSubscriptions() async {

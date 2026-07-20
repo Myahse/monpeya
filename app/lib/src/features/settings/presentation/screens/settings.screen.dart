@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:app/src/core/navigation/app.navigation.dart';
+import 'package:app/src/core/peyapay/peyapay_profile.util.dart';
 import 'package:app/src/core/routing/routes.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/storage/constants/prefs.keys.dart';
+import 'package:app/src/integration/adapters/mon_peya_backend.adapter.dart';
 import 'package:app/src/integration/adapters/peyapay_host.adapter.dart';
+import 'package:peyapay/peyapay.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -19,6 +22,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _loading = true;
   bool _isRegistered = false;
   String _phone = '';
+  String? _clientName;
   bool _biometricsEnabled = false;
 
   @override
@@ -38,7 +42,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
     final ok = await AuthStore.hasAccount();
     if (!mounted) return;
-    setState(() => _isRegistered = ok);
+    setState(() {
+      _isRegistered = ok;
+      _clientName = PeyapayProfileDisplay.clientName();
+    });
   }
 
   bool get _isGuest => !_isRegistered;
@@ -74,8 +81,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(PrefsKeys.biometricEnabled, false);
+    await monPeyaLogoutSession();
     await AuthStore.endSession();
     await AuthStore.setImmoUserId(null);
+    clearPeyapayWalletQrCache();
     endMonPeyaSession();
     notifyMonPeyaSessionChanged();
 
@@ -190,6 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           const SizedBox(height: 12),
                           _ProfileCard(
                             isRegistered: _isRegistered,
+                            clientName: _clientName,
                             phone: _phone,
                           ),
                           _Section(
@@ -362,14 +372,24 @@ class _SettingsHeader extends StatelessWidget {
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.isRegistered, required this.phone});
+  const _ProfileCard({
+    required this.isRegistered,
+    required this.clientName,
+    required this.phone,
+  });
   final bool isRegistered;
+  final String? clientName;
   final String phone;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final nameLine = isRegistered ? (phone.isNotEmpty ? phone : '—') : 'Invité';
+    final formattedPhone = PeyapayProfileDisplay.formatPhone(phone);
+    final nameLine = isRegistered
+        ? (clientName?.trim().isNotEmpty == true ? clientName!.trim() : '—')
+        : 'Invité';
+    final showPhoneBelow = isRegistered && formattedPhone.isNotEmpty;
+    final initials = PeyapayProfileDisplay.initials(nameLine);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -387,6 +407,15 @@ class _ProfileCard extends StatelessWidget {
               color: cs.onSurface,
               borderRadius: BorderRadius.circular(28),
             ),
+            alignment: Alignment.center,
+            child: Text(
+              initials,
+              style: TextStyle(
+                color: cs.surface,
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+              ),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -395,14 +424,19 @@ class _ProfileCard extends StatelessWidget {
               children: [
                 Text(
                   nameLine,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                if (isRegistered && phone.isNotEmpty) ...[
+                if (showPhoneBelow) ...[
                   const SizedBox(height: 2),
-                  Text(phone, style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
+                  Text(
+                    formattedPhone,
+                    style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+                  ),
                 ],
               ],
             ),

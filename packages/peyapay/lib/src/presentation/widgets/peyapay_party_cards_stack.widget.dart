@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 class PeyapayPartyCardData {
@@ -44,6 +46,7 @@ class PeyapayPartyCardsStack extends StatelessWidget {
   final Color ink;
   final Color muted;
   final Color cardBg;
+  /// Kept for API compatibility; notches are clipped so the parent bg shows through.
   final Color cutoutBg;
   final Color accent;
   final Color arrowBg;
@@ -56,8 +59,14 @@ class PeyapayPartyCardsStack extends StatelessWidget {
 
   static const _cardHeight = 140.0;
   static const _cardWidthFactor = 0.42;
-  static const _gap = 12.0;
-  static const _sideTravel = 40.0;
+  /// Slightly tighter than the original 12 (still leaves the cut visible).
+  static const _gap = 10.0;
+  /// Bite depth (horizontal).
+  static const _notchX = 20.0;
+  /// Bite height (vertical) — slightly taller than deep.
+  static const _notchY = 23.0;
+  static const _cornerRadius = 12.0;
+  static const _notchFraction = 0.49;
 
   @override
   Widget build(BuildContext context) {
@@ -67,35 +76,38 @@ class PeyapayPartyCardsStack extends StatelessWidget {
       decoration: BoxDecoration(
         color: arrowBg,
         borderRadius: BorderRadius.circular(22),
-        border: arrowBorderColor == null ? null : Border.all(color: arrowBorderColor!, width: 0.5),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
+        border: arrowBorderColor == null
+            ? null
+            : Border.all(color: arrowBorderColor!, width: 0.5),
       ),
       alignment: Alignment.center,
       child: Icon(arrowIcon ?? Icons.chevron_right_rounded, size: 22, color: ink),
     );
 
-    final arrowChild = arrowFade == null ? arrowCircle : FadeTransition(opacity: arrowFade!, child: arrowCircle);
-    final scaledArrowChild = circleScale == null ? arrowChild : ScaleTransition(scale: circleScale!, child: arrowChild);
+    final arrowChild =
+        arrowFade == null ? arrowCircle : FadeTransition(opacity: arrowFade!, child: arrowCircle);
+    final scaledArrowChild =
+        circleScale == null ? arrowChild : ScaleTransition(scale: circleScale!, child: arrowChild);
 
     Widget buildStack(double progress) {
-      final eased = Curves.easeOutCubic.transform(progress.clamp(0.0, 1.0));
-      final cardOpacity = (progress * 1.35).clamp(0.0, 1.0);
-      final cardScale = 0.94 + (0.06 * eased);
-      final travel = _sideTravel * (1 - eased);
+      final t = progress.clamp(0.0, 1.0);
+      final cardOpacity = Curves.easeOut.transform(t);
+      final cardScale = 0.9 + (0.1 * t);
 
       return LayoutBuilder(
         builder: (context, c) {
           final w = c.maxWidth;
+          final screenW = MediaQuery.sizeOf(context).width;
+          final stackInset = (screenW - w) / 2;
           final cardWidth = w * _cardWidthFactor;
           final totalCardsWidth = (cardWidth * 2) + _gap;
           final leftX = (w - totalCardsWidth) / 2;
           final rightX = leftX + cardWidth + _gap;
+
+          final leftEntryDx = -(leftX + stackInset + cardWidth);
+          final rightEntryDx = (w - rightX - cardWidth) + stackInset + cardWidth;
+          final leftDx = leftEntryDx * (1 - t);
+          final rightDx = rightEntryDx * (1 - t);
 
           Widget animatedCard(_MiniPartyCard card, {required double x, required double dx}) {
             return Positioned(
@@ -123,7 +135,6 @@ class PeyapayPartyCardsStack extends StatelessWidget {
                   _MiniPartyCard(
                     side: _MiniPartyCardSide.left,
                     cardBg: cardBg,
-                    cutoutBg: cutoutBg,
                     ink: ink,
                     muted: muted,
                     title: left.title,
@@ -135,13 +146,12 @@ class PeyapayPartyCardsStack extends StatelessWidget {
                     badgeFg: left.badgeFg,
                   ),
                   x: leftX,
-                  dx: -travel,
+                  dx: leftDx,
                 ),
                 animatedCard(
                   _MiniPartyCard(
                     side: _MiniPartyCardSide.right,
                     cardBg: cardBg,
-                    cutoutBg: cutoutBg,
                     ink: ink,
                     muted: muted,
                     title: right.title,
@@ -153,11 +163,11 @@ class PeyapayPartyCardsStack extends StatelessWidget {
                     badgeFg: right.badgeFg,
                   ),
                   x: rightX,
-                  dx: travel,
+                  dx: rightDx,
                 ),
                 Positioned(
                   left: (w / 2) - 17.5,
-                  top: (_cardHeight * 0.49) - 17.5,
+                  top: (_cardHeight * _notchFraction) - 17.5,
                   child: scaledArrowChild,
                 ),
               ],
@@ -168,23 +178,105 @@ class PeyapayPartyCardsStack extends StatelessWidget {
     }
 
     if (cardsReveal == null) {
-      return buildStack(1);
+      return ClipRect(clipBehavior: Clip.none, child: buildStack(1));
     }
 
-    return AnimatedBuilder(
-      animation: cardsReveal!,
-      builder: (context, _) => buildStack(cardsReveal!.value),
+    return ClipRect(
+      clipBehavior: Clip.none,
+      child: AnimatedBuilder(
+        animation: cardsReveal!,
+        builder: (context, _) => buildStack(cardsReveal!.value),
+      ),
     );
   }
 }
 
 enum _MiniPartyCardSide { left, right }
 
+/// Half-ellipse notch on the inner edge (taller than deep).
+class _PartyCardNotchClipper extends CustomClipper<Path> {
+  const _PartyCardNotchClipper({
+    required this.side,
+    required this.cornerRadius,
+    required this.notchX,
+    required this.notchY,
+    required this.notchFraction,
+  });
+
+  final _MiniPartyCardSide side;
+  final double cornerRadius;
+  final double notchX;
+  final double notchY;
+  final double notchFraction;
+
+  @override
+  Path getClip(Size size) {
+    final cy = size.height * notchFraction;
+    final r = cornerRadius;
+    final path = Path();
+
+    path.moveTo(r, 0);
+    path.lineTo(size.width - r, 0);
+    path.quadraticBezierTo(size.width, 0, size.width, r);
+
+    if (side == _MiniPartyCardSide.left) {
+      path.lineTo(size.width, cy - notchY);
+      path.arcTo(
+        Rect.fromCenter(
+          center: Offset(size.width, cy),
+          width: notchX * 2,
+          height: notchY * 2,
+        ),
+        -math.pi / 2,
+        // CCW so the arc bites INTO the card (CW arcs outside and vanishes).
+        -math.pi,
+        false,
+      );
+      path.lineTo(size.width, size.height - r);
+    } else {
+      path.lineTo(size.width, size.height - r);
+    }
+
+    path.quadraticBezierTo(size.width, size.height, size.width - r, size.height);
+    path.lineTo(r, size.height);
+    path.quadraticBezierTo(0, size.height, 0, size.height - r);
+
+    if (side == _MiniPartyCardSide.right) {
+      path.lineTo(0, cy + notchY);
+      path.arcTo(
+        Rect.fromCenter(
+          center: Offset(0, cy),
+          width: notchX * 2,
+          height: notchY * 2,
+        ),
+        math.pi / 2,
+        -math.pi,
+        false,
+      );
+      path.lineTo(0, r);
+    } else {
+      path.lineTo(0, r);
+    }
+
+    path.quadraticBezierTo(0, 0, r, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant _PartyCardNotchClipper oldClipper) {
+    return oldClipper.side != side ||
+        oldClipper.cornerRadius != cornerRadius ||
+        oldClipper.notchX != notchX ||
+        oldClipper.notchY != notchY ||
+        oldClipper.notchFraction != notchFraction;
+  }
+}
+
 class _MiniPartyCard extends StatelessWidget {
   const _MiniPartyCard({
     required this.side,
     required this.cardBg,
-    required this.cutoutBg,
     required this.ink,
     required this.muted,
     required this.title,
@@ -198,7 +290,6 @@ class _MiniPartyCard extends StatelessWidget {
 
   final _MiniPartyCardSide side;
   final Color cardBg;
-  final Color cutoutBg;
   final Color ink;
   final Color muted;
   final String title;
@@ -211,20 +302,6 @@ class _MiniPartyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cutout = Positioned(
-      top: (140 * 0.40) - 21,
-      left: side == _MiniPartyCardSide.right ? -28 : null,
-      right: side == _MiniPartyCardSide.left ? -28 : null,
-      child: Container(
-        width: 34,
-        height: 42,
-        decoration: BoxDecoration(
-          color: cutoutBg,
-          borderRadius: BorderRadius.circular(18),
-        ),
-      ),
-    );
-
     final badge = (badgeText == null || badgeText!.trim().isEmpty)
         ? null
         : Positioned(
@@ -247,58 +324,66 @@ class _MiniPartyCard extends StatelessWidget {
             ),
           );
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 6,
-            offset: Offset(0, 1),
-          ),
-        ],
+    return ClipPath(
+      clipper: _PartyCardNotchClipper(
+        side: side,
+        cornerRadius: PeyapayPartyCardsStack._cornerRadius,
+        notchX: PeyapayPartyCardsStack._notchX,
+        notchY: PeyapayPartyCardsStack._notchY,
+        notchFraction: PeyapayPartyCardsStack._notchFraction,
       ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          cutout,
-          if (badge != null) badge,
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(19),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(icon, color: iconColor, size: 20),
+      child: ColoredBox(
+        color: cardBg,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (badge != null) badge,
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: iconColor.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(19),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(icon, color: iconColor, size: 20),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: muted,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: ink),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: muted),
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

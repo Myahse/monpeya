@@ -58,13 +58,23 @@ class BundledModules {
     ),
     AppModule(
       id: 5,
-      moduleKey: 'billetterie',
-      name: 'Billetterie',
-      icon: 'ticket',
-      url: 'native:billetterie',
+      moduleKey: 'billetterie-transport',
+      name: 'Billetterie Transport',
+      icon: 'billetterie-transport',
+      url: 'native:billetterie/transport',
       type: ModuleLaunchType.native,
       source: ModuleSource.bundled,
       sortOrder: 5,
+    ),
+    AppModule(
+      id: 7,
+      moduleKey: 'billetterie-event',
+      name: 'Billetterie Événements',
+      icon: 'billetterie-event',
+      url: 'native:billetterie/event',
+      type: ModuleLaunchType.native,
+      source: ModuleSource.bundled,
+      sortOrder: 6,
     ),
   ];
 }

@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
 class PeyapayTopBar extends StatelessWidget {
-  const PeyapayTopBar({super.key, required this.title, required this.onPressProfile});
+  const PeyapayTopBar({
+    super.key,
+    required this.title,
+    required this.onPressProfile,
+    this.titleWidget,
+  });
 
   final String title;
   final VoidCallback onPressProfile;
+  final Widget? titleWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -34,17 +40,18 @@ class PeyapayTopBar extends StatelessWidget {
           ),
           Expanded(
             child: Center(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: cs.onSurface,
-                  height: 1.1,
-                ),
-              ),
+              child: titleWidget ??
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: cs.onSurface,
+                      height: 1.1,
+                    ),
+                  ),
             ),
           ),
           const SizedBox(width: 40, height: 40),
@@ -53,4 +60,3 @@ class PeyapayTopBar extends StatelessWidget {
     );
   }
 }
-

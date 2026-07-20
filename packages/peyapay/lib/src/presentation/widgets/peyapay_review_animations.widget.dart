@@ -1,39 +1,41 @@
 import 'package:flutter/material.dart';
 
 /// Shared entrance animations for review / verify payment screens.
+///
+/// Sequence: party cards slide in → center arrow → bottom sheet rises.
 class PeyapayReviewEntranceAnimations {
   PeyapayReviewEntranceAnimations(AnimationController controller)
       : cardsReveal = Tween<double>(begin: 0, end: 1).animate(
           CurvedAnimation(
             parent: controller,
-            curve: const Interval(0.0, 0.58, curve: Curves.easeOutCubic),
+            curve: const Interval(0.0, 0.48, curve: Curves.easeOutCubic),
           ),
         ),
         arrowFade = Tween<double>(begin: 0, end: 1).animate(
           CurvedAnimation(
             parent: controller,
-            curve: const Interval(0.48, 0.82, curve: Curves.easeOut),
+            curve: const Interval(0.38, 0.52, curve: Curves.easeOut),
           ),
         ),
-        circleScale = Tween<double>(begin: 0.9, end: 1).animate(
+        circleScale = Tween<double>(begin: 0.75, end: 1).animate(
           CurvedAnimation(
             parent: controller,
-            curve: const Interval(0.48, 0.82, curve: Curves.easeOutCubic),
+            curve: const Interval(0.38, 0.52, curve: Curves.easeOutBack),
           ),
         ),
         sheetSlide = Tween<Offset>(
-          begin: const Offset(0, 0.1),
+          begin: const Offset(0, 1),
           end: Offset.zero,
         ).animate(
           CurvedAnimation(
             parent: controller,
-            curve: const Interval(0.38, 1.0, curve: Curves.easeOutCubic),
+            curve: const Interval(0.52, 1.0, curve: Curves.easeOutCubic),
           ),
         ),
         sheetFade = Tween<double>(begin: 0, end: 1).animate(
           CurvedAnimation(
             parent: controller,
-            curve: const Interval(0.38, 0.86, curve: Curves.easeOut),
+            curve: const Interval(0.52, 0.92, curve: Curves.easeOut),
           ),
         );
 
@@ -44,8 +46,9 @@ class PeyapayReviewEntranceAnimations {
   final Animation<Offset> sheetSlide;
   final Animation<double> sheetFade;
 
-  static const entranceDuration = Duration(milliseconds: 520);
+  static const entranceDuration = Duration(milliseconds: 1000);
   static const exitDuration = Duration(milliseconds: 240);
+  static const confirmExitDuration = Duration(milliseconds: 340);
 }
 
 /// Slide-up route — subtle fade only so card motion stays readable.

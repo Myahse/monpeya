@@ -276,7 +276,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (widget.embeddedInModule) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).pop(true);
       return;
     }
     AuthNavigation.completeAuthFlow(context);

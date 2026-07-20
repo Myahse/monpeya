@@ -1,6 +1,11 @@
 class AppStackRoute {
   static const main = 'Main';
-  static const billetterie = 'Billetterie';
+  static const billetterieTransport = 'BilletterieTransport';
+  static const billetterieEvent = 'BilletterieEvent';
+
+  /// @Deprecated('Use billetterieTransport')
+  static const billetterie = billetterieTransport;
+
   static const leadwayAssurance = 'LeadwayAssurance';
   static const mrImmoRental = 'MrImmoRental';
   static const mrImmoConstruction = 'MrImmoConstruction';

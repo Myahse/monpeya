@@ -4,9 +4,14 @@ class PrefsKeys {
   static const phoneNumber = 'phoneNumber';
   static const biometricEnabled = 'biometricEnabled';
   static const authToken = 'authToken';
+  static const immoAuthToken = 'immoAuthToken';
   static const immoUserId = 'immoUserId';
 
   /// JSON global des métadonnées par service (`ServiceMetadataStore`).
   static const serviceMetadata = 'serviceMetadata';
-}
 
+  static const monPeyaAccessToken = 'monPeyaAccessToken';
+  static const monPeyaRefreshToken = 'monPeyaRefreshToken';
+  static const monPeyaUserId = 'monPeyaUserId';
+  static const codeClient = 'codeClient';
+}

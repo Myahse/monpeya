@@ -5,7 +5,7 @@ import 'package:app/src/core/session/mon_peya.session.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
 
-/// Connects Mon Peya [AuthStore] to the independent Mr Immo package.
+
 class MonPeyaImmoHostAdapter implements ImmoHostAuth {
   const MonPeyaImmoHostAdapter();
 
@@ -15,12 +15,7 @@ class MonPeyaImmoHostAdapter implements ImmoHostAuth {
   }
 
   static void _exitToMonPeyaHome(BuildContext context) {
-    final stack = AppStackScope.maybeOf(context);
-    if (stack != null && stack.canGoBack) {
-      stack.goBack();
-      return;
-    }
-    Navigator.of(context).maybePop();
+    AppStackScope.maybeOf(context)?.exitModule();
   }
 
   @override
@@ -30,7 +25,7 @@ class MonPeyaImmoHostAdapter implements ImmoHostAuth {
   Future<bool> isSessionActive() async => MonPeyaSession.instance.isSessionActive;
 
   @override
-  Future<String?> authToken() => AuthStore.authToken();
+  Future<String?> authToken() => AuthStore.immoAuthToken();
 
   @override
   Future<String?> getPhone() => AuthStore.getPhone();
@@ -42,7 +37,7 @@ class MonPeyaImmoHostAdapter implements ImmoHostAuth {
   Future<String?> immoUserId() => AuthStore.immoUserId();
 
   @override
-  Future<void> setAuthToken(String? token) => AuthStore.setAuthToken(token);
+  Future<void> setAuthToken(String? token) => AuthStore.setImmoAuthToken(token);
 
   @override
   Future<void> setImmoUserId(String? userId) => AuthStore.setImmoUserId(userId);

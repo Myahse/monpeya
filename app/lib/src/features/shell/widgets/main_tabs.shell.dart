@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:app/src/core/auth/module.auth.dart';
 import 'package:app/src/core/session/mon_peya.session.dart';
+import 'package:app/src/features/shell/controllers/app_stack.controller.dart';
+import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
 import 'package:app/src/features/shell/scopes/main_tabs.scope.dart';
 import 'package:app/src/features/shell/tabs/screens/home.screen.dart';
 import 'package:app/src/features/shell/tabs/screens/peyapay_tab.shell.dart';
@@ -21,6 +23,7 @@ class MainTabsShell extends StatefulWidget {
 
 class _MainTabsShellState extends State<MainTabsShell> {
   MainTab _tab = MainTab.home;
+  AppStackController? _appStack;
 
   final _navKeys = <MainTab, GlobalKey<NavigatorState>>{
     MainTab.home: GlobalKey<NavigatorState>(),
@@ -28,19 +31,39 @@ class _MainTabsShellState extends State<MainTabsShell> {
     MainTab.subscriptions: GlobalKey<NavigatorState>(),
   };
 
-  Future<bool> _onBackPressed() async {
-    final nav = _navKeys[_tab]!.currentState!;
+  bool _handleMainTabBack() {
+    final nav = _navKeys[_tab]!.currentState;
+    if (nav == null) return false;
     if (nav.canPop()) {
       nav.pop();
-      return false;
+      return true;
     }
 
     if (_tab != MainTab.home) {
       setState(() => _tab = MainTab.home);
-      return false;
+      return true;
     }
 
-    return true;
+    return false;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final stack = AppStackScope.maybeOf(context);
+    if (_appStack != null && _appStack!.onMainBack == _handleMainTabBack) {
+      _appStack!.onMainBack = null;
+    }
+    _appStack = stack;
+    _appStack?.onMainBack = _handleMainTabBack;
+  }
+
+  @override
+  void dispose() {
+    if (_appStack?.onMainBack == _handleMainTabBack) {
+      _appStack!.onMainBack = null;
+    }
+    super.dispose();
   }
 
   Future<void> _selectTab(MainTab next) async {
@@ -67,15 +90,6 @@ class _MainTabsShellState extends State<MainTabsShell> {
         final hideNav = _hideBottomNav();
         return MainTabsScope(
           selectTab: _selectTab,
-          child: PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, result) async {
-            if (didPop) return;
-            final shouldExit = await _onBackPressed();
-            if (shouldExit && context.mounted) {
-              Navigator.of(context).pop();
-            }
-          },
           child: Scaffold(
             extendBody: hideNav,
             extendBodyBehindAppBar: true,
@@ -107,7 +121,6 @@ class _MainTabsShellState extends State<MainTabsShell> {
                     selectedIndex: _tab.index,
                     onDestinationSelected: (idx) => _selectTab(MainTab.values[idx]),
                   ),
-          ),
           ),
         );
       },

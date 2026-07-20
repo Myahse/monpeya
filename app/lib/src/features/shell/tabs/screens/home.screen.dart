@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 
+import 'package:app/src/core/assets/constants/asset.paths.dart';
+import 'package:app/src/core/auth/module.auth.dart';
+import 'package:app/src/core/auth/pin_auth.logger.dart';
 import 'package:app/src/core/modules/app.module.dart';
 import 'package:app/src/core/modules/repositories/module.repository.dart';
+import 'package:app/src/core/peyapay/peyapay_profile.util.dart';
 import 'package:app/src/core/routing/routes.dart';
+import 'package:app/src/core/session/mon_peya.session.dart';
+import 'package:app/src/core/storage/auth.store.dart';
+import 'package:app/src/features/notifications/presentation/screens/notifications.screen.dart';
 import 'package:app/src/features/shell/screens/mon_peya_my_services.screen.dart';
 import 'package:app/src/features/shell/services/module_launcher.service.dart';
 import 'package:app/src/core/modules/widgets/module.icon.dart';
+import 'package:app/src/integration/adapters/peyapay_host.adapter.dart';
 import 'package:peyapay/peyapay.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,10 +25,161 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _showBalance = false;
-  static const _fakeBalance = 5000.0;
+  int? _balanceSolde;
+  bool _loadingBalance = false;
+  String _clientTitle = 'Mon Peya';
+  String _clientInitials = 'M';
+
+  @override
+  void initState() {
+    super.initState();
+    _showBalance = MonPeyaSession.instance.isSessionActive;
+    MonPeyaSession.instance.addListener(_onSessionChanged);
+    _loadProfileAndBalance();
+  }
+
+  @override
+  void dispose() {
+    MonPeyaSession.instance.removeListener(_onSessionChanged);
+    super.dispose();
+  }
+
+  void _onSessionChanged() => _loadProfileAndBalance();
+
+  Future<void> _loadClientTitle() async {
+    final name = PeyapayProfileDisplay.clientName();
+    final title = PeyapayProfileDisplay.resolveHomeTitle();
+    if (!mounted) return;
+    setState(() {
+      _clientTitle = title;
+      _clientInitials = name != null
+          ? PeyapayProfileDisplay.initials(name)
+          : 'M';
+    });
+  }
+
+  Future<void> _loadProfileAndBalance() async {
+    if (MonPeyaSession.instance.isSessionActive) {
+      final api = PeyapayHostBridge.api;
+      final phone = await AuthStore.getPhone();
+      if (api != null && phone != null && phone.isNotEmpty) {
+        try {
+          await api.fetchClientState(phone: phone);
+        } catch (_) {}
+      }
+    }
+    await _loadClientTitle();
+    await _loadBalance();
+  }
+
+  Future<void> _loadBalance() async {
+    if (!MonPeyaSession.instance.isSessionActive) {
+      if (!mounted) return;
+      setState(() {
+        _balanceSolde = null;
+        _loadingBalance = false;
+        _showBalance = false;
+      });
+      return;
+    }
+
+    final api = PeyapayHostBridge.api;
+    final cached = api?.walletBalance?.solde;
+    if (cached != null && mounted) {
+      setState(() {
+        _balanceSolde = cached;
+        _showBalance = true;
+      });
+    }
+
+    final phone = await AuthStore.getPhone();
+    if (!mounted || phone == null || phone.isEmpty || api == null) return;
+
+    setState(() => _loadingBalance = true);
+    try {
+      await peyapayEnsureBearerReady();
+      final balance = await api.fetchWalletBalance(phone: phone, ensureToken: false);
+      if (!mounted) return;
+      setState(() {
+        _balanceSolde = balance.solde;
+        _loadingBalance = false;
+        if (balance.solde != null) _showBalance = true;
+      });
+      await _loadClientTitle();
+      PinAuthLogger.success(
+        'Solde home${balance.solde != null ? ' — ${balance.solde} XOF' : ' (vide)'}',
+      );
+    } on PeyapayApiException catch (e) {
+      PinAuthLogger.failure('Solde home', e);
+      if (!mounted) return;
+      setState(() => _loadingBalance = false);
+    } catch (e) {
+      PinAuthLogger.failure('Solde home', e);
+      if (!mounted) return;
+      setState(() => _loadingBalance = false);
+    }
+  }
+
+  Future<void> _toggleBalanceVisibility() async {
+    if (!MonPeyaSession.instance.isSessionActive) {
+      final ok = await ModuleAuth.ensureRegistered(context);
+      if (ok && mounted) {
+        await _loadProfileAndBalance();
+        setState(() => _showBalance = true);
+      }
+      return;
+    }
+    setState(() => _showBalance = !_showBalance);
+  }
 
   void _openModule(AppModule module) {
     ModuleLauncher.open(context, module);
+  }
+
+  Future<void> _openQrScanner() async {
+    final ok = await ModuleAuth.ensureRegistered(context);
+    if (!ok || !mounted) return;
+
+    final scanned = await Navigator.of(context, rootNavigator: true).push<PeyapayScannedQrData>(
+      MaterialPageRoute<PeyapayScannedQrData>(
+        builder: (_) => const PeyapayQrScanScreen(),
+      ),
+    );
+    if (!mounted || scanned == null) return;
+
+    await Navigator.of(context, rootNavigator: true).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PeyapayTransferScreen(
+          recipientName: scanned.recipientLabel,
+          recipientPhone: scanned.clientCodeKey,
+          recipientClientCode: scanned.clientCodeKey,
+          recipientUserType: scanned.userTypeKey,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openMyQrCode() async {
+    if (!MonPeyaSession.instance.isSessionActive) {
+      final ok = await ModuleAuth.ensureRegistered(context);
+      if (!ok || !mounted) return;
+      await _loadProfileAndBalance();
+    }
+
+    if (!mounted) return;
+    await Navigator.of(context, rootNavigator: true).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const PeyapayQrCodeScreen(),
+      ),
+    );
+  }
+
+  void _openNotifications() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const NotificationsScreen(),
+      ),
+    );
   }
 
   void _showHomeActionSnack(BuildContext context, String label) {
@@ -43,90 +202,90 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    // Horizontal/bottom shell padding only — top is handled by the gradient header.
     const hPad = 16.0;
-    final botPad = MediaQuery.of(context).padding.bottom;
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      backgroundColor: cs.brightness == Brightness.dark
-          ? const Color(0xFF0F0F0F)
-          : const Color(0xFFF4F6F9),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // ─── Header gradient ──────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: _GradientHeader(
-              showBalance: _showBalance,
-              balance: _fakeBalance,
-              formatFcfa: _formatFcfa,
-              onToggleBalance: () =>
-                  setState(() => _showBalance = !_showBalance),
-              onPressProfile: () =>
-                  rootNavKey.currentState?.pushNamed(Routes.settings),
-              onPressNotifications: () =>
-                  _showHomeActionSnack(context, 'Notifications'),
-              onDeposit: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const PeyapayAddMoneyScreen(),
-                ),
-              ),
-              onSend: () => _showHomeActionSnack(context, 'Envoyer'),
-              onScan: () => _showHomeActionSnack(context, 'Scanner'),
-            ),
-          ),
+    final backgroundColor = cs.brightness == Brightness.dark
+        ? const Color(0xFF0F0F0F)
+        : const Color(0xFFF4F6F9);
+    final modules = ModuleRepository.modules;
 
-          // ─── Content ──────────────────────────────────────────────────────
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(hPad, 20, hPad, botPad + 20),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                // Mon espace
-                _MonPeyaMiniCard(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const MonPeyaMyServicesScreen(),
+    return ListenableBuilder(
+      listenable: MonPeyaSession.instance,
+      builder: (context, _) {
+        return ColoredBox(
+      color: backgroundColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _GradientHeader(
+            sessionActive: MonPeyaSession.instance.isSessionActive,
+            clientTitle: _clientTitle,
+            clientInitials: _clientInitials,
+            showBalance: _showBalance,
+            balanceSolde: _balanceSolde,
+            loadingBalance: _loadingBalance,
+            formatFcfa: _formatFcfa,
+            onToggleBalance: _toggleBalanceVisibility,
+            onPressProfile: () =>
+                rootNavKey.currentState?.pushNamed(Routes.settings),
+            onPressNotifications: _openNotifications,
+            onDeposit: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PeyapayAddMoneyScreen(),
+              ),
+            ),
+            onSend: () => _showHomeActionSnack(context, 'Envoyer'),
+            onShowQr: _openMyQrCode,
+            onScan: _openQrScanner,
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(hPad, 16, hPad, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _MonPeyaMiniCard(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const MonPeyaMyServicesScreen(),
+                      ),
                     ),
                   ),
-                ),
-
-                const SizedBox(height: 28),
-
-                // Actualités
-                _SectionHeader(
-                  title: 'Actualités',
-                  actionLabel: 'Voir tout',
-                  onAction: () => _showHomeActionSnack(context, 'Actualités'),
-                ),
-                const SizedBox(height: 12),
-                const _HorizontalNewsCarousel(height: 160),
-
-                const SizedBox(height: 28),
-
-                // Services
-                Builder(builder: (context) {
-                  final modules = ModuleRepository.modules;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SectionHeader(
-                        title: 'Mes services',
-                        actionLabel:
-                            '${modules.length} disponible${modules.length > 1 ? 's' : ''}',
-                      ),
-                      const SizedBox(height: 14),
-                      _ServiceGrid(
+                  const SizedBox(height: 14),
+                  _SectionHeader(
+                    title: 'Actualités',
+                    actionLabel: 'Voir tout',
+                    onAction: () => _showHomeActionSnack(context, 'Actualités'),
+                  ),
+                  const SizedBox(height: 8),
+                  const Expanded(
+                    flex: 11,
+                    child: _HorizontalNewsCarousel(),
+                  ),
+                  const SizedBox(height: 12),
+                  _SectionHeader(
+                    title: 'Mes services',
+                    actionLabel:
+                        '${modules.length} disponible${modules.length > 1 ? 's' : ''}',
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    flex: 13,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: _ServiceGrid(
                         modules: modules,
                         onOpen: _openModule,
                       ),
-                    ],
-                  );
-                }),
-              ]),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
+    );
+      },
     );
   }
 }
@@ -137,26 +296,46 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _GradientHeader extends StatelessWidget {
   const _GradientHeader({
+    required this.sessionActive,
+    required this.clientTitle,
+    required this.clientInitials,
     required this.showBalance,
-    required this.balance,
+    required this.balanceSolde,
+    required this.loadingBalance,
     required this.formatFcfa,
     required this.onToggleBalance,
     required this.onPressProfile,
     required this.onPressNotifications,
     required this.onDeposit,
     required this.onSend,
+    required this.onShowQr,
     required this.onScan,
   });
 
+  final bool sessionActive;
+  final String clientTitle;
+  final String clientInitials;
   final bool showBalance;
-  final double balance;
+  final int? balanceSolde;
+  final bool loadingBalance;
   final String Function(double) formatFcfa;
   final VoidCallback onToggleBalance;
   final VoidCallback onPressProfile;
   final VoidCallback onPressNotifications;
   final VoidCallback onDeposit;
   final VoidCallback onSend;
+  final Future<void> Function() onShowQr;
   final VoidCallback onScan;
+
+  String _balanceAmountText() {
+    if (!sessionActive || !showBalance) return '• • • • •';
+    if (loadingBalance && balanceSolde == null) return '...';
+    if (balanceSolde == null) return '• • • • •';
+    return formatFcfa(balanceSolde!.toDouble());
+  }
+
+  bool get _showFcfaSuffix =>
+      sessionActive && showBalance && balanceSolde != null && !loadingBalance;
 
   @override
   Widget build(BuildContext context) {
@@ -218,10 +397,10 @@ class _GradientHeader extends StatelessWidget {
                           border: Border.all(
                               color: Colors.white.withOpacity(0.4), width: 1.5),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
-                            'M',
-                            style: TextStyle(
+                            clientInitials,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w900,
                               fontSize: 16,
@@ -236,16 +415,18 @@ class _GradientHeader extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Bienvenue 👋',
+                            'Bienvenue',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.8),
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const Text(
-                            'Mon Peya',
-                            style: TextStyle(
+                          Text(
+                            clientTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
@@ -326,60 +507,46 @@ class _GradientHeader extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                showBalance ? formatFcfa(balance) : '• • • • •',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -1,
-                                ),
-                              ),
-                              if (showBalance) ...[
-                                const SizedBox(width: 6),
-                                const Padding(
-                                  padding: EdgeInsets.only(bottom: 6),
-                                  child: Text(
-                                    'FCFA',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                          GestureDetector(
+                            onTap: onToggleBalance,
+                            behavior: HitTestBehavior.opaque,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  _balanceAmountText(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 34,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -1,
                                   ),
                                 ),
+                                if (_showFcfaSuffix) ...[
+                                  const SizedBox(width: 6),
+                                  const Padding(
+                                    padding: EdgeInsets.only(bottom: 6),
+                                    child: Text(
+                                      'FCFA',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    // QR Code
-                    GestureDetector(
-                      onTap: onScan,
-                      child: Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Image.asset(
-                            'assets/images/Code QR personnalisé.jpg',
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.qr_code_2_rounded,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                        ),
-                      ),
+                    PeyapayWalletQrThumb(
+                      size: 96,
+                      fillFactor: 0.95,
+                      sessionActive: sessionActive,
+                      onTap: onShowQr,
                     ),
                   ],
                 ),
@@ -493,18 +660,10 @@ class _MonPeyaMiniCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF006D56).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.person_outline_rounded,
-                  color: Color(0xFF006D56),
-                  size: 20,
-                ),
+              Image.asset(
+                isDark ? AssetPaths.logoDark : AssetPaths.logo,
+                height: 38,
+                fit: BoxFit.contain,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -595,8 +754,7 @@ class _SectionHeader extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _HorizontalNewsCarousel extends StatefulWidget {
-  const _HorizontalNewsCarousel({this.height = 160});
-  final double height;
+  const _HorizontalNewsCarousel();
 
   @override
   State<_HorizontalNewsCarousel> createState() =>
@@ -651,8 +809,7 @@ class _HorizontalNewsCarouselState extends State<_HorizontalNewsCarousel> {
 
     return Column(
       children: [
-        SizedBox(
-          height: widget.height,
+        Expanded(
           child: NotificationListener<ScrollNotification>(
             onNotification: (n) {
               if (n is ScrollUpdateNotification) {
@@ -757,8 +914,7 @@ class _HorizontalNewsCarouselState extends State<_HorizontalNewsCarousel> {
             ),
           ),
         ),
-        // Dots indicator
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(
@@ -827,28 +983,32 @@ class _ServiceGrid extends StatelessWidget {
       );
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        mainAxisSpacing: 14,
-        crossAxisSpacing: 10,
-        childAspectRatio: 0.78,
-      ),
-      itemCount: modules.length,
-      itemBuilder: (context, index) {
-        final module = modules[index];
-        final bgColor = isDark
-            ? Colors.white.withOpacity(0.07)
-            : _serviceColors[index % _serviceColors.length];
-        final iconColor = _serviceIconColors[index % _serviceIconColors.length];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const columns = 4;
+        const gap = 10.0;
+        final maxWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width - 32;
+        final tileW = (maxWidth - gap * (columns - 1)) / columns;
 
-        return _ServiceTile(
-          module: module,
-          bgColor: bgColor,
-          iconColor: iconColor,
-          onTap: () => onOpen(module),
+        return Wrap(
+          spacing: gap,
+          runSpacing: 14,
+          children: [
+            for (var index = 0; index < modules.length; index++)
+              SizedBox(
+                width: tileW,
+                child: _ServiceTile(
+                  module: modules[index],
+                  bgColor: isDark
+                      ? Colors.white.withOpacity(0.07)
+                      : _serviceColors[index % _serviceColors.length],
+                  iconColor: _serviceIconColors[index % _serviceIconColors.length],
+                  onTap: () => onOpen(modules[index]),
+                ),
+              ),
+          ],
         );
       },
     );

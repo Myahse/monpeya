@@ -11,6 +11,9 @@ class PeyaPayAssets {
   static String bank(String fileName) => 'assets/logo/banks/$fileName';
 
   static String card(String fileName) => 'assets/logo/cards/$fileName';
+
+  /// Full-color PeyaPay brand mark (`assets/logo/banks/logo peya.png`).
+  static const brandLogo = 'logo peya.png';
 }
 
 /// Loads an asset from the [peyapay] package bundle.

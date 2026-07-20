@@ -35,9 +35,9 @@ class PinKeypad extends StatelessWidget {
   final VoidCallback? onBiometric;
   final bool biometricEnabled;
 
-  static const _keyWidth = 64.0;
-  static const _keyHeight = 48.0;
-  static const _keyFontSize = 20.0;
+  static const _keyWidth = 76.0;
+  static const _keyHeight = 58.0;
+  static const _keyFontSize = 22.0;
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +66,7 @@ class PinKeypad extends StatelessWidget {
           width: _keyWidth,
           height: _keyHeight,
           child: Center(
-            child: Icon(Icons.backspace_outlined, color: textColor),
+            child: Icon(Icons.backspace_outlined, color: textColor, size: 24),
           ),
         ),
       );
@@ -83,7 +83,7 @@ class PinKeypad extends StatelessWidget {
             child: Icon(
               Icons.fingerprint,
               color: biometricEnabled ? const Color(0xFF006D56) : textColor.withValues(alpha: 0.35),
-              size: 22,
+              size: 26,
             ),
           ),
         ),
@@ -101,7 +101,7 @@ class PinKeypad extends StatelessWidget {
       children: [
         for (var r = 0; r < 3; r++)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -112,7 +112,7 @@ class PinKeypad extends StatelessWidget {
             ),
           ),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [

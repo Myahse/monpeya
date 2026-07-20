@@ -10,6 +10,16 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_contacts: ^1.1.9+2
+  device_info_plus: ^12.3.0
+  http: ^1.2.2
+  shared_preferences: ^2.3.2
+  pdf: ^3.11.3
+  path_provider: ^2.1.5
+  share_plus: ^7.2.1
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.1.4
+  secure_qr_generator: 1.1.0
+  secure_qr_validator: 1.2.0
 
 dev_dependencies:
   flutter_test:

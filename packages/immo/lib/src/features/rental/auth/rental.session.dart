@@ -1,73 +1,47 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:immo/src/core/host/immo_host.bridge.dart';
-import 'package:immo/src/shared/auth/services/immo_auth.service.dart';
+import 'package:immo/src/features/rental/models/rental_profile_role.dart';
 import 'package:immo/src/features/rental/services/rental_api.service.dart';
 
-/// Rental module session — opens in guest mode; Mr Immo JWT syncs when signed in.
+/// Rental module session — profile role drives the home experience until auth is wired.
 class RentalSession extends ChangeNotifier {
   RentalSession({RentalApiService? api}) : _api = api ?? RentalApiService.instance;
 
+  static const _profileRoleKey = '@rental_profile_role';
+
   final RentalApiService _api;
-  final _auth = ImmoAuthService();
 
   bool _bootstrapComplete = false;
-  bool _authenticated = false;
-  bool _guestMode = false;
-  String? _error;
+  bool _guestMode = true;
+  RentalProfileRole? _profileRole;
   String? _userId;
   String? _phone;
 
-  bool get authFailed => _bootstrapComplete && !_authenticated;
-  bool get authenticated => _authenticated;
+  bool get authFailed => false;
+  bool get authenticated => _bootstrapComplete;
   bool get guestMode => _guestMode;
-  String? get error => _error;
+  String? get error => null;
   String? get userId => _userId;
   String? get phone => _phone;
+  RentalProfileRole? get profileRole => _profileRole;
+  bool get hasProfileRole => _profileRole != null;
   RentalApiService get api => _api;
 
   Future<void> bootstrap() async {
-    _error = null;
-    _guestMode = false;
-
-    final registered = await ImmoHostBridge.requireAuth.isRegistered();
-    if (!registered) {
-      _authenticated = true;
-      _guestMode = true;
-      _bootstrapComplete = true;
-      notifyListeners();
-      return;
-    }
-
-    _phone = await ImmoHostBridge.requireAuth.getPhone();
-    _userId = await ImmoHostBridge.requireAuth.immoUserId();
-
-    final stored = await ImmoHostBridge.requireAuth.authToken();
-    if (stored != null && stored.isNotEmpty) {
-      _api.client.setAuthToken(stored);
-    }
-
-    _authenticated = true;
+    final prefs = await SharedPreferences.getInstance();
+    _profileRole = RentalProfileRole.tryParse(prefs.getString(_profileRoleKey));
+    _guestMode = true;
+    _userId = null;
+    _phone = null;
     _bootstrapComplete = true;
     notifyListeners();
+  }
 
-    final sessionActive = await ImmoHostBridge.requireAuth.isSessionActive();
-    if (!sessionActive) {
-      _guestMode = true;
-      notifyListeners();
-      return;
-    }
-
-    final result = await _auth.ensureSession(apiClient: _api.client);
-    if (!result.ok) {
-      _guestMode = true;
-      _error = result.error;
-      notifyListeners();
-      return;
-    }
-
-    _guestMode = false;
-    _userId = result.userId ?? await ImmoHostBridge.requireAuth.immoUserId();
+  Future<void> setProfileRole(RentalProfileRole role) async {
+    _profileRole = role;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_profileRoleKey, role.storageKey);
     notifyListeners();
   }
 }

@@ -1,4 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+
+import 'package:peyapay/src/data/services/peyapay_api.service.dart';
+
+typedef PeyapayHostAssetLoader = Future<Uint8List?> Function(String assetPath);
 
 
 class PeyapayHostRoutes {
@@ -41,6 +47,20 @@ class PeyapayHostBridge {
 
  
   static Listenable? sessionChanges;
+
+  /// Shared PeyaPay wallet API client (auth, balance, transfers, …).
+  static PeyapayApiService? api;
+
+  /// Optional hook for balance/UI refresh after wallet mutations.
+  static VoidCallback? onSessionChanged;
+
+  /// Mon Peya shell logo for PDF receipts (`assets/logo/photo-Photoroom.png`).
+  static const monPeyaLogoAssetPath = 'assets/logo/photo-Photoroom.png';
+
+  /// Loads host-bundle assets (Mon Peya logos) from the app package.
+  static PeyapayHostAssetLoader? loadHostAsset;
+
+  static void notifySessionChanged() => onSessionChanged?.call();
 
   static PeyapayHostAuth get requireAuth {
     final host = auth;

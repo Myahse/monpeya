@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 /// Payment request forwarded to Mon Peya Peya Pay.
@@ -22,12 +24,102 @@ typedef BilletteriePaymentHandler = Future<bool> Function(
 
 typedef BilletterieExitHandler = void Function(BuildContext context);
 
+typedef BilletterieClientResolver = Future<BilletterieClientIdentity?> Function();
+
+typedef BilletterieModuleBackHandler = bool Function();
+
+/// Whether the signed-in PeyaPay account is already a merchant.
+typedef BilletterieMerchantResolver = Future<bool> Function();
+
+/// Gate before purchase: register / OTP if needed, then service subscription.
+typedef BilletterieEnsureCanPurchase = Future<bool> Function(
+  BuildContext context, {
+  required String moduleKey,
+});
+
+/// Loads a host-app asset (e.g. Mon Peya logo) for PDF export.
+typedef BilletterieHostAssetLoader = Future<Uint8List?> Function(String path);
+
+/// Peya identity resolved by the Mon Peya shell for ticketing API calls.
+class BilletterieClientIdentity {
+  const BilletterieClientIdentity({
+    required this.codeClient,
+    this.displayName,
+    this.firstName,
+    this.lastName,
+    this.phone,
+    this.email,
+    this.countryCode,
+  });
+
+  final String codeClient;
+  final String? displayName;
+  final String? firstName;
+  final String? lastName;
+  final String? phone;
+  final String? email;
+  final String? countryCode;
+
+  String get resolvedDisplayName {
+    final full = displayName?.trim();
+    if (full != null && full.isNotEmpty) return full;
+    final parts = [
+      if (firstName?.trim().isNotEmpty == true) firstName!.trim(),
+      if (lastName?.trim().isNotEmpty == true) lastName!.trim(),
+    ];
+    if (parts.isNotEmpty) return parts.join(' ');
+    return 'Client PeyaPay';
+  }
+}
+
 /// Registered by Mon Peya before opening Billetterie.
 class BilletterieHostBridge {
   BilletterieHostBridge._();
 
+  /// Preferred host logo for PDF (tight crop; Photoroom has large transparent padding).
+  static const monPeyaLogoAssetPath = 'assets/logo/app-icons/mon peya.png';
+
   static BilletteriePaymentHandler? onPayment;
   static BilletterieExitHandler? onExitModule;
+  static BilletterieClientResolver? resolveClient;
+  static BilletterieModuleBackHandler? onModuleBack;
+  static BilletterieMerchantResolver? resolveIsMerchant;
+  static BilletterieEnsureCanPurchase? ensureCanPurchase;
+  static BilletterieHostAssetLoader? loadHostAsset;
+
+  static bool tryHandleModuleBack() => onModuleBack?.call() ?? false;
+
+  static Future<bool> isPeyapayMerchant() async {
+    final resolver = resolveIsMerchant;
+    if (resolver == null) return false;
+    try {
+      return await resolver();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<BilletterieClientIdentity> requireClient() async {
+    final resolver = resolveClient;
+    if (resolver == null) {
+      throw StateError('BilletterieHostBridge.resolveClient not configured by Mon Peya shell.');
+    }
+    final identity = await resolver();
+    if (identity == null || identity.codeClient.trim().isEmpty) {
+      throw StateError('Identité Peya indisponible pour la billetterie.');
+    }
+    return identity;
+  }
+
+  /// Auth + subscription gate before ticket payment. Host implements the checks.
+  static Future<bool> ensureReadyToPurchase(
+    BuildContext context, {
+    String moduleKey = 'billetterie-transport',
+  }) async {
+    final handler = ensureCanPurchase;
+    if (handler == null) return true;
+    return handler(context, moduleKey: moduleKey);
+  }
 
   /// Leave Billetterie and return to the Mon Peya shell (home tabs).
   static void exitModule(BuildContext context) {

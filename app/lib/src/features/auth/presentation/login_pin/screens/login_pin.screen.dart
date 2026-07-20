@@ -1,15 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:immo/immo.dart';
 
 import 'package:app/src/core/assets/constants/asset.paths.dart';
 import 'package:app/src/core/auth/auth.navigation.dart';
 import 'package:app/src/core/auth/biometric.auth.dart';
+import 'package:app/src/core/auth/pin_auth.logger.dart';
+import 'package:app/src/core/api/mon_peya_api.exception.dart';
 import 'package:app/src/core/routing/routes.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/widgets/auth_back_button.widget.dart';
 import 'package:app/src/core/widgets/pin_keypad.widget.dart';
+import 'package:app/src/integration/adapters/mon_peya_backend.adapter.dart';
 import 'package:app/src/integration/adapters/peyapay_host.adapter.dart';
 
 class LoginPinScreen extends StatefulWidget {
@@ -111,21 +113,12 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     });
   }
 
-  void _syncImmoSessionInBackground(String phone, String pin) {
-    unawaited(
-      ImmoAuthService().loginWithPhoneAndPin(
-        phone: phone,
-        pin: pin,
-        apiClient: ImmoApiClient(),
-      ),
-    );
-  }
-
   Future<void> _completeLogin(String phone, String pin) async {
+    PinAuthLogger.step('Finalisation session pour ${PinAuthLogger.maskPhone(phone)}');
+    await AuthStore.setPinForPhone(phone, pin);
     await AuthStore.setSessionRegistered(true);
     activateMonPeyaSession();
     notifyMonPeyaSessionChanged();
-    _syncImmoSessionInBackground(phone, pin);
     if (!mounted) return;
     if (widget.embeddedInModule) {
       if (Navigator.of(context).canPop()) {
@@ -140,19 +133,28 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     if (_submitting) return;
     setState(() => _submitting = true);
 
-    final stored = await AuthStore.getPinForPhone(phone);
-    if (!mounted) return;
+    PinAuthLogger.step(
+      'Soumission PIN ${PinAuthLogger.maskPinLength(_pin.length)} pour ${PinAuthLogger.maskPhone(phone)}',
+    );
 
-    if (stored != null && stored == _pin) {
+    try {
+      await authenticateMonPeyaSession(phone: phone, pin: _pin);
+      PinAuthLogger.success('Authentification Mon Peya backend réussie');
+      if (!mounted) return;
       await _completeLogin(phone, _pin);
-      return;
+    } on MonPeyaApiException catch (e) {
+      PinAuthLogger.failure('Authentification Mon Peya backend', e);
+      if (!mounted) return;
+      setState(() {
+        _showError = true;
+        _pin = '';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
-
-    setState(() {
-      _submitting = false;
-      _showError = true;
-      _pin = '';
-    });
   }
 
   void _handleBack() {
@@ -195,7 +197,21 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     if (!mounted || pin == null) return;
 
     setState(() => _submitting = true);
-    await _completeLogin(phone, pin);
+    PinAuthLogger.step('Connexion biométrique pour ${PinAuthLogger.maskPhone(phone)}');
+    try {
+      await authenticateMonPeyaSession(phone: phone, pin: pin);
+      PinAuthLogger.success('Authentification biométrique Mon Peya backend réussie');
+      if (!mounted) return;
+      await _completeLogin(phone, pin);
+    } on MonPeyaApiException catch (e) {
+      PinAuthLogger.failure('Authentification biométrique Mon Peya backend', e);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -246,20 +262,20 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
                   children: [
                     Column(
                       children: [
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 40),
                         Image.asset(
                           logoPath,
                           width: 200,
                           height: 90,
                           fit: BoxFit.contain,
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 36),
                         Text(
                           'Entrez votre code PIN',
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: ink),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 28),
                         Container(
                           width: 240,
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -295,7 +311,16 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
                             }),
                           ),
                         ),
-                        if (_showError)
+                        if (_submitting)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 12),
+                            child: SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF006D56)),
+                            ),
+                          )
+                        else if (_showError)
                           const Padding(
                             padding: EdgeInsets.only(top: 6),
                             child: Text(
@@ -319,28 +344,6 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
                             showBiometric: showBiometric,
                             onBiometric: () => _tryBiometricLogin(),
                             biometricEnabled: !_submitting,
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: MediaQuery.sizeOf(context).width * 0.8,
-                            child: FilledButton(
-                              style: FilledButton.styleFrom(
-                                backgroundColor: _pin.length == 4 ? const Color(0xFF006D56) : const Color(0xFFB9D8CF),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              onPressed: (_pin.length == 4 && phoneNumber != null && !_submitting)
-                                  ? () => _submit(phoneNumber)
-                                  : null,
-                              child: _submitting
-                                  ? const SizedBox(
-                                      height: 18,
-                                      width: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                    )
-                                  : const Text('Valider', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                            ),
                           ),
                         ],
                       ),

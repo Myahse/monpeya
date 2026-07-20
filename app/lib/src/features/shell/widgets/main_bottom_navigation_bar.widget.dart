@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:peyapay/peyapay.dart';
 
 /// Shared main shell bottom navigation — compact height.
 class MainBottomNavigationBar extends StatelessWidget {
@@ -20,13 +21,14 @@ class MainBottomNavigationBar extends StatelessWidget {
       selectedIndex: selectedIndex,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
       onDestinationSelected: onDestinationSelected,
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined), label: 'HOME'),
+      destinations: [
+        const NavigationDestination(icon: Icon(Icons.home_outlined), label: 'HOME'),
         NavigationDestination(
-          icon: Icon(Icons.account_balance_wallet_outlined),
+          icon: const PeyaPayNavBarIcon(),
+          selectedIcon: const PeyaPayNavBarIcon(),
           label: 'PEYAPAY',
         ),
-        NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'MY SUBS'),
+        const NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'MY SUBS'),
       ],
     );
   }

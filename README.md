@@ -11,7 +11,7 @@ Mon Peya/
 │   ├── peyapay/                # Wallet & payments
 │   ├── immo/                   # Rental, construction, collection
 │   ├── billetterie/            # Electronic ticketing
-│   └── mocks/                  # Dev auth & mock data
+│   └── leadway/                # Leadway Assurance
 ├── melos.yaml
 └── README.md
 ```
@@ -59,7 +59,7 @@ Optional API URLs:
 ```bash
 flutter run \
   --dart-define=IMMO_API_URL=http://YOUR_IP:8081 \
-  --dart-define=BILLETTERIE_API_URL=http://YOUR_IP:8089/api/billetterie-electronique
+  --dart-define=BILLETTERIE_API_URL=http://YOUR_IP:8090
 ```
 
 See [app/README.md](app/README.md) for full documentation.

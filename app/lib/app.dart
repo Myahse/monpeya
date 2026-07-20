@@ -5,10 +5,12 @@ import 'package:app/src/core/system/system_ui.config.dart';
 import 'package:app/src/integration/adapters/billetterie_host.adapter.dart';
 import 'package:app/src/integration/adapters/immo_host.adapter.dart';
 import 'package:app/src/integration/adapters/leadway_host.adapter.dart';
+import 'package:app/src/integration/adapters/mon_peya_backend.adapter.dart';
 import 'package:app/src/integration/adapters/peyapay_host.adapter.dart';
 import 'package:app/src/core/routing/routes.dart';
 
 void _registerModuleHosts() {
+  registerMonPeyaApi();
   MonPeyaPeyapayHostAdapter.register();
   MonPeyaImmoHostAdapter.register();
   MonPeyaBilletterieHostAdapter.register();

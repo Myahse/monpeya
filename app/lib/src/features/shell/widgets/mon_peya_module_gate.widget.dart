@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Services open without registration; payment flows verify sign-in at checkout.
+import 'package:app/src/core/modules/app.module.dart';
+import 'package:app/src/features/shell/services/module_launcher.service.dart';
+
 class MonPeyaModuleGate extends StatelessWidget {
   const MonPeyaModuleGate({super.key, required this.child});
 
@@ -10,15 +12,9 @@ class MonPeyaModuleGate extends StatelessWidget {
   Widget build(BuildContext context) => child;
 }
 
-/// Opens a service module from the super-app shell (no upfront registration).
-void openModule(BuildContext context, VoidCallback onOpen) {
-  onOpen();
-}
-
-/// @deprecated Use [openModule] — kept for existing call sites.
 Future<void> openModuleIfRegistered(
   BuildContext context,
-  VoidCallback openModuleCallback,
+  AppModule module,
 ) async {
-  if (context.mounted) openModuleCallback();
+  await ModuleLauncher.open(context, module);
 }

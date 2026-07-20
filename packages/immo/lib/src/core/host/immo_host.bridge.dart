@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Host-provided session data from Mon Peya (phone + PIN model).
+/// Host-provided session data from Mon Peya (optional until auth is integrated).
 abstract class ImmoHostAuth {
   /// Whether the user completed Mon Peya phone + PIN registration.
   Future<bool> isRegistered();
@@ -22,6 +22,7 @@ typedef ImmoHostExitHandler = void Function(BuildContext context);
 class ImmoHostBridge {
   ImmoHostBridge._();
 
+  /// Optional — used when Mon Peya auth is wired in later.
   static ImmoHostAuth? auth;
   static ImmoHostExitHandler? onExitModule;
 

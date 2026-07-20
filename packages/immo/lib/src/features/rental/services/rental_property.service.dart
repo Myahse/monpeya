@@ -17,10 +17,21 @@ class RentalPropertyService {
   final ImmoUploadService _upload;
   final ImmoCountryService _countries;
 
-  Future<List<RentalProperty>> fetchProperties({String? search}) async {
+  Future<List<RentalProperty>> fetchProperties({
+    String? search,
+    String? city,
+    String? ownerUserId,
+  }) async {
+    final criteria = <String, dynamic>{};
+    if (search != null && search.isNotEmpty) criteria['nom'] = search;
+    if (city != null && city.isNotEmpty) criteria['ville'] = city;
+    if (ownerUserId != null && ownerUserId.isNotEmpty) {
+      criteria['utilisateursId'] = ownerUserId;
+    }
+
     final response = await _client.postJson(
       RentalApiEndpoints.listProperties,
-      body: {'data': search != null && search.isNotEmpty ? {'nom': search} : null},
+      body: {'data': criteria.isEmpty ? null : criteria},
     );
 
     final items = _extractItems(response);
@@ -29,6 +40,19 @@ class RentalPropertyService {
         .where((p) => p.id.isNotEmpty)
         .toList();
   }
+
+  /// Published listings open for rent (seeker browse).
+  Future<List<RentalProperty>> fetchAvailableProperties({
+    String? search,
+    String? city,
+  }) async {
+    final all = await fetchProperties(search: search, city: city);
+    return all.where((p) => p.isAvailableForRent).toList(growable: false);
+  }
+
+  /// Properties owned by the connected landlord.
+  Future<List<RentalProperty>> fetchMyProperties({String? ownerUserId}) =>
+      fetchProperties(ownerUserId: ownerUserId);
 
   Future<RentalProperty?> fetchPropertyById(String id) async {
     final response = await _client.getJson('${RentalApiEndpoints.publicProperty}/$id');

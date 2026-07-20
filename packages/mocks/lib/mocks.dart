@@ -1,4 +1,4 @@
-/// Mock data and auth simulation for Mon Peya dev / QA builds.
+
 library;
 
 export 'package:mocks/src/auth/mock_auth.catalog.dart';

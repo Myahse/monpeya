@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:app/src/core/assets/constants/asset.paths.dart';
 import 'package:app/src/core/navigation/app.navigation.dart';
 import 'package:app/src/core/modules/app.module.dart';
 import 'package:app/src/core/modules/repositories/module.repository.dart';
@@ -17,6 +18,7 @@ class MonPeyaMyServicesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
     final modules = ModuleRepository.modules;
 
     return Scaffold(
@@ -24,7 +26,7 @@ class MonPeyaMyServicesScreen extends StatelessWidget {
       body: Column(
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(16, shellContentTop(context) + 12, 16, 12),
+            padding: EdgeInsets.fromLTRB(16, shellContentTop(context) + 28, 16, 12),
             child: SizedBox(
               height: 40,
               child: Row(
@@ -61,6 +63,14 @@ class MonPeyaMyServicesScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               children: [
+                Center(
+                  child: Image.asset(
+                    isDark ? AssetPaths.logoDark : AssetPaths.logo,
+                    height: 72,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(height: 20),
                 Text(
                   'Mes services',
                   style: TextStyle(

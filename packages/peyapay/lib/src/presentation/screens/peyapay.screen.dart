@@ -2,16 +2,20 @@ import 'package:flutter/material.dart';
 
 import 'package:peyapay/src/core/host/peyapay_host.bridge.dart';
 import 'package:peyapay/src/data/models/transaction.item.dart';
+import 'package:peyapay/src/data/services/peyapay_api.service.dart';
 import 'package:peyapay/src/core/utils/formatters.util.dart';
 import 'package:peyapay/src/core/utils/screen_insets.util.dart';
 import 'package:peyapay/src/presentation/widgets/action_button.widget.dart';
+import 'package:peyapay/src/presentation/widgets/peyapay_home_skeleton.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_slide_panel.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_top_bar.widget.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_payment_services.screen.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_source_of_funds.screen.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_transaction_detail.screen.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_transactions.screen.dart';
+import 'package:peyapay/src/presentation/screens/peyapay_qr_code.screen.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_transfer_contacts.screen.dart';
+import 'package:peyapay/src/presentation/widgets/peyapay_nav_bar_icon.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_transaction_list_tile.widget.dart';
 
 class PeyapayScreen extends StatefulWidget {
@@ -26,37 +30,27 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
   bool _showLoginRequiredModal = false;
   String _userName = 'Utilisateur';
 
-  // TODO: Wire to the same data source as the RN dashboardDataCache.
-  final int _balance = 125000;
-  final List<TransactionItem> _recent = const [
-    TransactionItem(
-      id: '1',
-      recipient: 'Supermarché Prosuma',
-      dateIso: '2026-04-15T10:10:00.000Z',
-      amount: -12500,
-      type: TransactionType.payment,
-      reference: 'TXN-20260415-001',
-      description: 'Paiement courses',
-    ),
-    TransactionItem(
-      id: '2',
-      recipient: 'Oumar D.',
-      dateIso: '2026-04-14T16:22:00.000Z',
-      amount: 25000,
-      type: TransactionType.transfer,
-      reference: 'TXN-20260414-018',
-      description: 'Transfert reçu',
-    ),
-    TransactionItem(
-      id: '3',
-      recipient: 'Orange Money',
-      dateIso: '2026-04-13T09:05:00.000Z',
-      amount: 10000,
-      type: TransactionType.deposit,
-      reference: 'TXN-20260413-004',
-      description: 'Recharge compte',
-    ),
-  ];
+  // Loaded from backend wallet APIs when session is active.
+  int? _balance;
+  List<TransactionItem> _transactions = const [];
+
+  /// Full-page skeleton while wallet content is not ready to show.
+  bool _bootstrapping = true;
+
+  /// Once true, background refreshes keep the current UI (no blank flash).
+  bool _ready = false;
+
+  /// Coalesces overlapping reloads (session listener + initState).
+  Future<void>? _inflightLoad;
+
+  /// Forces a second full load when PIN login lands while the first
+  /// bootstrap was still running against an inactive session.
+  bool _reloadAfterBootstrap = false;
+
+  static const _homeTransactionsPreviewCount = 3;
+
+  /// Show skeleton when we have nothing meaningful to display yet.
+  bool get _shouldShowSkeleton => _bootstrapping && (_balance == null || !_ready);
 
   @override
   void initState() {
@@ -71,16 +65,146 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
     super.dispose();
   }
 
-  void _onSessionChanged() => _loadProfile();
+  void _onSessionChanged() {
+    // If the first bootstrap is still in flight (often guest/inactive),
+    // queue a reload so PIN login data is fetched right after.
+    if (_bootstrapping && _inflightLoad != null) {
+      _reloadAfterBootstrap = true;
+      return;
+    }
+    _loadProfile();
+  }
 
-  Future<void> _loadProfile() async {
+  Future<void> _loadProfile() {
+    final existing = _inflightLoad;
+    if (existing != null) return existing;
+
+    late final Future<void> future;
+    future = _doLoadProfile().whenComplete(() {
+      if (identical(_inflightLoad, future)) _inflightLoad = null;
+      if (_reloadAfterBootstrap) {
+        _reloadAfterBootstrap = false;
+        _loadProfile();
+      }
+    });
+    _inflightLoad = future;
+    return future;
+  }
+
+  Future<void> _doLoadProfile() async {
     try {
+      final api = PeyapayHostBridge.api;
+      final sessionActive = await PeyapayHostBridge.requireAuth.isSessionActive();
       final phone = await PeyapayHostBridge.requireAuth.getPhone();
+
       if (!mounted) return;
-      setState(() => _userName = _displayName(phone));
+
+      // Skeleton on first paint, and after PIN login until balance arrives.
+      // Keep existing UI for silent refreshes when data is already shown.
+      final showSkeleton = !_ready || (sessionActive && _balance == null);
+      if (showSkeleton) {
+        setState(() => _bootstrapping = true);
+      }
+
+      if (sessionActive && api != null && phone != null && phone.isNotEmpty) {
+        try {
+          final state = await api.fetchClientState(phone: phone);
+          if (mounted) {
+            final nom = state.nomClient?.trim();
+            if (nom != null && nom.isNotEmpty) {
+              setState(() => _userName = nom);
+            }
+          }
+        } catch (_) {
+          // Fall through to cached / phone display.
+        }
+      }
+
+      final clientState = api?.clientState;
+      final nomClient = clientState?.nomClient?.trim();
+      if (!mounted) return;
+      setState(() {
+        _userName = (nomClient != null && nomClient.isNotEmpty)
+            ? nomClient
+            : _displayName(phone);
+      });
+
+      if (!sessionActive) {
+        if (!mounted) return;
+        setState(() {
+          _balance = null;
+          _showBalance = false;
+          _transactions = const [];
+        });
+        return;
+      }
+
+      if (api == null || phone == null || phone.isEmpty) return;
+
+      await api.hydrateBearerFrom(
+        PeyapayHostBridge.requireAuth.authToken,
+        preferAppToken: true,
+      );
+
+      // Sequential on purpose: shared API client mutates bearer/state.
+      int? solde;
+      try {
+        final balance =
+            await api.fetchWalletBalance(phone: phone, ensureToken: false);
+        solde = balance.solde;
+      } catch (_) {
+        solde = api.walletBalance?.solde;
+      }
+
+      final transactions = await _fetchTransactions(api: api, phone: phone);
+
+      if (!mounted) return;
+      setState(() {
+        _balance = solde ?? api.walletBalance?.solde;
+        if (_balance != null) _showBalance = true;
+        _transactions = transactions;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _userName = 'Utilisateur');
+    } finally {
+      // Always leave the loader — even on errors / early returns.
+      if (mounted) {
+        setState(() {
+          _bootstrapping = false;
+          _ready = true;
+        });
+      } else {
+        _bootstrapping = false;
+        _ready = true;
+      }
+    }
+  }
+
+  /// Loads recent movements; returns an empty list on failure (never throws).
+  Future<List<TransactionItem>> _fetchTransactions({
+    required PeyapayApiService api,
+    required String phone,
+  }) async {
+    var accountNumber = api.resolveWalletAccountNumber(phone: phone);
+    if (accountNumber == null || accountNumber.isEmpty) {
+      try {
+        await api.fetchClientState(phone: phone);
+        accountNumber = api.resolveWalletAccountNumber(phone: phone);
+      } catch (_) {}
+    }
+    if (accountNumber == null || accountNumber.isEmpty) return const [];
+
+    try {
+      final page = await api.fetchAccountMovements(
+        accountNumber: accountNumber,
+        index: 0,
+        size: 20,
+        ensureToken: false,
+      );
+      return page.movements.map((m) => m.toTransactionItem()).toList(growable: false);
+    } catch (_) {
+      return const [];
     }
   }
 
@@ -111,28 +235,25 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
     const actionsPaddingH = 40.0; // left+right = 20+20
     const gap = 8.0;
     final actionWidth = ((w - actionsPaddingH - (gap * 3)) / 4).clamp(0.0, 220.0);
+    final previewTransactions = _transactions.take(_homeTransactionsPreviewCount).toList(growable: false);
 
     return Scaffold(
       backgroundColor: bg,
       body: Stack(
         children: [
-          SingleChildScrollView(
-            clipBehavior: Clip.none,
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-            child: Padding(
-              padding: EdgeInsets.only(
-                top: peyapayStatusBarTop(context),
-                bottom: 24,
-              ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(top: peyapayStatusBarTop(context)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     PeyapayTopBar(
                       title: 'Bienvenue $_userName',
+                      titleWidget: _shouldShowSkeleton ? const PeyapayNameSkeleton() : null,
                       onPressProfile: () => PeyapayHostBridge.openNamedRoute(PeyapayHostRoutes.settings),
                     ),
-
-                    // Balance card
                     Container(
                       margin: const EdgeInsets.only(top: 6, left: 20, right: 20),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -145,64 +266,88 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                "N’TERI",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color.fromRGBO(255, 255, 255, 0.92),
-                                  letterSpacing: 0.6,
-                                ),
+                              const PeyaPayNavBarIcon(
+                                size: 28,
+                                width: 76,
                               ),
-                              GestureDetector(
-                                onTap: _toggleBalanceVisibility,
-                                child: Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: const Color.fromRGBO(255, 255, 255, 0.12),
-                                    borderRadius: BorderRadius.circular(12),
+                              Row(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                                      MaterialPageRoute<void>(builder: (_) => const PeyapayQrCodeScreen()),
+                                    ),
+                                    child: Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: const Color.fromRGBO(255, 255, 255, 0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                        Icons.qr_code_2_rounded,
+                                        size: 18,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                                   ),
-                                  alignment: Alignment.center,
-                                  child: Icon(
-                                    _showBalance ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                    size: 18,
-                                    color: Colors.white,
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: _shouldShowSkeleton ? null : _toggleBalanceVisibility,
+                                    child: Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: const Color.fromRGBO(255, 255, 255, 0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Icon(
+                                        _showBalance ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                        size: 18,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             ],
                           ),
                           const SizedBox(height: 10),
-                          const Text(
-                            'Solde actuel',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: Color.fromRGBO(255, 255, 255, 0.92),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          GestureDetector(
-                            onTap: _toggleBalanceVisibility,
-                            child: Text(
-                              _showBalance ? '${formatFrMoneySigned(_balance)} XOF' : '*****',
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: 0.3,
+                          if (_shouldShowSkeleton)
+                            const PeyapayBalanceSkeleton()
+                          else ...[
+                            const Text(
+                              'Solde actuel',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: Color.fromRGBO(255, 255, 255, 0.92),
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: _toggleBalanceVisibility,
+                              child: Text(
+                                _showBalance && _balance != null
+                                    ? '${formatFrMoneySigned(_balance!)} XOF'
+                                    : '*****',
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-
-                    // Quick actions
                     Padding(
-                      padding: const EdgeInsets.only(top: 8, left: 20, right: 20, bottom: 24),
+                      padding: const EdgeInsets.only(top: 8, left: 20, right: 20, bottom: 16),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -256,78 +401,91 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
                         ],
                       ),
                     ),
-
-                    Padding(
-                      padding: const EdgeInsets.only(top: 14),
-                      child: PeyapayHostBridge.newsCarousel(context, height: 185) ?? const SizedBox.shrink(),
-                    ),
-
-                    // Transactions
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Transactions récentes',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: ink),
-                              ),
-                              GestureDetector(
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => PeyapayTransactionsScreen(items: _recent),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Voir tout',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: ink),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          if (_recent.isEmpty)
-                            Container(
-                              padding: const EdgeInsets.symmetric(vertical: 18),
-                              decoration: BoxDecoration(
-                                color: bg,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: border),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                'Aucune transaction pour le moment',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: muted),
-                              ),
-                            )
-                          else
-                            Column(
-                              children: [
-                                for (final item in _recent)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 10),
-                                    child: PeyapayTransactionListTile(
-                                      item: item,
-                                      ink: ink,
-                                      muted: muted,
-                                      border: border,
-                                      iconBg: iconBgGrey,
-                                      surface: bg,
-                                      onTap: () => openPeyapayTransactionDetail(context, item),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
-            ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Builder(
+                        builder: (context) {
+                          final carousel = PeyapayHostBridge.newsCarousel(
+                            context,
+                            height: 180,
+                          );
+                          if (carousel == null) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: carousel,
+                          );
+                        },
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Transactions récentes',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: ink),
+                          ),
+                          if (!_shouldShowSkeleton && _transactions.isNotEmpty)
+                            GestureDetector(
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => PeyapayTransactionsScreen(initialItems: _transactions),
+                                ),
+                              ),
+                              child: Text(
+                                'Voir tout',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: ink),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (_shouldShowSkeleton)
+                        const PeyapayTransactionsSkeleton()
+                      else if (_transactions.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: bg,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: border),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Aucune transaction pour le moment',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: muted),
+                          ),
+                        )
+                      else
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final item in previewTransactions)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: PeyapayTransactionListTile(
+                                  item: item,
+                                  ink: ink,
+                                  muted: muted,
+                                  border: border,
+                                  iconBg: iconBgGrey,
+                                  surface: bg,
+                                  onTap: () => openPeyapayTransactionDetail(context, item),
+                                ),
+                              ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
             if (showPaymentsServices)
               PeyapaySlidePanel(
                 animation: paymentsSlideController,

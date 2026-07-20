@@ -24,9 +24,6 @@ String? moduleIconAsset({String? moduleKey, String? iconKey}) {
     'immo/collection' ||
     'mr-immo-collection' =>
       'packages/immo/assets/logo/immo/collection.png',
-    'peyapay' || 'peya' || 'wallet' => 'assets/logo/banks/logo peya.png',
-    'leadway-assurance' || 'leadway' =>
-      'packages/leadway/assets/logo/leadway.png',
     _ => _iconKeyAsset(iconKey),
   };
 }
@@ -37,7 +34,6 @@ String? _iconKeyAsset(String? iconKey) {
     'immo-rental' => 'packages/immo/assets/logo/immo/rental.png',
     'immo-construction' => 'packages/immo/assets/logo/immo/construction.png',
     'immo-collection' => 'packages/immo/assets/logo/immo/collection.png',
-    'leadway' || 'insurance' => 'packages/leadway/assets/logo/leadway.png',
     _ => null,
   };
 }
@@ -47,7 +43,7 @@ bool isImmoBrandedModuleIcon({String? moduleKey, String? iconKey}) {
   return asset != null && asset.contains('/immo/');
 }
 
-/// Maps server icon keys to Material icons when no branded asset exists.
+
 IconData moduleIconData(String iconKey) {
   return switch (iconKey.toLowerCase()) {
     'home' || 'real_estate' || 'rental' || 'immo-rental' => Icons.home_work_outlined,
@@ -55,7 +51,15 @@ IconData moduleIconData(String iconKey) {
     'shield' || 'insurance' => Icons.shield_outlined,
     'school' || 'education' => Icons.school_outlined,
     'cart' || 'marketplace' || 'shop' => Icons.shopping_bag_outlined,
-    'ticket' || 'billetterie' => Icons.confirmation_number_outlined,
+    'ticket' ||
+    'billetterie' ||
+    'billetterie-transport' ||
+    'billetterie/transport' =>
+      Icons.directions_bus_outlined,
+    'billetterie-event' ||
+    'billetterie/event' ||
+    'event' =>
+      Icons.confirmation_number_outlined,
     'collection' || 'bookmark' || 'immo-collection' => Icons.collections_bookmark_outlined,
     'wallet' || 'payment' => Icons.account_balance_wallet_outlined,
     'apartment' => Icons.apartment_outlined,
@@ -63,7 +67,7 @@ IconData moduleIconData(String iconKey) {
   };
 }
 
-/// Branded module icon — uses Mr Immo app icons when available.
+
 class ModuleIcon extends StatelessWidget {
   const ModuleIcon({
     super.key,
@@ -109,7 +113,7 @@ class ModuleIcon extends StatelessWidget {
         );
       }
 
-      // Mr Immo PNGs have wide margins — scale up inside the tile to fill the box.
+    
       return ClipRRect(
         borderRadius: BorderRadius.circular(size * 0.28),
         child: SizedBox(
