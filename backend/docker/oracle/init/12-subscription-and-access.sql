@@ -1,0 +1,420 @@
+-- Access catalog + flexible subscription shell (plan types TBD).
+-- Payment will go through PeyaPay later; for now subscribe is mock-only.
+-- Each init script is its own sqlplus session — always set container + schema here.
+
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+SET DEFINE OFF
+ALTER SESSION SET CONTAINER = XEPDB1;
+ALTER SESSION SET CURRENT_SCHEMA = MONPEYA;
+
+CREATE SEQUENCE MP_MODULE_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE MP_MODULE_PARAM_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE MP_SERVICE_ACTION_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE MP_PLAN_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE MP_PLAN_FEATURE_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE MP_SUBSCRIPTION_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE MP_SERVICE_PROFILE_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE MP_BUSINESS_DOC_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE MP_USER_ENTITLEMENT_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE MP_ACCESS_LOG_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+-- Enrich user profile cache (filled from PeyaPay lookup/login; app KYC is local-only for now).
+ALTER TABLE MP_USER ADD (
+    DISPLAY_NAME            VARCHAR2(200),
+    FIRST_NAME              VARCHAR2(100),
+    LAST_NAME               VARCHAR2(100),
+    BIRTH_DATE              DATE,
+    ID_NUMBER               VARCHAR2(50),
+    ADRESSE                 VARCHAR2(500),
+    PROFESSION              VARCHAR2(200),
+    LIEU_NAISSANCE          VARCHAR2(200),
+    CODE_PAYS_RESIDENCE     VARCHAR2(10),
+    LOGIN_CLIENT            VARCHAR2(100),
+    CODE_BANQUE             VARCHAR2(20),
+    NUMERO_COMPTE_COMPLET   VARCHAR2(100),
+    SOLDE_DISPO             NUMBER(19,2),
+    KYC_STATUS              VARCHAR2(30) DEFAULT 'NONE' NOT NULL
+);
+
+ALTER TABLE MP_USER ADD CONSTRAINT CK_MP_USER_KYC
+    CHECK (KYC_STATUS IN ('NONE', 'PENDING', 'VERIFIED', 'REJECTED'));
+
+CREATE SEQUENCE MP_ACCOUNT_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TABLE MP_ACCOUNT (
+    ID                      NUMBER(19)      PRIMARY KEY,
+    USER_ID                 NUMBER(19)      NOT NULL,
+    CODE_CLIENT             VARCHAR2(50),
+    NUMERO_COMPTE_COMPLET   VARCHAR2(100),
+    NOM_DU_COMPTE           VARCHAR2(200),
+    CODE_BANQUE             VARCHAR2(20),
+    CODE_AGENCE             VARCHAR2(20),
+    TYPE_COMPTE             VARCHAR2(20),
+    SOLDE_DISPO             NUMBER(19,2),
+    SOLDE_COMPTA            NUMBER(19,2),
+    IS_PRINCIPAL            NUMBER(1)       DEFAULT 0 NOT NULL,
+    CREATED_AT              TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UPDATED_AT              TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT FK_MP_ACCOUNT_USER FOREIGN KEY (USER_ID) REFERENCES MP_USER (ID),
+    CONSTRAINT CK_MP_ACCOUNT_PRINCIPAL CHECK (IS_PRINCIPAL IN (0, 1))
+);
+
+CREATE INDEX IX_MP_ACCOUNT_USER ON MP_ACCOUNT (USER_ID);
+CREATE INDEX IX_MP_ACCOUNT_NUM ON MP_ACCOUNT (NUMERO_COMPTE_COMPLET);
+
+CREATE TABLE MP_MODULE (
+    ID                      NUMBER(19)      PRIMARY KEY,
+    CODE                    VARCHAR2(50)    NOT NULL,
+    NAME                    VARCHAR2(120)   NOT NULL,
+    DESCRIPTION             VARCHAR2(500),
+    -- JSON bag for mobile reuse (iconKey, route, subtitle, accentColor, homeVisible, …)
+    METADATA_JSON           CLOB,
+    -- CLIENT_ONLY (e.g. Leadway) | CLIENT_AND_BUSINESS (tickets: client + conductor/owner)
+    ROLE_MODEL              VARCHAR2(30)    DEFAULT 'CLIENT_AND_BUSINESS' NOT NULL,
+    IS_ACTIVE               NUMBER(1)       DEFAULT 1 NOT NULL,
+    SORT_ORDER              NUMBER(5)       DEFAULT 0 NOT NULL,
+    OPEN_ACCESS_LEVEL       VARCHAR2(20)    DEFAULT 'GUEST' NOT NULL,
+    DEFAULT_ACTION_LEVEL    VARCHAR2(20)    DEFAULT 'AUTH' NOT NULL,
+    CREATED_AT              TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UPDATED_AT              TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT UK_MP_MODULE_CODE UNIQUE (CODE),
+    CONSTRAINT CK_MP_MODULE_ACTIVE CHECK (IS_ACTIVE IN (0, 1)),
+    CONSTRAINT CK_MP_MODULE_OPEN_LVL CHECK (OPEN_ACCESS_LEVEL IN ('GUEST', 'AUTH', 'SUBSCRIPTION')),
+    CONSTRAINT CK_MP_MODULE_ACT_LVL CHECK (DEFAULT_ACTION_LEVEL IN ('GUEST', 'AUTH', 'SUBSCRIPTION')),
+    CONSTRAINT CK_MP_MODULE_ROLE_MODEL CHECK (ROLE_MODEL IN ('CLIENT_ONLY', 'CLIENT_AND_BUSINESS'))
+);
+
+CREATE TABLE MP_MODULE_PARAM (
+    ID              NUMBER(19)      PRIMARY KEY,
+    MODULE_ID       NUMBER(19)      NOT NULL,
+    PARAM_KEY       VARCHAR2(80)    NOT NULL,
+    PARAM_VALUE     VARCHAR2(1000),
+    SORT_ORDER      NUMBER(5)       DEFAULT 0 NOT NULL,
+    IS_ACTIVE       NUMBER(1)       DEFAULT 1 NOT NULL,
+    CREATED_AT      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT UK_MP_MOD_PARAM UNIQUE (MODULE_ID, PARAM_KEY),
+    CONSTRAINT FK_MP_MOD_PARAM_MODULE FOREIGN KEY (MODULE_ID) REFERENCES MP_MODULE (ID),
+    CONSTRAINT CK_MP_MOD_PARAM_ACTIVE CHECK (IS_ACTIVE IN (0, 1))
+);
+
+CREATE INDEX IX_MP_MOD_PARAM_MODULE ON MP_MODULE_PARAM (MODULE_ID);
+
+CREATE TABLE MP_SERVICE_ACTION (
+    ID              NUMBER(19)      PRIMARY KEY,
+    MODULE_ID       NUMBER(19)      NOT NULL,
+    CODE            VARCHAR2(80)    NOT NULL,
+    NAME            VARCHAR2(120)   NOT NULL,
+    DESCRIPTION     VARCHAR2(500),
+    ACCESS_LEVEL    VARCHAR2(20)    DEFAULT 'AUTH' NOT NULL,
+    -- ANY | CLIENT | BUSINESS — who may call this action once access_level is satisfied
+    REQUIRED_ROLE   VARCHAR2(20)    DEFAULT 'ANY' NOT NULL,
+    IS_ACTIVE       NUMBER(1)       DEFAULT 1 NOT NULL,
+    CREATED_AT      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT UK_MP_ACTION_MODULE_CODE UNIQUE (MODULE_ID, CODE),
+    CONSTRAINT FK_MP_ACTION_MODULE FOREIGN KEY (MODULE_ID) REFERENCES MP_MODULE (ID),
+    CONSTRAINT CK_MP_ACTION_ACTIVE CHECK (IS_ACTIVE IN (0, 1)),
+    CONSTRAINT CK_MP_ACTION_LEVEL CHECK (ACCESS_LEVEL IN ('GUEST', 'AUTH', 'SUBSCRIPTION')),
+    CONSTRAINT CK_MP_ACTION_REQ_ROLE CHECK (REQUIRED_ROLE IN ('ANY', 'CLIENT', 'BUSINESS'))
+);
+
+CREATE INDEX IX_MP_ACTION_MODULE ON MP_SERVICE_ACTION (MODULE_ID);
+
+-- Monpeya access plans only (CLIENT/BUSINESS unlock). NOT ticket/event/product prices.
+-- Catalog left empty until plan types are defined.
+CREATE TABLE MP_PLAN (
+    ID                  NUMBER(19)      PRIMARY KEY,
+    CODE                VARCHAR2(40)    NOT NULL,
+    NAME                VARCHAR2(120)   NOT NULL,
+    DESCRIPTION         VARCHAR2(500),
+    PRICE               NUMBER(18, 2)   DEFAULT 0 NOT NULL,
+    CURRENCY            VARCHAR2(3)     DEFAULT 'XOF' NOT NULL,
+    BILLING_PERIOD      VARCHAR2(20)    DEFAULT 'MONTHLY' NOT NULL,
+    TRIAL_DAYS          NUMBER(5)       DEFAULT 0 NOT NULL,
+    IS_DEFAULT          NUMBER(1)       DEFAULT 0 NOT NULL,
+    IS_ACTIVE           NUMBER(1)       DEFAULT 1 NOT NULL,
+    CREATED_AT          TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UPDATED_AT          TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT UK_MP_PLAN_CODE UNIQUE (CODE),
+    CONSTRAINT CK_MP_PLAN_PERIOD CHECK (BILLING_PERIOD IN ('MONTHLY', 'YEARLY', 'ONCE', 'NONE')),
+    CONSTRAINT CK_MP_PLAN_DEFAULT CHECK (IS_DEFAULT IN (0, 1)),
+    CONSTRAINT CK_MP_PLAN_ACTIVE CHECK (IS_ACTIVE IN (0, 1))
+);
+
+CREATE TABLE MP_PLAN_FEATURE (
+    ID                  NUMBER(19)      PRIMARY KEY,
+    PLAN_ID             NUMBER(19)      NOT NULL,
+    MODULE_ID           NUMBER(19),
+    SERVICE_ACTION_ID   NUMBER(19),
+    FEATURE_CODE        VARCHAR2(80)    NOT NULL,
+    DESCRIPTION         VARCHAR2(300),
+    CONSTRAINT FK_MP_PF_PLAN FOREIGN KEY (PLAN_ID) REFERENCES MP_PLAN (ID),
+    CONSTRAINT FK_MP_PF_MODULE FOREIGN KEY (MODULE_ID) REFERENCES MP_MODULE (ID),
+    CONSTRAINT FK_MP_PF_ACTION FOREIGN KEY (SERVICE_ACTION_ID) REFERENCES MP_SERVICE_ACTION (ID),
+    CONSTRAINT CK_MP_PF_TARGET CHECK (MODULE_ID IS NOT NULL OR SERVICE_ACTION_ID IS NOT NULL)
+);
+
+CREATE INDEX IX_MP_PF_PLAN ON MP_PLAN_FEATURE (PLAN_ID);
+
+-- Subscriptions: payment via PeyaPay later; MOCK_* fields used until then.
+CREATE TABLE MP_SUBSCRIPTION (
+    ID                  NUMBER(19)      PRIMARY KEY,
+    USER_ID             NUMBER(19)      NOT NULL,
+    PLAN_ID             NUMBER(19),
+    MODULE_ID           NUMBER(19),
+    -- CLIENT (use tickets) | BUSINESS (conductor / owner / company)
+    ROLE                VARCHAR2(20)    DEFAULT 'CLIENT' NOT NULL,
+    STATUS              VARCHAR2(20)    NOT NULL,
+    START_AT            TIMESTAMP       NOT NULL,
+    END_AT              TIMESTAMP,
+    TRIAL_END_AT        TIMESTAMP,
+    AUTO_RENEW          NUMBER(1)       DEFAULT 0 NOT NULL,
+    CANCELLED_AT        TIMESTAMP,
+    PAYMENT_PROVIDER    VARCHAR2(30)    DEFAULT 'PEYAPAY' NOT NULL,
+    PAYMENT_STATUS      VARCHAR2(30)    DEFAULT 'MOCK_PAID' NOT NULL,
+    PAYMENT_REF         VARCHAR2(100),
+    IS_MOCK_PAYMENT     NUMBER(1)       DEFAULT 1 NOT NULL,
+    CREATED_AT          TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UPDATED_AT          TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT FK_MP_SUB_USER FOREIGN KEY (USER_ID) REFERENCES MP_USER (ID),
+    CONSTRAINT FK_MP_SUB_PLAN FOREIGN KEY (PLAN_ID) REFERENCES MP_PLAN (ID),
+    CONSTRAINT FK_MP_SUB_MODULE FOREIGN KEY (MODULE_ID) REFERENCES MP_MODULE (ID),
+    CONSTRAINT CK_MP_SUB_STATUS CHECK (STATUS IN ('TRIAL', 'ACTIVE', 'PAST_DUE', 'CANCELLED', 'EXPIRED')),
+    CONSTRAINT CK_MP_SUB_ROLE CHECK (ROLE IN ('CLIENT', 'BUSINESS')),
+    CONSTRAINT CK_MP_SUB_RENEW CHECK (AUTO_RENEW IN (0, 1)),
+    CONSTRAINT CK_MP_SUB_MOCK CHECK (IS_MOCK_PAYMENT IN (0, 1)),
+    CONSTRAINT CK_MP_SUB_PAY_STATUS CHECK (PAYMENT_STATUS IN ('PENDING', 'MOCK_PAID', 'PAID', 'FAILED'))
+);
+
+CREATE INDEX IX_MP_SUB_USER ON MP_SUBSCRIPTION (USER_ID);
+CREATE INDEX IX_MP_SUB_STATUS ON MP_SUBSCRIPTION (STATUS);
+CREATE INDEX IX_MP_SUB_MODULE ON MP_SUBSCRIPTION (MODULE_ID);
+
+-- Starts as CLIENT; BUSINESS after docs or PeyaPay merchant + approve.
+CREATE TABLE MP_SERVICE_PROFILE (
+    ID                      NUMBER(19)      PRIMARY KEY,
+    USER_ID                 NUMBER(19)      NOT NULL,
+    MODULE_ID               NUMBER(19)      NOT NULL,
+    CURRENT_ROLE            VARCHAR2(20)    DEFAULT 'CLIENT' NOT NULL,
+    BUSINESS_STATUS         VARCHAR2(30)    DEFAULT 'NONE' NOT NULL,
+    UPGRADE_PATH            VARCHAR2(30),
+    IS_PEYAPAY_MERCHANT     NUMBER(1)       DEFAULT 0 NOT NULL,
+    NOTE                    VARCHAR2(500),
+    CREATED_AT              TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UPDATED_AT              TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT UK_MP_SVC_PROFILE UNIQUE (USER_ID, MODULE_ID),
+    CONSTRAINT FK_MP_SP_USER FOREIGN KEY (USER_ID) REFERENCES MP_USER (ID),
+    CONSTRAINT FK_MP_SP_MODULE FOREIGN KEY (MODULE_ID) REFERENCES MP_MODULE (ID),
+    CONSTRAINT CK_MP_SP_ROLE CHECK (CURRENT_ROLE IN ('CLIENT', 'BUSINESS')),
+    CONSTRAINT CK_MP_SP_BIZ_STATUS CHECK (BUSINESS_STATUS IN ('NONE', 'PENDING_DOCS', 'PENDING_REVIEW', 'APPROVED', 'REJECTED')),
+    CONSTRAINT CK_MP_SP_UPGRADE CHECK (UPGRADE_PATH IS NULL OR UPGRADE_PATH IN ('DOCUMENTS', 'PEYAPAY_MERCHANT')),
+    CONSTRAINT CK_MP_SP_MERCHANT CHECK (IS_PEYAPAY_MERCHANT IN (0, 1))
+);
+
+CREATE INDEX IX_MP_SP_USER ON MP_SERVICE_PROFILE (USER_ID);
+
+CREATE TABLE MP_BUSINESS_DOCUMENT (
+    ID                  NUMBER(19)      PRIMARY KEY,
+    PROFILE_ID          NUMBER(19)      NOT NULL,
+    DOC_TYPE            VARCHAR2(40)    NOT NULL,
+    FILE_REF            VARCHAR2(500),
+    STATUS              VARCHAR2(20)    DEFAULT 'PENDING' NOT NULL,
+    REVIEW_NOTE         VARCHAR2(500),
+    CREATED_AT          TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UPDATED_AT          TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT FK_MP_BD_PROFILE FOREIGN KEY (PROFILE_ID) REFERENCES MP_SERVICE_PROFILE (ID),
+    CONSTRAINT CK_MP_BD_TYPE CHECK (DOC_TYPE IN ('ID_CARD_FRONT', 'ID_CARD_BACK', 'BUSINESS_REG', 'OTHER')),
+    CONSTRAINT CK_MP_BD_STATUS CHECK (STATUS IN ('PENDING', 'ACCEPTED', 'REJECTED'))
+);
+
+CREATE INDEX IX_MP_BD_PROFILE ON MP_BUSINESS_DOCUMENT (PROFILE_ID);
+
+CREATE TABLE MP_USER_ENTITLEMENT (
+    ID                  NUMBER(19)      PRIMARY KEY,
+    USER_ID             NUMBER(19)      NOT NULL,
+    MODULE_ID           NUMBER(19),
+    SERVICE_ACTION_ID   NUMBER(19),
+    FEATURE_CODE        VARCHAR2(80)    NOT NULL,
+    SOURCE              VARCHAR2(40)    DEFAULT 'MANUAL' NOT NULL,
+    GRANTED_AT          TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    EXPIRES_AT          TIMESTAMP,
+    IS_ACTIVE           NUMBER(1)       DEFAULT 1 NOT NULL,
+    NOTE                VARCHAR2(300),
+    CONSTRAINT FK_MP_UE_USER FOREIGN KEY (USER_ID) REFERENCES MP_USER (ID),
+    CONSTRAINT FK_MP_UE_MODULE FOREIGN KEY (MODULE_ID) REFERENCES MP_MODULE (ID),
+    CONSTRAINT FK_MP_UE_ACTION FOREIGN KEY (SERVICE_ACTION_ID) REFERENCES MP_SERVICE_ACTION (ID),
+    CONSTRAINT CK_MP_UE_ACTIVE CHECK (IS_ACTIVE IN (0, 1)),
+    CONSTRAINT CK_MP_UE_SOURCE CHECK (SOURCE IN ('MANUAL', 'PROMO', 'COMP', 'MIGRATION'))
+);
+
+CREATE INDEX IX_MP_UE_USER ON MP_USER_ENTITLEMENT (USER_ID);
+
+CREATE TABLE MP_ACCESS_LOG (
+    ID              NUMBER(19)      PRIMARY KEY,
+    USER_ID         NUMBER(19),
+    PHONE           VARCHAR2(20),
+    MODULE_CODE     VARCHAR2(50),
+    ACTION_CODE     VARCHAR2(80),
+    ACCESS_LEVEL    VARCHAR2(20),
+    RESULT          VARCHAR2(20)    NOT NULL,
+    REASON          VARCHAR2(200),
+    CREATED_AT      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT FK_MP_AL_USER FOREIGN KEY (USER_ID) REFERENCES MP_USER (ID),
+    CONSTRAINT CK_MP_AL_RESULT CHECK (RESULT IN ('ALLOW', 'DENY'))
+);
+
+CREATE INDEX IX_MP_AL_USER ON MP_ACCESS_LOG (USER_ID);
+CREATE INDEX IX_MP_AL_CREATED ON MP_ACCESS_LOG (CREATED_AT);
+
+-- Services catalog — ROLE_MODEL: Leadway/home/peyapay/subs = CLIENT_ONLY; product = dual role.
+INSERT INTO MP_MODULE (ID, CODE, NAME, DESCRIPTION, METADATA_JSON, ROLE_MODEL, SORT_ORDER, OPEN_ACCESS_LEVEL, DEFAULT_ACTION_LEVEL)
+VALUES (MP_MODULE_SEQ.NEXTVAL, 'home', 'Accueil', 'Shell home / news browse',
+    '{"iconKey":"home","route":"/home","subtitle":"Accueil","homeVisible":false,"category":"shell"}',
+    'CLIENT_ONLY', 10, 'GUEST', 'GUEST');
+
+INSERT INTO MP_MODULE (ID, CODE, NAME, DESCRIPTION, METADATA_JSON, ROLE_MODEL, SORT_ORDER, OPEN_ACCESS_LEVEL, DEFAULT_ACTION_LEVEL)
+VALUES (MP_MODULE_SEQ.NEXTVAL, 'peyapay', 'Peya Pay', 'Core wallet / transfers (not a paid module)',
+    '{"iconKey":"peyapay","route":"/peyapay","subtitle":"Paiements et transferts","homeVisible":true,"category":"finance","accentColor":"#0B6E4F"}',
+    'CLIENT_ONLY', 20, 'AUTH', 'AUTH');
+
+INSERT INTO MP_MODULE (ID, CODE, NAME, DESCRIPTION, METADATA_JSON, ROLE_MODEL, SORT_ORDER, OPEN_ACCESS_LEVEL, DEFAULT_ACTION_LEVEL)
+VALUES (MP_MODULE_SEQ.NEXTVAL, 'real-estate', 'Mr Immo Location', 'Real-estate — client or business',
+    '{"iconKey":"real_estate","route":"/immo/location","subtitle":"Location immobiliere","homeVisible":true,"category":"immo","accentColor":"#1F4B99"}',
+    'CLIENT_AND_BUSINESS', 30, 'GUEST', 'SUBSCRIPTION');
+
+INSERT INTO MP_MODULE (ID, CODE, NAME, DESCRIPTION, METADATA_JSON, ROLE_MODEL, SORT_ORDER, OPEN_ACCESS_LEVEL, DEFAULT_ACTION_LEVEL)
+VALUES (MP_MODULE_SEQ.NEXTVAL, 'construction', 'Mr Immo Construction', 'Construction — client or business',
+    '{"iconKey":"construction","route":"/immo/construction","subtitle":"Construction","homeVisible":true,"category":"immo","accentColor":"#1F4B99"}',
+    'CLIENT_AND_BUSINESS', 40, 'GUEST', 'SUBSCRIPTION');
+
+INSERT INTO MP_MODULE (ID, CODE, NAME, DESCRIPTION, METADATA_JSON, ROLE_MODEL, SORT_ORDER, OPEN_ACCESS_LEVEL, DEFAULT_ACTION_LEVEL)
+VALUES (MP_MODULE_SEQ.NEXTVAL, 'collection', 'Mr Immo Collection', 'Collection — client or business',
+    '{"iconKey":"collection","route":"/immo/collection","subtitle":"Collection","homeVisible":true,"category":"immo","accentColor":"#1F4B99"}',
+    'CLIENT_AND_BUSINESS', 50, 'GUEST', 'SUBSCRIPTION');
+
+INSERT INTO MP_MODULE (ID, CODE, NAME, DESCRIPTION, METADATA_JSON, ROLE_MODEL, SORT_ORDER, OPEN_ACCESS_LEVEL, DEFAULT_ACTION_LEVEL)
+VALUES (MP_MODULE_SEQ.NEXTVAL, 'billetterie', 'Billetterie', 'Tickets — client rider or business conductor/owner',
+    '{"iconKey":"billetterie","route":"/billetterie","subtitle":"Evenements et billets","homeVisible":true,"category":"lifestyle","accentColor":"#C45C26"}',
+    'CLIENT_AND_BUSINESS', 60, 'GUEST', 'SUBSCRIPTION');
+
+INSERT INTO MP_MODULE (ID, CODE, NAME, DESCRIPTION, METADATA_JSON, ROLE_MODEL, SORT_ORDER, OPEN_ACCESS_LEVEL, DEFAULT_ACTION_LEVEL)
+VALUES (MP_MODULE_SEQ.NEXTVAL, 'leadway-assurance', 'Leadway Moto', 'Everyone is client only',
+    '{"iconKey":"leadway","route":"/leadway","subtitle":"Assurance moto","homeVisible":true,"category":"insurance","accentColor":"#B00020"}',
+    'CLIENT_ONLY', 70, 'GUEST', 'GUEST');
+
+INSERT INTO MP_MODULE (ID, CODE, NAME, DESCRIPTION, METADATA_JSON, ROLE_MODEL, SORT_ORDER, OPEN_ACCESS_LEVEL, DEFAULT_ACTION_LEVEL)
+VALUES (MP_MODULE_SEQ.NEXTVAL, 'subscriptions', 'Abonnements', 'User subscription area',
+    '{"iconKey":"subscriptions","route":"/subscriptions","subtitle":"Abonnements Mon Peya","homeVisible":true,"category":"account","accentColor":"#333333"}',
+    'CLIENT_ONLY', 80, 'GUEST', 'AUTH');
+
+INSERT INTO MP_MODULE_PARAM (ID, MODULE_ID, PARAM_KEY, PARAM_VALUE, SORT_ORDER)
+SELECT MP_MODULE_PARAM_SEQ.NEXTVAL, m.ID, p.PARAM_KEY, p.PARAM_VALUE, p.SORT_ORDER
+FROM MP_MODULE m
+JOIN (
+    SELECT 'home' AS MOD, 'roleModel' AS PARAM_KEY, 'CLIENT_ONLY' AS PARAM_VALUE, 5 AS SORT_ORDER FROM DUAL UNION ALL
+    SELECT 'home', 'iconKey', 'home', 10 FROM DUAL UNION ALL
+    SELECT 'home', 'route', '/home', 20 FROM DUAL UNION ALL
+    SELECT 'home', 'subtitle', 'Accueil', 30 FROM DUAL UNION ALL
+    SELECT 'home', 'homeVisible', 'false', 40 FROM DUAL UNION ALL
+    SELECT 'home', 'category', 'shell', 50 FROM DUAL UNION ALL
+    SELECT 'peyapay', 'roleModel', 'CLIENT_ONLY', 5 FROM DUAL UNION ALL
+    SELECT 'peyapay', 'iconKey', 'peyapay', 10 FROM DUAL UNION ALL
+    SELECT 'peyapay', 'route', '/peyapay', 20 FROM DUAL UNION ALL
+    SELECT 'peyapay', 'subtitle', 'Paiements et transferts', 30 FROM DUAL UNION ALL
+    SELECT 'peyapay', 'homeVisible', 'true', 40 FROM DUAL UNION ALL
+    SELECT 'peyapay', 'category', 'finance', 50 FROM DUAL UNION ALL
+    SELECT 'peyapay', 'accentColor', '#0B6E4F', 60 FROM DUAL UNION ALL
+    SELECT 'real-estate', 'roleModel', 'CLIENT_AND_BUSINESS', 5 FROM DUAL UNION ALL
+    SELECT 'real-estate', 'iconKey', 'real_estate', 10 FROM DUAL UNION ALL
+    SELECT 'real-estate', 'route', '/immo/location', 20 FROM DUAL UNION ALL
+    SELECT 'real-estate', 'subtitle', 'Location immobiliere', 30 FROM DUAL UNION ALL
+    SELECT 'real-estate', 'homeVisible', 'true', 40 FROM DUAL UNION ALL
+    SELECT 'real-estate', 'category', 'immo', 50 FROM DUAL UNION ALL
+    SELECT 'real-estate', 'accentColor', '#1F4B99', 60 FROM DUAL UNION ALL
+    SELECT 'construction', 'roleModel', 'CLIENT_AND_BUSINESS', 5 FROM DUAL UNION ALL
+    SELECT 'construction', 'iconKey', 'construction', 10 FROM DUAL UNION ALL
+    SELECT 'construction', 'route', '/immo/construction', 20 FROM DUAL UNION ALL
+    SELECT 'construction', 'subtitle', 'Construction', 30 FROM DUAL UNION ALL
+    SELECT 'construction', 'homeVisible', 'true', 40 FROM DUAL UNION ALL
+    SELECT 'construction', 'category', 'immo', 50 FROM DUAL UNION ALL
+    SELECT 'construction', 'accentColor', '#1F4B99', 60 FROM DUAL UNION ALL
+    SELECT 'collection', 'roleModel', 'CLIENT_AND_BUSINESS', 5 FROM DUAL UNION ALL
+    SELECT 'collection', 'iconKey', 'collection', 10 FROM DUAL UNION ALL
+    SELECT 'collection', 'route', '/immo/collection', 20 FROM DUAL UNION ALL
+    SELECT 'collection', 'subtitle', 'Collection', 30 FROM DUAL UNION ALL
+    SELECT 'collection', 'homeVisible', 'true', 40 FROM DUAL UNION ALL
+    SELECT 'collection', 'category', 'immo', 50 FROM DUAL UNION ALL
+    SELECT 'collection', 'accentColor', '#1F4B99', 60 FROM DUAL UNION ALL
+    SELECT 'billetterie', 'roleModel', 'CLIENT_AND_BUSINESS', 5 FROM DUAL UNION ALL
+    SELECT 'billetterie', 'iconKey', 'billetterie', 10 FROM DUAL UNION ALL
+    SELECT 'billetterie', 'route', '/billetterie', 20 FROM DUAL UNION ALL
+    SELECT 'billetterie', 'subtitle', 'Evenements et billets', 30 FROM DUAL UNION ALL
+    SELECT 'billetterie', 'homeVisible', 'true', 40 FROM DUAL UNION ALL
+    SELECT 'billetterie', 'category', 'lifestyle', 50 FROM DUAL UNION ALL
+    SELECT 'billetterie', 'accentColor', '#C45C26', 60 FROM DUAL UNION ALL
+    SELECT 'leadway-assurance', 'roleModel', 'CLIENT_ONLY', 5 FROM DUAL UNION ALL
+    SELECT 'leadway-assurance', 'iconKey', 'leadway', 10 FROM DUAL UNION ALL
+    SELECT 'leadway-assurance', 'route', '/leadway', 20 FROM DUAL UNION ALL
+    SELECT 'leadway-assurance', 'subtitle', 'Assurance moto', 30 FROM DUAL UNION ALL
+    SELECT 'leadway-assurance', 'homeVisible', 'true', 40 FROM DUAL UNION ALL
+    SELECT 'leadway-assurance', 'category', 'insurance', 50 FROM DUAL UNION ALL
+    SELECT 'leadway-assurance', 'accentColor', '#B00020', 60 FROM DUAL UNION ALL
+    SELECT 'subscriptions', 'roleModel', 'CLIENT_ONLY', 5 FROM DUAL UNION ALL
+    SELECT 'subscriptions', 'iconKey', 'subscriptions', 10 FROM DUAL UNION ALL
+    SELECT 'subscriptions', 'route', '/subscriptions', 20 FROM DUAL UNION ALL
+    SELECT 'subscriptions', 'subtitle', 'Abonnements Mon Peya', 30 FROM DUAL UNION ALL
+    SELECT 'subscriptions', 'homeVisible', 'true', 40 FROM DUAL UNION ALL
+    SELECT 'subscriptions', 'category', 'account', 50 FROM DUAL UNION ALL
+    SELECT 'subscriptions', 'accentColor', '#333333', 60 FROM DUAL
+) p ON p.MOD = m.CODE;
+
+INSERT INTO MP_SERVICE_ACTION (ID, MODULE_ID, CODE, NAME, ACCESS_LEVEL, REQUIRED_ROLE)
+SELECT MP_SERVICE_ACTION_SEQ.NEXTVAL, m.ID, a.CODE, a.NAME, a.LVL, a.REQ_ROLE
+FROM MP_MODULE m
+JOIN (
+    SELECT 'peyapay' AS MOD, 'wallet.balance' AS CODE, 'Voir solde' AS NAME, 'AUTH' AS LVL, 'ANY' AS REQ_ROLE FROM DUAL UNION ALL
+    SELECT 'peyapay', 'wallet.transfer', 'Transfert', 'AUTH', 'ANY' FROM DUAL UNION ALL
+    SELECT 'peyapay', 'wallet.topup', 'Recharge', 'AUTH', 'ANY' FROM DUAL UNION ALL
+    SELECT 'peyapay', 'wallet.qr.pay', 'Payer QR', 'AUTH', 'ANY' FROM DUAL UNION ALL
+    SELECT 'peyapay', 'wallet.qr.receive', 'Recevoir QR', 'AUTH', 'ANY' FROM DUAL UNION ALL
+    SELECT 'peyapay', 'bills.cie', 'Facture CIE', 'AUTH', 'ANY' FROM DUAL UNION ALL
+    SELECT 'peyapay', 'bills.sodeci', 'Facture SODECI', 'AUTH', 'ANY' FROM DUAL UNION ALL
+    -- Client side of tickets
+    SELECT 'billetterie', 'ticket.checkout', 'Achat billet', 'SUBSCRIPTION', 'CLIENT' FROM DUAL UNION ALL
+    SELECT 'billetterie', 'ticket.my', 'Mes billets', 'SUBSCRIPTION', 'CLIENT' FROM DUAL UNION ALL
+    -- Business side (conductor / owner / company)
+    SELECT 'billetterie', 'ticket.issue', 'Emettre billet', 'SUBSCRIPTION', 'BUSINESS' FROM DUAL UNION ALL
+    SELECT 'billetterie', 'ticket.validate', 'Valider billet', 'SUBSCRIPTION', 'BUSINESS' FROM DUAL UNION ALL
+    SELECT 'real-estate', 'listing.create', 'Publier annonce', 'SUBSCRIPTION', 'BUSINESS' FROM DUAL UNION ALL
+    SELECT 'real-estate', 'rental.contract', 'Contrat location', 'SUBSCRIPTION', 'CLIENT' FROM DUAL UNION ALL
+    -- Leadway: everyone client — no subscription business role
+    SELECT 'leadway-assurance', 'policy.checkout', 'Souscrire / payer assurance', 'AUTH', 'CLIENT' FROM DUAL UNION ALL
+    SELECT 'leadway-assurance', 'policy.list', 'Mes contrats', 'AUTH', 'CLIENT' FROM DUAL UNION ALL
+    SELECT 'subscriptions', 'plan.subscribe', 'Souscrire (mock)', 'AUTH', 'ANY' FROM DUAL UNION ALL
+    SELECT 'subscriptions', 'plan.manage', 'Gerer mon abonnement', 'AUTH', 'ANY' FROM DUAL
+) a ON a.MOD = m.CODE;
+
+-- Billetterie plans: single vs grouped (Immo included in grouped for later).
+INSERT INTO MP_PLAN (ID, CODE, NAME, DESCRIPTION, PRICE, CURRENCY, BILLING_PERIOD, TRIAL_DAYS, IS_DEFAULT, IS_ACTIVE)
+VALUES (MP_PLAN_SEQ.NEXTVAL, 'BILL_CLIENT_SINGLE', 'Billetterie — Individuel',
+    'Abonnement client pour la Billetterie uniquement (achat et mes billets).',
+    1000, 'XOF', 'MONTHLY', 0, 1, 1);
+
+INSERT INTO MP_PLAN (ID, CODE, NAME, DESCRIPTION, PRICE, CURRENCY, BILLING_PERIOD, TRIAL_DAYS, IS_DEFAULT, IS_ACTIVE)
+VALUES (MP_PLAN_SEQ.NEXTVAL, 'BILL_CLIENT_GROUPED', 'Billetterie + Immo — Groupé',
+    'Abonnement groupé : Billetterie et services Immo (location / construction / collection).',
+    2500, 'XOF', 'MONTHLY', 0, 0, 1);
+
+INSERT INTO MP_PLAN_FEATURE (ID, PLAN_ID, MODULE_ID, SERVICE_ACTION_ID, FEATURE_CODE, DESCRIPTION)
+SELECT MP_PLAN_FEATURE_SEQ.NEXTVAL, p.ID, m.ID, NULL, 'MODULE_ACCESS', 'Accès Billetterie client'
+FROM MP_PLAN p
+JOIN MP_MODULE m ON m.CODE = 'billetterie'
+WHERE p.CODE = 'BILL_CLIENT_SINGLE';
+
+INSERT INTO MP_PLAN_FEATURE (ID, PLAN_ID, MODULE_ID, SERVICE_ACTION_ID, FEATURE_CODE, DESCRIPTION)
+SELECT MP_PLAN_FEATURE_SEQ.NEXTVAL, p.ID, m.ID, NULL, 'MODULE_ACCESS', 'Accès ' || m.NAME
+FROM MP_PLAN p
+CROSS JOIN MP_MODULE m
+WHERE p.CODE = 'BILL_CLIENT_GROUPED'
+  AND m.CODE IN ('billetterie', 'real-estate', 'construction', 'collection');
+
+COMMIT;

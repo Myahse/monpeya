@@ -1,0 +1,49 @@
+services:
+  oracle:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: monpeya-oracle
+    ports:
+      - "${ORACLE_HOST_PORT:-1521}:1521"
+    env_file:
+      - .env
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-oracle_admin}
+      APP_USER: ${DATASOURCE_USERNAME:-monpeya}
+      APP_USER_PASSWORD: ${DATASOURCE_PASSWORD:-monpeya}
+    volumes:
+      - monpeya-oracle-data:/opt/oracle/oradata
+      - ./docker/oracle/init:/container-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+    # Oracle XE needs real memory — free 512MB VPS will OOM.
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  app:
+    build: .
+    container_name: monpeya-backend
+    ports:
+      - "${SERVER_PORT:-8081}:8081"
+    env_file:
+      - .env
+    environment:
+      # Inside Docker network, talk to the oracle service (not localhost).
+      DATASOURCE_URL: jdbc:oracle:thin:@//oracle:1521/XEPDB1
+      DATASOURCE_USERNAME: ${DATASOURCE_USERNAME:-monpeya}
+      DATASOURCE_PASSWORD: ${DATASOURCE_PASSWORD:-monpeya}
+      SERVER_PORT: "8081"
+      DOCKER_COMPOSE_ENABLED: "false"
+      SPRING_DOCKER_COMPOSE_ENABLED: "false"
+    depends_on:
+      oracle:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  monpeya-oracle-data:

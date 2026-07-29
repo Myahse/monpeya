@@ -1,0 +1,53 @@
+services:
+  oracle:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: monpeya-oracle
+    ports:
+      - "${ORACLE_HOST_PORT:-1521}:1521"
+    env_file:
+      - .env
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-oracle_admin}
+      APP_USER: ${PLATFORM_DATASOURCE_USERNAME:-monpeya}
+      APP_USER_PASSWORD: ${PLATFORM_DATASOURCE_PASSWORD:-monpeya}
+    volumes:
+      - monpeya-oracle-data:/opt/oracle/oradata
+      - ./docker/oracle/init:/container-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  server:
+    build: .
+    container_name: monpeya-server
+    ports:
+      - "${GATEWAY_PORT:-8082}:8082"
+    env_file:
+      - .env
+    environment:
+      PLATFORM_DATASOURCE_URL: jdbc:oracle:thin:@//oracle:1521/XEPDB1
+      PLATFORM_DATASOURCE_USERNAME: ${PLATFORM_DATASOURCE_USERNAME:-monpeya}
+      PLATFORM_DATASOURCE_PASSWORD: ${PLATFORM_DATASOURCE_PASSWORD:-monpeya}
+      BILLETTERIE_DATASOURCE_URL: jdbc:oracle:thin:@//oracle:1521/XEPDB1
+      BILLETTERIE_DATASOURCE_USERNAME: ${BILLETTERIE_DATASOURCE_USERNAME:-ticketing}
+      BILLETTERIE_DATASOURCE_PASSWORD: ${BILLETTERIE_DATASOURCE_PASSWORD:-ticketing}
+      IMMO_DATASOURCE_URL: jdbc:oracle:thin:@//oracle:1521/XEPDB1
+      IMMO_DATASOURCE_USERNAME: ${IMMO_DATASOURCE_USERNAME:-immo}
+      IMMO_DATASOURCE_PASSWORD: ${IMMO_DATASOURCE_PASSWORD:-immo}
+      IMMO_UPLOAD_DIR: /app/uploads/immo
+      SERVER_PORT: "8082"
+      DOCKER_COMPOSE_ENABLED: "false"
+    depends_on:
+      oracle:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  monpeya-oracle-data:

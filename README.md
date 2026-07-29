@@ -1,65 +1,53 @@
 # Mon Peya
 
-N'TERI super-app monorepo — Flutter clean architecture.
-
-## Structure
+Monorepo **mobile + backend unifié**. Le mobile communique avec **un seul host** (`:8082`) via des chemins par module.
 
 ```
 Mon Peya/
-├── app/                        # Shell application (auth, navigation, module launcher)
-├── packages/
-│   ├── peyapay/                # Wallet & payments
-│   ├── immo/                   # Rental, construction, collection
-│   ├── billetterie/            # Electronic ticketing
-│   └── leadway/                # Leadway Assurance
-├── melos.yaml
-└── README.md
+├── mobile/                     # Super-app Flutter + packages métier
+│   ├── app/                    # Shell (auth globale, navigation)
+│   └── packages/               # peyapay, billetterie, immo, leadway
+└── backend/                    # Backend unifié (port 8082)
+    ├── modules/
+    │   ├── platform/           # Auth, abonnements → /api/platform
+    │   ├── billetterie/        # Tickets, événements → /api/billetterie
+    │   ├── immo/               # Mr Immo → /api/immo
+    │   ├── shared-kernel/      # Auth session partagée
+    │   └── server/             # Point d'entrée JVM unifié
+    └── compose.yaml            # Stack complète
 ```
 
-Each package follows clean architecture with typed file names:
+## Démarrage rapide
 
-```
-lib/
-├── <package_name>.dart         # Public API
-└── src/
-    ├── screens/                # *.screen.dart
-    ├── types/                  # *.types.dart
-    ├── services/               # *.service.dart
-    ├── models/                 # *.model.dart
-    ├── widgets/                # *.widget.dart
-    ├── controllers/            # *.controller.dart
-    └── ...
-```
-
-Examples: `home.screen.dart`, `app_stack.types.dart`, `auth.store.dart`, `rental_api.service.dart`
-
-## Prerequisites
-
-- Flutter SDK (Dart `^3.10.8`)
-- Optional: [Melos](https://melos.invertase.dev/) for workspace management
-
-## Run
+### Backend (tout-en-un)
 
 ```bash
-cd app
+cd backend
+cp .env.example .env
+docker compose up -d
+```
+
+- Gateway : http://localhost:8082
+
+### Mobile
+
+```bash
+cd mobile/app
+cp .env.example .env
 flutter pub get
 flutter run
 ```
 
-Or with Melos:
+## URLs mobile (`.env`)
 
-```bash
-dart pub global activate melos
-melos bootstrap
-cd app && flutter run
+```env
+MONPEYA_API_URL=http://10.0.2.2:8082/api/platform
+BILLETTERIE_API_URL=http://10.0.2.2:8082/api/billetterie
+IMMO_API_URL=http://10.0.2.2:8082/api/immo
 ```
 
-Optional API URLs:
+Documentation : [backend/README.md](backend/README.md) · [mobile/README.md](mobile/README.md)
 
-```bash
-flutter run \
-  --dart-define=IMMO_API_URL=http://YOUR_IP:8081 \
-  --dart-define=BILLETTERIE_API_URL=http://YOUR_IP:8090
-```
+## License
 
-See [app/README.md](app/README.md) for full documentation.
+Propriétaire — Djogana.
