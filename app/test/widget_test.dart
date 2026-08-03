@@ -10,10 +10,8 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const MonPeyaSuperApp());
 
-    // Initial route is Splash; we should at least render a widget tree.
     expect(find.byType(SplashScreen), findsOneWidget);
 
-    // Splash waits ~2500ms then redirects to onboarding (seenOnboarding is false).
     await tester.pump(const Duration(milliseconds: 2600));
     await tester.pumpAndSettle();
     expect(find.byType(OnboardingScreen), findsOneWidget);

@@ -27,7 +27,9 @@ String _formatDate(DateTime? date) {
 }
 
 class PaymentsScreen extends StatefulWidget {
-  const PaymentsScreen({super.key});
+  const PaymentsScreen({super.key, this.onBack});
+
+  final VoidCallback? onBack;
 
   @override
   State<PaymentsScreen> createState() => _PaymentsScreenState();
@@ -56,6 +58,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final b = RentalTheme.of(context);
     final monthlyTotal = _payments
         .where((p) {
           final d = p.paidAt;
@@ -68,22 +71,26 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: ColoredBox(
-        color: RentalTheme.surface,
+        color: b.bg,
         child: Column(
           children: [
-            const RentalGradientPageHeader(
-              title: '💰 Mes paiements',
+            RentalGradientPageHeader(
+              title: 'Mes paiements',
               subtitle: 'Suivez vos loyers',
               paddingTop: 60,
               paddingBottom: 40,
+              leading: widget.onBack == null
+                  ? null
+                  : IconButton(
+                      onPressed: widget.onBack,
+                      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                    ),
             ),
             Expanded(
               child: RentalWhiteSheet(
-                topRadius: 30,
-                topOverlap: 20,
                 child: RefreshIndicator(
                   onRefresh: _load,
-                  color: RentalTheme.greenMid,
+                  color: RentalTheme.green,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(
@@ -113,12 +120,12 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                         ],
                       ),
                       const SizedBox(height: RentalTheme.spacingLg),
-                      const Text(
+                      Text(
                         'Historique des paiements',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1F1F1F),
+                          color: b.text,
                         ),
                       ),
                       const SizedBox(height: RentalTheme.spacingMd),
@@ -151,10 +158,11 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final b = RentalTheme.of(context);
     return Container(
       padding: const EdgeInsets.all(RentalTheme.spacingMd),
       decoration: BoxDecoration(
-        color: green ? RentalTheme.greenMid : const Color(0xFFF5F5F5),
+        color: green ? RentalTheme.green : b.searchFill,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -165,7 +173,7 @@ class _StatCard extends StatelessWidget {
             style: TextStyle(
               fontSize: green ? 20 : 24,
               fontWeight: FontWeight.w700,
-              color: green ? Colors.white : RentalTheme.greenMid,
+              color: green ? Colors.white : RentalTheme.green,
             ),
           ),
           const SizedBox(height: 4),
@@ -174,7 +182,7 @@ class _StatCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12,
-              color: green ? const Color(0xE6FFFFFF) : RentalTheme.textSecondary,
+              color: green ? const Color(0xE6FFFFFF) : b.muted,
             ),
           ),
         ],
@@ -190,18 +198,19 @@ class _PaymentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final b = RentalTheme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: RentalTheme.spacingMd),
       padding: const EdgeInsets.all(RentalTheme.spacingMd),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: b.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: RentalTheme.borderGray),
-        boxShadow: const [
+        border: Border.all(color: b.border),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0D000000),
+            color: Colors.black.withValues(alpha: b.isDark ? 0.35 : 0.05),
             blurRadius: 4,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -213,12 +222,12 @@ class _PaymentCard extends StatelessWidget {
               Container(
                 width: 40,
                 height: 40,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE8F5E9),
+                decoration: BoxDecoration(
+                  color: RentalTheme.green.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.credit_card, color: RentalTheme.greenMid, size: 22),
+                child: const Icon(Icons.credit_card, color: RentalTheme.green, size: 22),
               ),
               const SizedBox(width: RentalTheme.spacingMd),
               Expanded(
@@ -230,12 +239,12 @@ class _PaymentCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: RentalTheme.greenMid,
+                        color: RentalTheme.green,
                       ),
                     ),
                     Text(
                       _formatDate(payment.paidAt),
-                      style: const TextStyle(fontSize: 13, color: RentalTheme.textSecondary),
+                      style: TextStyle(fontSize: 13, color: b.muted),
                     ),
                   ],
                 ),
@@ -243,7 +252,7 @@ class _PaymentCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
+                  color: RentalTheme.green.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
@@ -251,7 +260,7 @@ class _PaymentCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: RentalTheme.greenMid,
+                    color: RentalTheme.green,
                   ),
                 ),
               ),
@@ -261,9 +270,9 @@ class _PaymentCard extends StatelessWidget {
             const SizedBox(height: RentalTheme.spacingSm),
             Text(
               payment.comment!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: RentalTheme.textSecondary,
+                color: b.muted,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -279,21 +288,22 @@ class _PaymentsEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final b = RentalTheme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 60),
       child: Column(
-        children: const [
-          Text('💳', style: TextStyle(fontSize: 64)),
-          SizedBox(height: RentalTheme.spacingMd),
+        children: [
+          const Text('💳', style: TextStyle(fontSize: 64)),
+          const SizedBox(height: RentalTheme.spacingMd),
           Text(
             'Aucun paiement',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF1F1F1F)),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: b.text),
           ),
-          SizedBox(height: RentalTheme.spacingSm),
+          const SizedBox(height: RentalTheme.spacingSm),
           Text(
             'Votre historique de paiements apparaîtra ici',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: RentalTheme.textSecondary, height: 1.4),
+            style: TextStyle(fontSize: 14, color: b.muted, height: 1.4),
           ),
         ],
       ),

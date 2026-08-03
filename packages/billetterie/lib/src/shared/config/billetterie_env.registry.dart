@@ -10,13 +10,21 @@ class BilletterieEnvRegistry {
   /// Optional dedicated event host (`BILLETTERIE_EVENT_API_URL`).
   static String? eventBaseUrl;
 
+  /// Optional WebSocket URL (`BILLETTERIE_WS_URL`).
+  static String? wsUrl;
+
   static String? qrEncryptKey;
+
+  /// Mapbox Directions / Maps token (`MAPBOX_ACCESS_TOKEN`).
+  static String? mapboxAccessToken;
 
   static void apply({
     String? baseUrl,
     String? transportBaseUrl,
     String? eventBaseUrl,
+    String? wsUrl,
     String? qrEncryptKey,
+    String? mapboxAccessToken,
   }) {
     if (baseUrl != null && baseUrl.isNotEmpty) {
       BilletterieEnvRegistry.baseUrl = baseUrl;
@@ -27,8 +35,14 @@ class BilletterieEnvRegistry {
     if (eventBaseUrl != null && eventBaseUrl.isNotEmpty) {
       BilletterieEnvRegistry.eventBaseUrl = eventBaseUrl;
     }
+    if (wsUrl != null && wsUrl.isNotEmpty) {
+      BilletterieEnvRegistry.wsUrl = wsUrl;
+    }
     if (qrEncryptKey != null && qrEncryptKey.isNotEmpty) {
       BilletterieEnvRegistry.qrEncryptKey = qrEncryptKey;
+    }
+    if (mapboxAccessToken != null && mapboxAccessToken.isNotEmpty) {
+      BilletterieEnvRegistry.mapboxAccessToken = mapboxAccessToken;
     }
   }
 
@@ -36,6 +50,8 @@ class BilletterieEnvRegistry {
     baseUrl = null;
     transportBaseUrl = null;
     eventBaseUrl = null;
+    wsUrl = null;
     qrEncryptKey = null;
+    mapboxAccessToken = null;
   }
 }

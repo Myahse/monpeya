@@ -72,5 +72,26 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>NSContactsUsageDescription</key>
+	<string>We use your contacts to help you choose a recipient for transfers.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Utilisez Face ID pour déverrouiller Mon Peya rapidement.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>La caméra est utilisée pour scanner les QR codes Peya Pay.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Mr Immo utilise votre position pour afficher les biens disponibles dans un rayon de 500 m autour de vous.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Mr Immo utilise votre position pour afficher les biens disponibles dans un rayon de 500 m autour de vous.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+		<string>comgooglemaps</string>
+		<string>googlechromes</string>
+	</array>
 </dict>
 </plist>

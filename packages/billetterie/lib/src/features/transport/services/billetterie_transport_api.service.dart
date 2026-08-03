@@ -5,8 +5,8 @@ import 'package:billetterie/src/shared/config/billetterie_api.config.dart';
 import 'package:billetterie/src/shared/models/billetterie.ticket.dart';
 import 'package:billetterie/src/shared/services/ticketing_http.client.dart';
 
-/// HTTP client for **transport** ticketing (`purpose = TRANSPORT`).
-///
+
+
 /// Uses [BilletterieApiConfig.transportBaseUrl].
 class BilletterieTransportApiService {
   BilletterieTransportApiService({http.Client? client, String? baseUrl})
@@ -126,6 +126,10 @@ class BilletterieTransportApiService {
     required String vehicleNumber,
     String? place,
     String? driverCodeClient,
+    String? driverName,
+    String? driverPhone,
+    String? fromCity,
+    String? toCity,
     String? ticketType,
     int quantity = 1,
   }) async {
@@ -142,8 +146,14 @@ class BilletterieTransportApiService {
         'vehicleType': vehicleType,
         'vehicleNumber': vehicleNumber,
         if (place != null && place.trim().isNotEmpty) 'place': place.trim(),
+        if (fromCity != null && fromCity.trim().isNotEmpty) 'fromCity': fromCity.trim(),
+        if (toCity != null && toCity.trim().isNotEmpty) 'toCity': toCity.trim(),
         if (driverCodeClient != null && driverCodeClient.trim().isNotEmpty)
           'driverCodeClient': driverCodeClient.trim(),
+        if (driverName != null && driverName.trim().isNotEmpty)
+          'driverName': driverName.trim(),
+        if (driverPhone != null && driverPhone.trim().isNotEmpty)
+          'driverPhone': driverPhone.trim(),
         if (ticketType != null && ticketType.trim().isNotEmpty)
           'ticketType': ticketType.trim(),
       },
@@ -295,5 +305,8 @@ BilletterieTransportTicket? transportTicketFromApiJson(Map<String, dynamic> json
     amountPaid: (json['amountPaid'] as num?)?.toInt(),
     orderRef: json['orderRef']?.toString(),
     paymentReference: json['paymentReference']?.toString(),
+    sellerName: json['sellerName']?.toString(),
+    receiptSubtitle: json['receiptSubtitle']?.toString(),
+    salesChannel: json['salesChannel']?.toString(),
   );
 }

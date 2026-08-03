@@ -260,8 +260,9 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = CreationTheme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.bg,
       body: PageView(
         controller: _page,
         physics: const NeverScrollableScrollPhysics(),
@@ -355,6 +356,7 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
   }
 
   Widget _stepProperty() {
+    final theme = CreationTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -383,13 +385,29 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
             ),
           )
         else ...[
-          const Text('Bien & statut', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(
+            'Bien & statut',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: theme.textPrimary,
+            ),
+          ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             initialValue: _draft.propertyId,
+            dropdownColor: theme.card,
+            style: TextStyle(color: theme.textPrimary),
             decoration: InputDecoration(
               labelText: 'Bien associé *',
+              labelStyle: TextStyle(color: theme.textSecondary),
+              filled: true,
+              fillColor: theme.card,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: theme.borderInput),
+              ),
             ),
             items: [
               for (final p in _properties)
@@ -403,9 +421,18 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             initialValue: _draft.status,
+            dropdownColor: theme.card,
+            style: TextStyle(color: theme.textPrimary),
             decoration: InputDecoration(
               labelText: 'Statut *',
+              labelStyle: TextStyle(color: theme.textSecondary),
+              filled: true,
+              fillColor: theme.card,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: theme.borderInput),
+              ),
             ),
             items: const [
               DropdownMenuItem(value: 'actif', child: Text('Actif')),
@@ -415,7 +442,14 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
             onChanged: (v) => setState(() => _draft.status = v ?? 'actif'),
           ),
           const SizedBox(height: 20),
-          const Text('Conditions de location', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(
+            'Conditions de location',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: theme.textPrimary,
+            ),
+          ),
           const SizedBox(height: 8),
           CreationTextField(
             label: 'Loyer mensuel (FCFA)',
@@ -426,9 +460,18 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
           ),
           DropdownButtonFormField<String>(
             initialValue: _draft.paymentFrequency,
+            dropdownColor: theme.card,
+            style: TextStyle(color: theme.textPrimary),
             decoration: InputDecoration(
               labelText: 'Fréquence de paiement',
+              labelStyle: TextStyle(color: theme.textSecondary),
+              filled: true,
+              fillColor: theme.card,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: theme.borderInput),
+              ),
             ),
             items: const [
               DropdownMenuItem(value: 'daily', child: Text('Journalier')),
@@ -464,9 +507,9 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
               padding: const EdgeInsets.all(16),
               height: 200,
               decoration: BoxDecoration(
-                border: Border.all(color: CreationTheme.borderInput),
+                border: Border.all(color: theme.borderInput),
                 borderRadius: BorderRadius.circular(8),
-                color: const Color(0xFFF0F9FF),
+                color: theme.surfaceMuted,
               ),
               child: SingleChildScrollView(
                 child: Text(
@@ -474,7 +517,7 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
                   'Locataire: ${_firstNameCtrl.text} ${_lastNameCtrl.text}\n'
                   'Loyer: ${_rentCtrl.text} FCFA\n'
                   'Période: ${_leaseStartCtrl.text} → ${_leaseEndCtrl.text.isEmpty ? '—' : _leaseEndCtrl.text}',
-                  style: const TextStyle(fontSize: 13, height: 1.5),
+                  style: TextStyle(fontSize: 13, height: 1.5, color: theme.textPrimary),
                 ),
               ),
             ),
@@ -484,6 +527,7 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
   }
 
   Widget _stepPhoto() {
+    final theme = CreationTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -492,10 +536,10 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
           subtitle: 'Étape 4 sur 4 • Photo (optionnel)',
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Ajoutez une photo de profil pour le locataire.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: CreationTheme.textSecondary),
+          style: TextStyle(fontSize: 14, color: theme.textSecondary),
         ),
         const SizedBox(height: 24),
         Center(
@@ -535,53 +579,60 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
   }
 
   Widget _idScanSection() {
+    final theme = CreationTheme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: CreationTheme.spacingLg),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
+        color: theme.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Pièce d\'identité', style: TextStyle(fontWeight: FontWeight.w600)),
+          Text(
+            'Pièce d\'identité',
+            style: TextStyle(fontWeight: FontWeight.w600, color: theme.textPrimary),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _idCardPlaceholder('Recto')),
+              Expanded(child: _idCardPlaceholder('Recto', theme)),
               const SizedBox(width: 12),
-              Expanded(child: _idCardPlaceholder('Verso')),
+              Expanded(child: _idCardPlaceholder('Verso', theme)),
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Scannez la CNI pour remplir automatiquement (bientôt)',
-            style: TextStyle(fontSize: 12, color: CreationTheme.textMuted),
+            style: TextStyle(fontSize: 12, color: theme.textMuted),
           ),
         ],
       ),
     );
   }
 
-  Widget _idCardPlaceholder(String label) {
+  Widget _idCardPlaceholder(String label, CreationPalette theme) {
     return AspectRatio(
       aspectRatio: 1.586,
       child: Material(
-        color: Colors.white,
+        color: theme.card,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: CreationTheme.borderInput, width: 2, style: BorderStyle.solid),
+          side: BorderSide(color: theme.borderInput, width: 2, style: BorderStyle.solid),
         ),
         child: InkWell(
           onTap: () {},
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.document_scanner_outlined, color: Colors.grey.shade500),
+              Icon(Icons.document_scanner_outlined, color: theme.textMuted),
               const SizedBox(height: 4),
-              Text('Scanner $label', style: const TextStyle(fontSize: 11)),
+              Text(
+                'Scanner $label',
+                style: TextStyle(fontSize: 11, color: theme.textSecondary),
+              ),
             ],
           ),
         ),

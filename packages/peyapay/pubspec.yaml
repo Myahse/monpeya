@@ -32,3 +32,8 @@ flutter:
     - assets/logo/
     - assets/logo/banks/
     - assets/logo/cards/
+    - assets/logo/cards/recto-carte-peya-pay.png
+    - assets/logo/cards/verso.png
+    - assets/logo/cards/visa.png
+    - assets/logo/cards/Mastercard.png
+    - assets/logo/cards/visabluebg.png

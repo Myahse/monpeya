@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:app/src/core/auth/module.auth.dart';
 import 'package:app/src/core/navigation/app.navigation.dart';
 import 'package:app/src/core/peyapay/peyapay_profile.util.dart';
 import 'package:app/src/core/routing/routes.dart';
+import 'package:app/src/core/session/mon_peya.session.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/storage/constants/prefs.keys.dart';
 import 'package:app/src/integration/adapters/mon_peya_backend.adapter.dart';
@@ -21,6 +23,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _loading = true;
   bool _isRegistered = false;
+  bool _sessionActive = false;
   String _phone = '';
   String? _clientName;
   bool _biometricsEnabled = false;
@@ -28,27 +31,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    MonPeyaSession.instance.addListener(_onSessionChanged);
     _refresh();
   }
 
+  @override
+  void dispose() {
+    MonPeyaSession.instance.removeListener(_onSessionChanged);
+    super.dispose();
+  }
+
+  void _onSessionChanged() => _refresh();
+
   Future<void> _refresh() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      // In dev mode we can force-guest globally via AuthStore.
-      // Still keep reading other prefs (phone/biometrics) for UI.
-      _phone = prefs.getString(PrefsKeys.phoneNumber) ?? '';
-      _biometricsEnabled = prefs.getBool(PrefsKeys.biometricEnabled) ?? false;
-      _loading = false;
-    });
     final ok = await AuthStore.hasAccount();
+    final signedIn = await ModuleAuth.hasActiveSessionOrToken();
+    final name = signedIn ? PeyapayProfileDisplay.clientName() : null;
     if (!mounted) return;
     setState(() {
+      _phone = prefs.getString(PrefsKeys.phoneNumber) ?? '';
+      _biometricsEnabled = prefs.getBool(PrefsKeys.biometricEnabled) ?? false;
       _isRegistered = ok;
-      _clientName = PeyapayProfileDisplay.clientName();
+      _sessionActive = signedIn;
+      _clientName = name;
+      _loading = false;
     });
   }
 
-  bool get _isGuest => !_isRegistered;
+  /// Guest for UI: not signed in (session/token), even if an account exists.
+  bool get _isGuest => !_sessionActive;
 
   Future<void> _setBiometrics(bool enabled) async {
     if (_isGuest) {
@@ -106,6 +118,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _openRegistration() async {
     if (!mounted) return;
+    if (_isRegistered) {
+      await ModuleAuth.ensureRegistered(context);
+      if (mounted) await _refresh();
+      return;
+    }
     Navigator.of(context).pushNamed(Routes.phoneInput);
   }
 
@@ -198,7 +215,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         children: [
                           const SizedBox(height: 12),
                           _ProfileCard(
-                            isRegistered: _isRegistered,
+                            isSignedIn: _sessionActive,
                             clientName: _clientName,
                             phone: _phone,
                           ),
@@ -373,11 +390,11 @@ class _SettingsHeader extends StatelessWidget {
 
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard({
-    required this.isRegistered,
+    required this.isSignedIn,
     required this.clientName,
     required this.phone,
   });
-  final bool isRegistered;
+  final bool isSignedIn;
   final String? clientName;
   final String phone;
 
@@ -385,10 +402,12 @@ class _ProfileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final formattedPhone = PeyapayProfileDisplay.formatPhone(phone);
-    final nameLine = isRegistered
-        ? (clientName?.trim().isNotEmpty == true ? clientName!.trim() : '—')
-        : 'Invité';
-    final showPhoneBelow = isRegistered && formattedPhone.isNotEmpty;
+    final nameLine = isSignedIn
+        ? (clientName?.trim().isNotEmpty == true
+            ? clientName!.trim()
+            : PeyapayProfileDisplay.guestLabel)
+        : PeyapayProfileDisplay.guestLabel;
+    final showPhoneBelow = isSignedIn && formattedPhone.isNotEmpty;
     final initials = PeyapayProfileDisplay.initials(nameLine);
 
     return Container(

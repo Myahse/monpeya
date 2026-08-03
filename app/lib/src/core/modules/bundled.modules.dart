@@ -1,7 +1,5 @@
 import 'package:app/src/core/modules/app.module.dart';
 
-/// Bundled modules ship with the app for offline dev, QA, and demo builds.
-/// Partners never touch this file — they register modules through the API.
 class BundledModules {
   BundledModules._();
 

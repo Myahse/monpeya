@@ -18,13 +18,6 @@ import 'package:billetterie/src/shared/utils/ticket_format.util.dart';
 import 'package:billetterie/src/shared/widgets/ticket_purchase_result.dialog.dart';
 import 'package:billetterie/src/shared/widgets/ticket_scratch_overlay.widget.dart';
 
-/// Ticket details ? fixed ticket card, Trajet + V?hicule only,
-/// sticky bottom action (Payer / Exporter PDF).
-///
-/// - Catalog (`owned: false`): flipable; QR scratch foil is **locked**.
-/// - Owned (`owned: true`): flipable; scratch once to reveal ? then QR stays open.
-///
-/// The ticket card enters collapsed, then expands smoothly inside a fixed slot.
 class TicketDetailsScreen extends StatefulWidget {
   const TicketDetailsScreen({
     super.key,
@@ -287,7 +280,6 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen>
   }
 }
 
-/// Opens PeyaPay mock payment, then switches to the owned (scratchable) details.
 class _PayTicketButton extends StatefulWidget {
   const _PayTicketButton({required this.ticket, this.badge});
 
@@ -300,8 +292,21 @@ class _PayTicketButton extends StatefulWidget {
 
 class _PayTicketButtonState extends State<_PayTicketButton> {
   bool _paying = false;
+  bool _isGuest = true;
   final _api = BilletterieTransportApiService();
   final _localTickets = ConductorTicketStore();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGuestFlag();
+  }
+
+  Future<void> _loadGuestFlag() async {
+    final guest = await BilletterieHostBridge.isGuest();
+    if (!mounted) return;
+    setState(() => _isGuest = guest);
+  }
 
   Future<void> _pay() async {
     if (_paying) return;
@@ -313,7 +318,11 @@ class _PayTicketButtonState extends State<_PayTicketButton> {
         throw StateError('Code billet manquant');
       }
 
-      // Register / OTP if needed, then require active Billetterie subscription.
+      final loggedIn = await BilletterieHostBridge.ensureLoggedIn(context);
+      if (!mounted) return;
+      if (!loggedIn) return;
+
+      // Subscription / registration gate after login.
       final ready = await BilletterieHostBridge.ensureReadyToPurchase(
         context,
         moduleKey: 'billetterie',
@@ -321,7 +330,6 @@ class _PayTicketButtonState extends State<_PayTicketButton> {
       if (!mounted) return;
       if (!ready) return;
 
-      // Resolve buyer before the payment UI so /v1/tickets/buy can persist.
       final client = await BilletterieHostBridge.requireClient();
 
       final routeLabel = ticket.title?.trim().isNotEmpty == true
@@ -336,11 +344,11 @@ class _PayTicketButtonState extends State<_PayTicketButton> {
       );
       if (!mounted) return;
       if (!ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Paiement annule'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        await showBilletterieResultDialog(
+          context,
+          title: 'Paiement annulé',
+          message: 'Le paiement a été annulé. Aucun billet n’a été acheté.',
+          kind: BilletterieResultKind.info,
         );
         return;
       }
@@ -474,8 +482,10 @@ class _PayTicketButtonState extends State<_PayTicketButton> {
     final ticket = widget.ticket;
     return _GradientActionButton(
       label: _paying
-          ? 'Paiement?'
-          : 'Payer ? ${ticket.price} ${ticket.currency}',
+          ? 'Paiement…'
+          : _isGuest
+              ? 'Se connecter pour payer · ${ticket.price} ${ticket.currency}'
+              : 'Payer · ${ticket.price} ${ticket.currency}',
       icon: _paying
           ? const SizedBox(
               width: 18,
@@ -495,7 +505,6 @@ class _PayTicketButtonState extends State<_PayTicketButton> {
   }
 }
 
-/// Button that generates the ticket PDF and opens the system share sheet.
 class _ExportPdfButton extends StatefulWidget {
   const _ExportPdfButton({required this.ticket});
 
@@ -514,11 +523,11 @@ class _ExportPdfButtonState extends State<_ExportPdfButton> {
       await TicketPdfService().exportAndShare(widget.ticket);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('?chec de l?export PDF : $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        await showBilletterieResultDialog(
+          context,
+          title: 'Export impossible',
+          message: 'Impossible d’exporter le PDF.\n$e',
+          kind: BilletterieResultKind.error,
         );
       }
     } finally {

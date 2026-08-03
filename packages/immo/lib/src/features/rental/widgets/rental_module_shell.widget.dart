@@ -6,7 +6,7 @@ import 'package:immo/src/features/rental/auth/rental.session.dart';
 import 'package:immo/src/features/rental/auth/scopes/rental_session.scope.dart';
 import 'package:immo/src/features/rental/navigation/rental_main.navigation.dart';
 
-/// Shows loading, then [RentalMainNavigation]. Session sync uses Mon Peya only — no in-module login.
+/// Shows loading, then [RentalMainNavigation]. Theme follows device light/dark.
 class RentalModuleShell extends StatelessWidget {
   const RentalModuleShell({super.key});
 
@@ -14,11 +14,27 @@ class RentalModuleShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = RentalSessionScope.of(context);
 
-    if (session.authFailed) {
-      return _MonPeyaSessionRequired(session: session);
-    }
+    return ImmoRentalTheme(
+      child: Builder(
+        builder: (context) {
+          final b = ImmoBrand.rentalOf(context);
+          if (!session.bootstrapComplete) {
+            return Scaffold(
+              backgroundColor: b.header,
+              body: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            );
+          }
 
-    return const RentalMainNavigation();
+          if (session.authFailed) {
+            return _MonPeyaSessionRequired(session: session);
+          }
+
+          return const RentalMainNavigation();
+        },
+      ),
+    );
   }
 }
 
@@ -29,8 +45,9 @@ class _MonPeyaSessionRequired extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final b = ImmoBrand.rentalOf(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: b.bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -41,15 +58,19 @@ class _MonPeyaSessionRequired extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: IconButton(
                   onPressed: () => ImmoHostBridge.exitModule(context),
-                  icon: const Icon(Icons.arrow_back),
+                  icon: Icon(Icons.arrow_back, color: b.text),
                 ),
               ),
               const Spacer(),
-              const Icon(Icons.phone_android, size: 48, color: ImmoBrand.rentalPrimary),
+              Icon(Icons.phone_android, size: 48, color: b.primary),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Session Mon Peya requise',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: b.text,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -57,26 +78,26 @@ class _MonPeyaSessionRequired extends StatelessWidget {
                 session.error ??
                     'Connectez-vous à Mon Peya avec le même téléphone et code PIN, puis rouvrez Mr Immo.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade700, height: 1.4),
+                style: TextStyle(color: b.muted, height: 1.4),
               ),
               if (session.phone != null) ...[
                 const SizedBox(height: 12),
                 Text(
                   session.phone!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  style: TextStyle(fontWeight: FontWeight.w700, color: b.text),
                 ),
               ],
               const Spacer(),
               FilledButton(
                 onPressed: () => ImmoHostBridge.exitModule(context),
-                style: FilledButton.styleFrom(backgroundColor: ImmoBrand.rentalPrimary),
+                style: FilledButton.styleFrom(backgroundColor: b.primary),
                 child: const Text('Retour à Mon Peya'),
               ),
               const SizedBox(height: 8),
               TextButton(
                 onPressed: session.bootstrap,
-                child: const Text('Réessayer'),
+                child: Text('Réessayer', style: TextStyle(color: b.text)),
               ),
             ],
           ),

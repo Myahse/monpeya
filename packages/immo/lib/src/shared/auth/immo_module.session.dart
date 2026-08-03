@@ -1,65 +1,53 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:immo/src/core/host/immo_host.bridge.dart';
-import 'package:immo/src/shared/services/immo_api.client.dart';
 import 'package:immo/src/shared/auth/services/immo_auth.service.dart';
+import 'package:immo/src/shared/services/immo_api.client.dart';
 
-/// Mon Peya–backed session for Mr Immo modules. Opens instantly; syncs JWT in background.
+/// Shared Mr Immo session — guests browse; personal data needs host login/token.
 class ImmoModuleSession extends ChangeNotifier {
-  ImmoModuleSession({ImmoApiClient? apiClient}) : _apiClient = apiClient ?? ImmoApiClient();
+  ImmoModuleSession({ImmoApiClient? apiClient})
+      : _apiClient = apiClient ?? ImmoApiClient();
 
   final ImmoApiClient _apiClient;
-  final _auth = ImmoAuthService();
 
   bool _bootstrapComplete = false;
-  bool _authenticated = false;
-  String? _error;
+  bool _guestMode = true;
   String? _userId;
   String? _phone;
 
-  /// True only after bootstrap finished without a valid Mon Peya / Mr Immo session.
-  bool get authFailed => _bootstrapComplete && !_authenticated;
-
-  bool get authenticated => _authenticated;
-  String? get error => _error;
+  bool get authFailed => false;
+  bool get authenticated => _bootstrapComplete && !_guestMode;
+  bool get guestMode => _guestMode;
+  String? get error => null;
   String? get userId => _userId;
   String? get phone => _phone;
   ImmoApiClient get client => _apiClient;
 
   Future<void> bootstrap() async {
-    _error = null;
+    _guestMode = true;
+    _userId = null;
+    _phone = null;
 
-    final registered = await ImmoHostBridge.requireAuth.isRegistered();
-    if (!registered) {
-      _bootstrapComplete = true;
-      _authenticated = false;
-      _error = 'Connectez-vous à Mon Peya avec votre téléphone et votre code PIN.';
-      notifyListeners();
-      return;
+    try {
+      final host = ImmoHostBridge.auth;
+      final active = host != null && await host.isSessionActive();
+      if (active) {
+        final result = await ImmoAuthService(client: _apiClient).ensureSession(
+          apiClient: _apiClient,
+        );
+        if (result.ok) {
+          _guestMode = false;
+          _userId = result.userId ?? await host.immoUserId();
+          _phone = await host.getPhone();
+        }
+      }
+    } catch (_) {
+      _guestMode = true;
+      _userId = null;
     }
 
-    _phone = await ImmoHostBridge.requireAuth.getPhone();
-    _userId = await ImmoHostBridge.requireAuth.immoUserId();
-
-    final stored = await ImmoHostBridge.requireAuth.authToken();
-    if (stored != null && stored.isNotEmpty) {
-      _apiClient.setAuthToken(stored);
-    }
-
-    // Enter the module immediately — user is already signed in to Mon Peya.
-    _authenticated = true;
     _bootstrapComplete = true;
-    notifyListeners();
-
-    final result = await _auth.ensureSession(apiClient: _apiClient);
-    if (!result.ok) {
-      _authenticated = false;
-      _error = result.error;
-      notifyListeners();
-      return;
-    }
-
-    _userId = result.userId ?? await ImmoHostBridge.requireAuth.immoUserId();
     notifyListeners();
   }
 }

@@ -8,7 +8,6 @@ import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'package:app/src/core/modules/config/module_api.config.dart';
 import 'package:app/src/core/modules/themes/module_shell.theme.dart';
 
-/// Ensures WebView platform implementations are registered before first use.
 Future<void> ensureWebViewPlatformsInitialized() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (WebViewPlatform.instance != null) return;
@@ -65,7 +64,6 @@ WebViewController createModuleWebViewController({
   return controller;
 }
 
-/// Builds the final URL with embedded shell query params.
 Uri buildModuleRequestUri({
   required String url,
   String? moduleKey,

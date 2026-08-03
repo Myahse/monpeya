@@ -15,16 +15,17 @@ class CreationSaveExitHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = CreationTheme.of(context);
     final child = SafeArea(
       bottom: false,
       child: Align(
         alignment: Alignment.centerLeft,
         child: TextButton(
           onPressed: onSaveAndExit,
-          child: const Text(
+          child: Text(
             'Enregistrer et quitter',
             style: TextStyle(
-              color: CreationTheme.textPrimary,
+              color: theme.textPrimary,
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),
@@ -34,8 +35,8 @@ class CreationSaveExitHeader extends StatelessWidget {
     );
     if (!showBorder) return child;
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: theme.headerBorder)),
       ),
       child: child,
     );
@@ -57,29 +58,30 @@ class CreationFormHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = CreationTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w700,
-            color: CreationTheme.textPrimary,
+            color: theme.textPrimary,
           ),
         ),
         if (mandatoryHint) ...[
           const SizedBox(height: 4),
-          const Text(
+          Text(
             '*Informations obligatoires',
-            style: TextStyle(fontSize: 12, color: CreationTheme.textMuted),
+            style: TextStyle(fontSize: 12, color: theme.textMuted),
           ),
         ],
         if (subtitle != null) ...[
           const SizedBox(height: 4),
           Text(
             subtitle!,
-            style: const TextStyle(fontSize: 14, color: CreationTheme.textSecondary),
+            style: TextStyle(fontSize: 14, color: theme.textSecondary),
           ),
         ],
       ],
@@ -108,6 +110,7 @@ class CreationNavButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = CreationTheme.of(context);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -120,12 +123,12 @@ class CreationNavButtons extends StatelessWidget {
           children: [
             TextButton(
               onPressed: onBack,
-              child: const Text(
+              child: Text(
                 'Retour',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: CreationTheme.textPrimary,
+                  color: theme.textPrimary,
                 ),
               ),
             ),
@@ -140,7 +143,7 @@ class CreationNavButtons extends StatelessWidget {
                     gradient: isTenant
                         ? CreationTheme.tenantCtaGradient
                         : CreationTheme.listingCtaGradient,
-                    color: !nextEnabled ? CreationTheme.disabled : null,
+                    color: !nextEnabled ? theme.disabled : null,
                   ),
                   child: Material(
                     color: Colors.transparent,
@@ -266,6 +269,7 @@ class CreationTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = CreationTheme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: CreationTheme.spacingMd),
       child: Column(
@@ -274,16 +278,16 @@ class CreationTextField extends StatelessWidget {
           RichText(
             text: TextSpan(
               text: label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: CreationTheme.textPrimary,
+                color: theme.textPrimary,
               ),
               children: [
                 if (required)
-                  const TextSpan(
+                  TextSpan(
                     text: ' *',
-                    style: TextStyle(color: CreationTheme.error),
+                    style: TextStyle(color: theme.error),
                   ),
               ],
             ),
@@ -295,19 +299,20 @@ class CreationTextField extends StatelessWidget {
             keyboardType: keyboardType,
             obscureText: obscureText,
             maxLines: maxLines,
+            style: TextStyle(color: theme.textPrimary),
             decoration: InputDecoration(
               hintText: hint,
               helperText: helper,
               filled: true,
-              fillColor: Colors.white,
+              fillColor: theme.card,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: CreationTheme.borderInput),
+                borderSide: BorderSide(color: theme.borderInput),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: CreationTheme.borderInput),
+                borderSide: BorderSide(color: theme.borderInput),
               ),
             ),
           ),
@@ -336,25 +341,35 @@ class CreationDashedUpload extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = CreationTheme.of(context);
     return Material(
-      color: CreationTheme.uploadBg,
+      color: theme.uploadBg,
       child: InkWell(
         onTap: onTap,
         child: Container(
           height: height,
           width: double.infinity,
           decoration: BoxDecoration(
-            border: Border.all(color: CreationTheme.borderInput, width: 2),
+            border: Border.all(color: theme.borderInput, width: 2),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 40, color: CreationTheme.textSecondary),
+              Icon(icon, size: 40, color: theme.textSecondary),
               const SizedBox(height: 8),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: theme.textPrimary,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(subtitle, style: const TextStyle(fontSize: 12, color: CreationTheme.textSecondary)),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: theme.textSecondary),
+              ),
             ],
           ),
         ),
@@ -364,16 +379,25 @@ class CreationDashedUpload extends StatelessWidget {
 }
 
 Future<bool?> showCreationSaveExitDialog(BuildContext context) {
+  final theme = CreationTheme.of(context);
   return showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
+      backgroundColor: theme.card,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Enregistrer la progression ?'),
-      content: const Text(
+      title: Text(
+        'Enregistrer la progression ?',
+        style: TextStyle(color: theme.textPrimary),
+      ),
+      content: Text(
         'Votre progression sera enregistrée et vous pourrez continuer plus tard.',
+        style: TextStyle(color: theme.textSecondary),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text('Annuler', style: TextStyle(color: theme.textPrimary)),
+        ),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, true),
           style: FilledButton.styleFrom(backgroundColor: CreationTheme.listingGreen),
@@ -390,10 +414,12 @@ Future<void> showCreationSuccessDialog(
   required String message,
   String actionLabel = 'OK',
 }) {
+  final theme = CreationTheme.of(context);
   return showDialog<void>(
     context: context,
     barrierDismissible: false,
     builder: (ctx) => AlertDialog(
+      backgroundColor: theme.card,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -401,16 +427,27 @@ Future<void> showCreationSuccessDialog(
           Container(
             width: 64,
             height: 64,
-            decoration: const BoxDecoration(
-              color: Color(0xFFE8F5E9),
+            decoration: BoxDecoration(
+              color: theme.greenTint,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.check, color: CreationTheme.listingGreen, size: 36),
           ),
           const SizedBox(height: 16),
-          Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: theme.textPrimary,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text(message, textAlign: TextAlign.center),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: theme.textSecondary),
+          ),
         ],
       ),
       actions: [

@@ -55,8 +55,9 @@ class CreateListingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = CreationTheme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.bg,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -70,19 +71,19 @@ class CreateListingScreen extends StatelessWidget {
                 CreationTheme.spacingXl,
               ),
               children: [
-                const Text(
+                Text(
                   'C\'est facile de commencer sur Mr Immo',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
-                    color: CreationTheme.textPrimary,
+                    color: theme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: CreationTheme.spacingXl),
                 for (var i = 0; i < _introSteps.length; i++) ...[
                   _IntroRow(step: _introSteps[i]),
                   if (i < _introSteps.length - 1)
-                    const Divider(height: 32, color: CreationTheme.border),
+                    Divider(height: 32, color: theme.border),
                 ],
                 const SizedBox(height: CreationTheme.spacingXl),
                 Center(
@@ -127,6 +128,7 @@ class _IntroRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = CreationTheme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -135,14 +137,18 @@ class _IntroRow extends StatelessWidget {
           children: [
             Text(
               step.$1,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: theme.textPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             Container(
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E8),
+                color: theme.greenTint,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(step.$2, size: 18, color: CreationTheme.listingGreen),
@@ -154,11 +160,18 @@ class _IntroRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(step.$3, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              Text(
+                step.$3,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: theme.textPrimary,
+                ),
+              ),
               const SizedBox(height: 4),
               Text(
                 step.$4,
-                style: const TextStyle(fontSize: 14, color: CreationTheme.textMuted),
+                style: TextStyle(fontSize: 14, color: theme.textMuted),
               ),
             ],
           ),

@@ -8,6 +8,7 @@ import 'package:peyapay/src/data/models/peyapay_client_transfer.model.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_transfer_receipt_sheet.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_transfer_success_sheet.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_party_cards_stack.widget.dart';
+import 'package:peyapay/src/presentation/widgets/peyapay_review_transfer_layout.util.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_review_animations.widget.dart';
 
 enum PeyapayTransactionType { payment, transfer, deposit }
@@ -271,6 +272,10 @@ class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet
     final ink = isDark ? cs.onSurface : const Color(0xFF111827);
     final muted = isDark ? cs.onSurfaceVariant : const Color(0xFF6B7280);
     final border = isDark ? cs.outlineVariant : const Color(0xFFE5E7EB);
+    final cardBg = isDark ? cs.surfaceContainerHigh : Colors.white;
+    final cardBorder = isDark ? border : null;
+    final arrowBg = isDark ? cs.surfaceContainerHigh : Colors.white;
+    final arrowBorder = isDark ? border : const Color(0xFFDDDDDD);
 
     const green = Color(0xFF006D56);
 
@@ -284,13 +289,22 @@ class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet
     final leftTitle = widget.sender?.title ?? 'Compte principal';
     final leftSubtitle = widget.sender?.subtitle ?? 'Sparrowhawk • 02238762';
     final rightTitle = widget.recipient.name;
+    final screenH = MediaQuery.sizeOf(context).height;
+    final padding = MediaQuery.paddingOf(context);
+    final sheetBodyHeight = (isDark ? screenH * 0.88 : screenH) -
+        (isDark ? padding.bottom : 0);
+    final sheetTop = PeyapayReviewTransferLayout.sheetTop(
+      bodyHeight: sheetBodyHeight,
+      isDark: isDark,
+    );
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: SafeArea(
         top: false,
+        bottom: isDark,
         child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * 0.88,
+          height: isDark ? screenH * 0.88 : screenH,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -303,7 +317,7 @@ class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet
                 Positioned(
                   left: 0,
                   right: 0,
-                  top: 220,
+                  top: sheetTop,
                   bottom: 0,
                   child: FadeTransition(
                     opacity: _entrance.sheetFade,
@@ -333,59 +347,83 @@ class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                _detailRow(
-                                  label: 'From',
-                                  value: leftTitle,
-                                  ink: ink,
-                                  muted: muted,
-                                  icon: Icons.wallet_outlined,
+                                Expanded(
+                                  child: SingleChildScrollView(
+                                    physics: const BouncingScrollPhysics(),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        _detailRow(
+                                          label: 'From',
+                                          value: leftTitle,
+                                          ink: ink,
+                                          muted: muted,
+                                          icon: Icons.wallet_outlined,
+                                        ),
+                                        const SizedBox(height: 20),
+                                        _detailRow(
+                                          label: widget.type == PeyapayTransactionType.deposit
+                                              ? 'Amount added'
+                                              : 'Amount',
+                                          value: '${formatFrMoneySigned(widget.amount)} XOF',
+                                          ink: ink,
+                                          muted: muted,
+                                          icon: Icons.payments_outlined,
+                                        ),
+                                        const SizedBox(height: 20),
+                                        _detailRow(
+                                          label: widget.type == PeyapayTransactionType.transfer
+                                              ? 'Transfer fees'
+                                              : 'Fees',
+                                          value: widget.fee == 0
+                                              ? 'Gratuit'
+                                              : '${formatFrMoneySigned(widget.fee)} XOF',
+                                          ink: ink,
+                                          muted: muted,
+                                          icon: Icons.receipt_long_outlined,
+                                          valueColor: widget.fee == 0 ? green : ink,
+                                        ),
+                                        const SizedBox(height: 20),
+                                        Container(height: 1, color: border.withValues(alpha: 0.6)),
+                                        const SizedBox(height: 20),
+                                        _detailRow(
+                                          label: 'Recipient',
+                                          value: '$rightTitle - $rightSubtitle',
+                                          ink: ink,
+                                          muted: muted,
+                                          icon: Icons.arrow_downward_rounded,
+                                        ),
+                                        const SizedBox(height: 20),
+                                        _detailRow(
+                                          label: 'Arrive at',
+                                          value: arrivedAt,
+                                          ink: ink,
+                                          muted: muted,
+                                          icon: Icons.calendar_today_outlined,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                                const SizedBox(height: 20),
-                                _detailRow(
-                                  label: widget.type == PeyapayTransactionType.deposit ? 'Amount added' : 'Amount',
-                                  value: '${formatFrMoneySigned(widget.amount)} XOF',
-                                  ink: ink,
-                                  muted: muted,
-                                  icon: Icons.payments_outlined,
-                                ),
-                                const SizedBox(height: 20),
-                                _detailRow(
-                                  label: widget.type == PeyapayTransactionType.transfer ? 'Transfer fees' : 'Fees',
-                                  value: widget.fee == 0 ? 'Gratuit' : '${formatFrMoneySigned(widget.fee)} XOF',
-                                  ink: ink,
-                                  muted: muted,
-                                  icon: Icons.receipt_long_outlined,
-                                  valueColor: widget.fee == 0 ? green : ink,
-                                ),
-                                const SizedBox(height: 20),
-                                Container(height: 1, color: border.withValues(alpha: 0.6)),
-                                const SizedBox(height: 20),
-                                _detailRow(
-                                  label: 'Recipient',
-                                  value: '$rightTitle - $rightSubtitle',
-                                  ink: ink,
-                                  muted: muted,
-                                  icon: Icons.arrow_downward_rounded,
-                                ),
-                                const SizedBox(height: 20),
-                                _detailRow(
-                                  label: 'Arrive at',
-                                  value: arrivedAt,
-                                  ink: ink,
-                                  muted: muted,
-                                  icon: Icons.calendar_today_outlined,
-                                ),
-                                const Spacer(),
+                                const SizedBox(height: 12),
                                 Row(
                                   children: [
                                     Text(
                                       'Total',
-                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: muted),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: muted,
+                                      ),
                                     ),
                                     const Spacer(),
                                     Text(
                                       '${formatFrMoneySigned(total)} XOF',
-                                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: ink),
+                                      style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900,
+                                        color: ink,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -397,7 +435,9 @@ class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet
                                     style: FilledButton.styleFrom(
                                       backgroundColor: green,
                                       foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
                                     ),
                                     onPressed: _loading ? null : _confirm,
                                     child: _loading
@@ -406,7 +446,10 @@ class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet
                                             width: 18,
                                             child: CircularProgressIndicator(strokeWidth: 2),
                                           )
-                                        : const Text('Confirmer', style: TextStyle(fontWeight: FontWeight.w900)),
+                                        : const Text(
+                                            'Confirmer',
+                                            style: TextStyle(fontWeight: FontWeight.w900),
+                                          ),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
@@ -472,11 +515,12 @@ class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet
                           ),
                           ink: ink,
                           muted: muted,
-                          cardBg: Colors.white,
+                          cardBg: cardBg,
+                          cardBorderColor: cardBorder,
                           cutoutBg: topBg,
                           accent: green,
-                          arrowBg: Colors.white,
-                          arrowBorderColor: const Color(0xFFDDDDDD),
+                          arrowBg: arrowBg,
+                          arrowBorderColor: arrowBorder,
                           arrowIcon: Icons.chevron_right_rounded,
                           cardsReveal: _entrance.cardsReveal,
                           arrowFade: _entrance.arrowFade,

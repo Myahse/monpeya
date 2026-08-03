@@ -123,6 +123,7 @@ class AuthStore {
     await setImmoAuthToken(null);
     await setMonPeyaAccessToken(null);
     await setMonPeyaRefreshToken(null);
+    await setPeyaAccountProfile(isPeyaClient: null, isPeyapayMerchant: null);
     PeyapayHostBridge.api?.setBearerToken(null);
   }
 
@@ -146,7 +147,7 @@ class AuthStore {
     await prefs.setString(PrefsKeys.authToken, token);
   }
 
-  /// Mr Immo JWT (separate from PeyaPay).
+  /// Mr Immo JWT
   static Future<String?> immoAuthToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(PrefsKeys.immoAuthToken);
@@ -230,4 +231,82 @@ class AuthStore {
     }
     await prefs.setString(PrefsKeys.codeClient, code);
   }
+
+  /// PeyaPay account flags from Mon Peya backend (`/auth/login`, `/me`).
+  static Future<void> setPeyaAccountProfile({
+    bool? isPeyaClient,
+    bool? isPeyapayMerchant,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (isPeyaClient == null) {
+      await prefs.remove(PrefsKeys.isPeyaClient);
+    } else {
+      await prefs.setBool(PrefsKeys.isPeyaClient, isPeyaClient);
+    }
+    if (isPeyapayMerchant == null) {
+      await prefs.remove(PrefsKeys.isPeyapayMerchant);
+    } else {
+      await prefs.setBool(PrefsKeys.isPeyapayMerchant, isPeyapayMerchant);
+    }
+  }
+
+  static Future<bool?> isPeyaClientFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey(PrefsKeys.isPeyaClient)) return null;
+    return prefs.getBool(PrefsKeys.isPeyaClient);
+  }
+
+  static Future<bool?> isPeyapayMerchantFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey(PrefsKeys.isPeyapayMerchant)) return null;
+    return prefs.getBool(PrefsKeys.isPeyapayMerchant);
+  }
+
+  /// True when the signed-in phone has a PeyaPay **client** wallet
+  /// (`estFournisseur: N`, `wtypeClient` CLIENT, or non-`P` `typcpt`).
+  static Future<bool> hasClientWallet() async {
+    final clientFlag = await isPeyaClientFlag();
+    if (clientFlag == true) return true;
+    if (clientFlag == false) {
+      final merchant = await isPeyapayMerchantFlag();
+      if (merchant == true) return false;
+    }
+
+    final state = PeyapayHostBridge.api?.clientState;
+    if (state != null) {
+      final resolved = PeyapayAccountProfile.resolve(sessionState: state);
+      if (resolved.hasClientWallet) return true;
+      if (resolved.hasMerchantWallet && !resolved.hasClientWallet) {
+        return false;
+      }
+    }
+
+    // Unknown — keep legacy client UX unless backend said merchant-only.
+    return clientFlag ?? true;
+  }
+
+  /// Merchant / fournisseur PeyaPay without a client wallet — business UI only.
+  static Future<bool> isMerchantOnly() async {
+    if (await hasClientWallet()) return false;
+    final merchant = await isPeyapayMerchantFlag();
+    if (merchant == true) return true;
+    final state = PeyapayHostBridge.api?.clientState;
+    if (state != null) {
+      return PeyapayAccountProfile.resolve(sessionState: state)
+          .hasMerchantWallet;
+    }
+    return false;
+  }
+
+  /// Alias — `estFournisseur: O` without client wallet (same gate as [isMerchantOnly]).
+  static Future<bool> isFournisseurOnly() => isMerchantOnly();
+
+  /// Mon Peya subscription role after login (`FOURNISSEUR` vs `CLIENT`).
+  static Future<String> serviceSubscriptionRole() async {
+    if (await isFournisseurOnly()) return 'FOURNISSEUR';
+    return 'CLIENT';
+  }
+
+  /// When true, modules must show business/pro side only (logged-in fournisseur).
+  static Future<bool> requiresBusinessServiceUi() => isFournisseurOnly();
 }

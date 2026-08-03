@@ -31,11 +31,23 @@ typedef BilletterieModuleBackHandler = bool Function();
 /// Whether the signed-in PeyaPay account is already a merchant.
 typedef BilletterieMerchantResolver = Future<bool> Function();
 
+/// Whether the signed-in account has a PeyaPay **client** wallet (can buy tickets).
+typedef BilletterieClientWalletResolver = Future<bool> Function();
+
+/// Merchant-only PeyaPay (no client wallet) — hide client-side service UI.
+typedef BilletterieMerchantOnlyResolver = Future<bool> Function();
+
+/// Mon Peya subscription role for this account (`CLIENT` vs `FOURNISSEUR`).
+typedef BilletterieServiceRoleResolver = Future<String> Function();
+
 /// Gate before purchase: register / OTP if needed, then service subscription.
 typedef BilletterieEnsureCanPurchase = Future<bool> Function(
   BuildContext context, {
   required String moduleKey,
 });
+
+/// Prompt host login / PIN (guest → session).
+typedef BilletterieEnsureSession = Future<bool> Function(BuildContext context);
 
 /// Loads a host-app asset (e.g. Mon Peya logo) for PDF export.
 typedef BilletterieHostAssetLoader = Future<Uint8List?> Function(String path);
@@ -84,8 +96,18 @@ class BilletterieHostBridge {
   static BilletterieClientResolver? resolveClient;
   static BilletterieModuleBackHandler? onModuleBack;
   static BilletterieMerchantResolver? resolveIsMerchant;
+  static BilletterieClientWalletResolver? resolveHasClientWallet;
+  static BilletterieMerchantOnlyResolver? resolveIsMerchantOnly;
+  static BilletterieServiceRoleResolver? resolveServiceSubscriptionRole;
   static BilletterieEnsureCanPurchase? ensureCanPurchase;
+  static BilletterieEnsureSession? ensureSession;
   static BilletterieHostAssetLoader? loadHostAsset;
+
+  /// Host session listenable (Mon Peya) — modules reload guest/name on change.
+  static Listenable? sessionChanges;
+
+  /// Guest display name when the host session is inactive.
+  static const guestDisplayName = 'Utilisateur';
 
   static bool tryHandleModuleBack() => onModuleBack?.call() ?? false;
 
@@ -99,6 +121,42 @@ class BilletterieHostBridge {
     }
   }
 
+  static Future<bool> hasClientWallet() async {
+    final resolver = resolveHasClientWallet;
+    if (resolver == null) return true;
+    try {
+      return await resolver();
+    } catch (_) {
+      return true;
+    }
+  }
+
+  static Future<bool> isMerchantOnly() async {
+    final resolver = resolveIsMerchantOnly;
+    if (resolver != null) {
+      try {
+        return await resolver();
+      } catch (_) {
+        return false;
+      }
+    }
+    final merchant = await isPeyapayMerchant();
+    if (!merchant) return false;
+    return !(await hasClientWallet());
+  }
+
+  static Future<String> serviceSubscriptionRole() async {
+    final resolver = resolveServiceSubscriptionRole;
+    if (resolver != null) {
+      try {
+        final role = await resolver();
+        if (role.trim().isNotEmpty) return role.trim().toUpperCase();
+      } catch (_) {}
+    }
+    if (await isMerchantOnly()) return 'FOURNISSEUR';
+    return 'CLIENT';
+  }
+
   static Future<BilletterieClientIdentity> requireClient() async {
     final resolver = resolveClient;
     if (resolver == null) {
@@ -109,6 +167,35 @@ class BilletterieHostBridge {
       throw StateError('Identité Peya indisponible pour la billetterie.');
     }
     return identity;
+  }
+
+  /// Soft resolve for guest-safe screens (owned tickets, dashboards).
+  /// Returns `null` when the host session is inactive.
+  static Future<BilletterieClientIdentity?> resolveClientOrNull() async {
+    final resolver = resolveClient;
+    if (resolver == null) return null;
+    try {
+      return await resolver();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Opens host login / PIN. Returns `true` when a session is active afterward.
+  static Future<bool> promptLogin(BuildContext context) async {
+    final handler = ensureSession;
+    if (handler == null) return false;
+    return handler(context);
+  }
+
+  /// True when no Peya session is active (browse-only).
+  static Future<bool> isGuest() async =>
+      await resolveClientOrNull() == null;
+
+  /// Login gate for purchase / personal data — does not check subscription.
+  static Future<bool> ensureLoggedIn(BuildContext context) async {
+    if (await resolveClientOrNull() != null) return true;
+    return promptLogin(context);
   }
 
   /// Auth + subscription gate before ticket payment. Host implements the checks.

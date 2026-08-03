@@ -76,3 +76,4 @@ flutter:
     - assets/logo/cards/
     - ../packages/immo/assets/logo/immo/
     - ../packages/leadway/assets/logo/
+    - ../packages/peyapay/assets/logo/cards/

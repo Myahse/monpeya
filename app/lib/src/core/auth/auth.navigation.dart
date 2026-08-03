@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:app/src/core/routing/routes.dart';
 import 'package:app/src/core/session/mon_peya.session.dart';
 
-/// Pushes login / registration above tab content and hides the bottom navigation bar.
+
 Future<T?> pushFullScreenAuth<T>(BuildContext context, Widget screen) async {
   MonPeyaSession.instance.beginAuthOverlay();
   try {
-    return await Navigator.of(context).push<T>(
+    // Always push on the app root navigator so login covers module overlays
+    // (Leadway, Immo, etc.) and is not trapped inside a tab navigator.
+    final navigator = rootNavKey.currentState;
+    if (navigator == null) return null;
+    return await navigator.push<T>(
       MaterialPageRoute<T>(
         fullscreenDialog: true,
         builder: (_) => screen,
@@ -18,11 +22,9 @@ Future<T?> pushFullScreenAuth<T>(BuildContext context, Widget screen) async {
   }
 }
 
-/// Consistent back navigation for auth screens.
 class AuthNavigation {
   AuthNavigation._();
 
-  /// Clears the auth stack and opens the main shell once.
   static void completeAuthFlow(BuildContext context) {
     Navigator.of(context).pushNamedAndRemoveUntil(
       Routes.app,

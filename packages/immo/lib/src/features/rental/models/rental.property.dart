@@ -19,6 +19,7 @@ class RentalProperty {
     required this.ownerPhone,
     required this.ownerEmail,
     required this.createdAt,
+    this.ownerLogoUrl,
     this.postalCode,
     this.latitude,
     this.longitude,
@@ -42,6 +43,7 @@ class RentalProperty {
   final String ownerName;
   final String ownerPhone;
   final String ownerEmail;
+  final String? ownerLogoUrl;
   final DateTime? createdAt;
   final double? latitude;
   final double? longitude;
@@ -65,6 +67,14 @@ class RentalProperty {
     if (s.contains('libre') || s.contains('actif')) return 'active';
     if (s.contains('attente')) return 'pending';
     return 'draft';
+  }
+
+  bool get isAvailableForRent {
+    final s = statusLabel.toLowerCase();
+    return s.contains('libre') ||
+        s.contains('disponible') ||
+        s.contains('actif') ||
+        s.contains('available');
   }
 
   factory RentalProperty.fromBackend(
@@ -103,11 +113,27 @@ class RentalProperty {
     String ownerPrenom = '';
     String ownerEmail = '';
     String ownerPhone = '';
+    String? ownerLogoUrl;
     if (utilisateurs is Map) {
       ownerNom = (utilisateurs['nom'] as String?) ?? '';
       ownerPrenom = (utilisateurs['prenoms'] ?? utilisateurs['prenom'] as String?) ?? '';
       ownerEmail = (utilisateurs['email'] as String?) ?? '';
       ownerPhone = (utilisateurs['telephone'] as String?) ?? '';
+      final logoRaw = utilisateurs['logo'] ??
+          utilisateurs['photo'] ??
+          utilisateurs['avatar'] ??
+          utilisateurs['imageUrl'] ??
+          utilisateurs['photoUrl'];
+      if (logoRaw is String && logoRaw.trim().isNotEmpty) {
+        var logo = logoRaw.trim();
+        if (logo.contains('localhost') && apiBaseUrl != null) {
+          final host = Uri.tryParse(apiBaseUrl)?.host;
+          if (host != null && host.isNotEmpty) {
+            logo = logo.replaceFirst('localhost', host);
+          }
+        }
+        ownerLogoUrl = logo;
+      }
     }
 
     DateTime? createdAt;
@@ -132,6 +158,7 @@ class RentalProperty {
       ownerName: '$ownerPrenom $ownerNom'.trim(),
       ownerPhone: ownerPhone,
       ownerEmail: ownerEmail,
+      ownerLogoUrl: ownerLogoUrl,
       createdAt: createdAt,
       latitude: _toDouble(item['latitude']),
       longitude: _toDouble(item['longitude']),

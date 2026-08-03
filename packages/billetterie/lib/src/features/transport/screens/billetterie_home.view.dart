@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:billetterie/src/features/transport/models/billetterie_transport_ticket.dart';
 import 'package:billetterie/src/core/constants/billetterie.brand.dart';
 import 'package:billetterie/src/shared/widgets/billetterie_bottom_nav.widget.dart';
+import 'package:billetterie/src/shared/widgets/billetterie_enter.widget.dart';
 import 'package:billetterie/src/features/transport/screens/ticket_details.screen.dart';
 import 'package:billetterie/src/features/transport/widgets/transport_ticket_front.widget.dart';
 
@@ -11,15 +12,20 @@ class BilletterieHomeView extends StatefulWidget {
   const BilletterieHomeView({
     super.key,
     required this.tickets,
+    this.guestMode = false,
   });
 
   final List<BilletterieTransportTicket> tickets;
+
+  /// When true, shows browse-only copy (login happens at purchase).
+  final bool guestMode;
 
   @override
   State<BilletterieHomeView> createState() => _BilletterieHomeViewState();
 }
 
-class _BilletterieHomeViewState extends State<BilletterieHomeView> {
+class _BilletterieHomeViewState extends State<BilletterieHomeView>
+    with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
 
   /// Draft text in the search field (not applied until filter Confirm).
@@ -30,14 +36,62 @@ class _BilletterieHomeViewState extends State<BilletterieHomeView> {
   String? _selectedRoute;
   _PriceSort _priceSort = _PriceSort.cheapest;
 
+  late final AnimationController _enter;
+  late final Animation<double> _titleFade;
+  late final Animation<Offset> _titleSlide;
+  late final Animation<double> _searchFade;
+  late final Animation<Offset> _searchSlide;
+  late final Animation<double> _destFade;
+  late final Animation<Offset> _destSlide;
+  late final Animation<double> _pricesFade;
+  late final Animation<Offset> _pricesSlide;
+  late final Animation<double> _allFade;
+  late final Animation<Offset> _allSlide;
+
   bool get _hasActiveFilter =>
       _appliedQuery.isNotEmpty ||
       _selectedRoute != null ||
       _priceSort != _PriceSort.cheapest;
 
+  Animation<double> _fade(double begin, double end) => CurvedAnimation(
+        parent: _enter,
+        curve: Interval(begin, end, curve: Curves.easeOutCubic),
+      );
+
+  Animation<Offset> _slide(double begin, double end, {Offset from = const Offset(0, 0.12)}) =>
+      Tween<Offset>(begin: from, end: Offset.zero).animate(
+        CurvedAnimation(
+          parent: _enter,
+          curve: Interval(begin, end, curve: Curves.easeOutCubic),
+        ),
+      );
+
+  @override
+  void initState() {
+    super.initState();
+    _enter = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    _titleFade = _fade(0.00, 0.32);
+    _titleSlide = _slide(0.00, 0.32, from: const Offset(0, -0.08));
+    _searchFade = _fade(0.14, 0.46);
+    _searchSlide = _slide(0.14, 0.46);
+    _destFade = _fade(0.28, 0.60);
+    _destSlide = _slide(0.28, 0.60);
+    _pricesFade = _fade(0.42, 0.76);
+    _pricesSlide = _slide(0.42, 0.76);
+    _allFade = _fade(0.54, 0.92);
+    _allSlide = _slide(0.54, 0.92);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _enter.forward();
+    });
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
+    _enter.dispose();
     super.dispose();
   }
 
@@ -371,67 +425,94 @@ class _BilletterieHomeViewState extends State<BilletterieHomeView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: _HomeTitle('Ticket - transports'),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) => _searchDraft = value,
-                  onSubmitted: (_) => _openFilterSheet(),
-                  decoration: InputDecoration(
-                    hintText: 'Rechercher un trajet…',
-                    hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        BilletterieEnter(
+          fade: _titleFade,
+          slide: _titleSlide,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _HomeTitle(
+                  widget.guestMode
+                      ? 'Billets disponibles'
+                      : 'Ticket - transports',
+                ),
+                if (widget.guestMode) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Mode invité — connectez-vous uniquement pour payer.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: brand.muted,
+                          fontWeight: FontWeight.w600,
                         ),
-                    filled: true,
-                    fillColor: brand.searchFill,
-                    suffixIcon: Icon(
-                      Icons.search_rounded,
-                      color: brand.muted,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 14,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(28),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(28),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(28),
-                      borderSide: BorderSide.none,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        BilletterieEnter(
+          fade: _searchFade,
+          slide: _searchSlide,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => _searchDraft = value,
+                    onSubmitted: (_) => _openFilterSheet(),
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher un trajet…',
+                      hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: brand.muted,
+                          ),
+                      filled: true,
+                      fillColor: brand.searchFill,
+                      suffixIcon: Icon(
+                        Icons.search_rounded,
+                        color: brand.muted,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 14,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Badge(
-                isLabelVisible: _hasActiveFilter,
-                smallSize: 8,
-                backgroundColor: brand.primaryDark,
-                child: IconButton(
-                  onPressed: _openFilterSheet,
-                  icon: const Icon(Icons.filter_list_rounded, size: 28),
-                  color: brand.text,
-                  style: IconButton.styleFrom(
-                    backgroundColor: _hasActiveFilter
-                        ? brand.primarySoft
-                        : Colors.transparent,
-                    padding: const EdgeInsets.all(8),
+                const SizedBox(width: 12),
+                Badge(
+                  isLabelVisible: _hasActiveFilter,
+                  smallSize: 8,
+                  backgroundColor: brand.primaryDark,
+                  child: IconButton(
+                    onPressed: _openFilterSheet,
+                    icon: const Icon(Icons.filter_list_rounded, size: 28),
+                    color: brand.text,
+                    style: IconButton.styleFrom(
+                      backgroundColor: _hasActiveFilter
+                          ? brand.primarySoft
+                          : Colors.transparent,
+                      padding: const EdgeInsets.all(8),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         if (_hasActiveFilter) ...[
@@ -470,37 +551,46 @@ class _BilletterieHomeViewState extends State<BilletterieHomeView> {
           ),
         ],
         const SizedBox(height: 12),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: _SectionHeader(
-            title: 'Destinations',
-            subtitle: 'Par trajet',
-          ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 108,
-          child: destinations.isEmpty
-              ? const Center(child: Text('Aucune destination'))
-              : ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: destinations.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 10),
-                  itemBuilder: (context, index) {
-                    final d = destinations[index];
-                    final selected = _selectedRoute == d.key;
-                    return _DestinationCard(
-                      routeLabel: d.key,
-                      from: d.ticket.fromCode,
-                      to: d.ticket.toCode,
-                      minPrice: d.ticket.price,
-                      offerCount: d.count,
-                      selected: selected,
-                      onTap: _openFilterSheet,
-                    );
-                  },
+        BilletterieEnter(
+          fade: _destFade,
+          slide: _destSlide,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: _SectionHeader(
+                  title: 'Destinations',
+                  subtitle: 'Par trajet',
                 ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 108,
+                child: destinations.isEmpty
+                    ? const Center(child: Text('Aucune destination'))
+                    : ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: destinations.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 10),
+                        itemBuilder: (context, index) {
+                          final d = destinations[index];
+                          final selected = _selectedRoute == d.key;
+                          return _DestinationCard(
+                            routeLabel: d.key,
+                            from: d.ticket.fromCode,
+                            to: d.ticket.toCode,
+                            minPrice: d.ticket.price,
+                            offerCount: d.count,
+                            selected: selected,
+                            onTap: _openFilterSheet,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         const _SectionDivider(),
@@ -513,85 +603,105 @@ class _BilletterieHomeViewState extends State<BilletterieHomeView> {
               BilletterieBottomNav.contentBottomPadding(context),
             ),
             children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
-                child: _SectionHeader(
-                  title: 'Meilleurs prix',
-                  subtitle: 'Selon vos filtres',
+              BilletterieEnter(
+                fade: _pricesFade,
+                slide: _pricesSlide,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
+                      child: _SectionHeader(
+                        title: 'Meilleurs prix',
+                        subtitle: 'Selon vos filtres',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (bestPrices.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: Text(
+                            'Aucun résultat',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: brand.muted,
+                                ),
+                          ),
+                        ),
+                      )
+                    else
+                      ...bestPrices.map((ticket) {
+                        final i = widget.tickets.indexOf(ticket);
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: TransportTicketFront(
+                            ticket: ticket,
+                            badge: badges[i],
+                            onTap: () => _openTicketDetails(ticket, badges[i]),
+                          ),
+                        );
+                      }),
+                  ],
                 ),
               ),
-              const SizedBox(height: 10),
-              if (bestPrices.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Center(
-                    child: Text(
-                      'Aucun résultat',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: brand.muted,
-                          ),
-                    ),
-                  ),
-                )
-              else
-                ...bestPrices.map((ticket) {
-                  final i = widget.tickets.indexOf(ticket);
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: TransportTicketFront(
-                      ticket: ticket,
-                      badge: badges[i],
-                      onTap: () => _openTicketDetails(ticket, badges[i]),
-                    ),
-                  );
-                }),
               const SizedBox(height: 8),
               const _SectionDivider(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                child: _SectionHeader(
-                  title: _selectedRoute == null ? 'Tous les trajets' : _selectedRoute!,
-                  subtitle:
-                      '${allTrajets.length} offre${allTrajets.length > 1 ? 's' : ''}',
-                  trailing: !_hasActiveFilter
-                      ? null
-                      : TextButton(
-                          onPressed: () => setState(() {
-                            _appliedQuery = '';
-                            _searchDraft = '';
-                            _searchController.clear();
-                            _selectedRoute = null;
-                            _priceSort = _PriceSort.cheapest;
-                          }),
-                          child: const Text('Effacer'),
+              BilletterieEnter(
+                fade: _allFade,
+                slide: _allSlide,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                      child: _SectionHeader(
+                        title: _selectedRoute == null
+                            ? 'Tous les trajets'
+                            : _selectedRoute!,
+                        subtitle:
+                            '${allTrajets.length} offre${allTrajets.length > 1 ? 's' : ''}',
+                        trailing: !_hasActiveFilter
+                            ? null
+                            : TextButton(
+                                onPressed: () => setState(() {
+                                  _appliedQuery = '';
+                                  _searchDraft = '';
+                                  _searchController.clear();
+                                  _selectedRoute = null;
+                                  _priceSort = _PriceSort.cheapest;
+                                }),
+                                child: const Text('Effacer'),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (allTrajets.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: Text(
+                            'Aucun trajet',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: brand.muted,
+                                ),
+                          ),
                         ),
+                      )
+                    else
+                      ...allTrajets.map((ticket) {
+                        final i = widget.tickets.indexOf(ticket);
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: TransportTicketFront(
+                            ticket: ticket,
+                            badge: badges[i],
+                            onTap: () => _openTicketDetails(ticket, badges[i]),
+                          ),
+                        );
+                      }),
+                  ],
                 ),
               ),
-              const SizedBox(height: 10),
-              if (allTrajets.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Center(
-                    child: Text(
-                      'Aucun trajet',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: brand.muted,
-                          ),
-                    ),
-                  ),
-                )
-              else
-                ...allTrajets.map((ticket) {
-                  final i = widget.tickets.indexOf(ticket);
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: TransportTicketFront(
-                      ticket: ticket,
-                      badge: badges[i],
-                      onTap: () => _openTicketDetails(ticket, badges[i]),
-                    ),
-                  );
-                }),
             ],
           ),
         ),

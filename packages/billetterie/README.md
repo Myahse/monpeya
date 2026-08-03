@@ -25,7 +25,10 @@ Two ticketing clients (same envelope: `POST /v1/*` + `{ "data": { ... } }`):
 | `BILLETTERIE_API_URL` | `http://10.0.2.2:8090` (Android emulator, shared host) |
 | `BILLETTERIE_TRANSPORT_API_URL` | optional dedicated transport host |
 | `BILLETTERIE_EVENT_API_URL` | optional dedicated event host |
+| `BILLETTERIE_WS_URL` | optional WebSocket (`ws://host:8090/ws` by default) |
 | `QR_ENCRYPT_KEY` | Same as PeyaPay (via `app/.env`) |
+
+Realtime: the app connects to `BILLETTERIE_WS_URL` and silent-refreshes lists on JSON events such as `ticket.created`, `ticket.sold`, `event.published`, `dashboard.changed` (optionally wrapped in `{ "data": { ... } }`). If the socket is down, it retries quietly — no skeleton flash.
 
 Docs: `http://localhost:8090/swagger-ui.html`
 

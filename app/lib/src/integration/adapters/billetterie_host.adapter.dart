@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:peyapay/peyapay.dart';
 
 import 'package:app/src/core/auth/module.auth.dart';
+import 'package:app/src/core/session/mon_peya.session.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/features/shell/scopes/app_stack.scope.dart';
 import 'package:app/src/features/subscriptions/presentation/screens/service_abonnement.screen.dart';
@@ -22,7 +23,13 @@ class MonPeyaBilletterieHostAdapter {
     BilletterieHostBridge.onExitModule = _exitToMonPeyaHome;
     BilletterieHostBridge.resolveClient = _resolveClient;
     BilletterieHostBridge.resolveIsMerchant = _resolveIsMerchant;
+    BilletterieHostBridge.resolveHasClientWallet = _resolveHasClientWallet;
+    BilletterieHostBridge.resolveIsMerchantOnly = _resolveIsMerchantOnly;
+    BilletterieHostBridge.resolveServiceSubscriptionRole =
+        AuthStore.serviceSubscriptionRole;
     BilletterieHostBridge.ensureCanPurchase = _ensureCanPurchase;
+    BilletterieHostBridge.ensureSession = ModuleAuth.ensureRegistered;
+    BilletterieHostBridge.sessionChanges = MonPeyaSession.instance;
     BilletterieHostBridge.loadHostAsset = (path) async {
       try {
         final data = await rootBundle.load(path);
@@ -34,9 +41,15 @@ class MonPeyaBilletterieHostAdapter {
   }
 
   static Future<bool> _resolveIsMerchant() async {
-    final typeId = PeyapayHostBridge.api?.clientState?.idwTypeClient;
-    return typeId != null && typeId > 1;
+    if (await AuthStore.isPeyapayMerchantFlag() == true) return true;
+    final state = PeyapayHostBridge.api?.clientState;
+    if (state == null) return false;
+    return PeyapayAccountProfile.resolve(sessionState: state).hasMerchantWallet;
   }
+
+  static Future<bool> _resolveHasClientWallet() => AuthStore.hasClientWallet();
+
+  static Future<bool> _resolveIsMerchantOnly() => AuthStore.isMerchantOnly();
 
   /// Payment gate:
   /// 1) Register / OTP / PIN if needed
@@ -47,6 +60,27 @@ class MonPeyaBilletterieHostAdapter {
     required String moduleKey,
   }) async {
     if (!context.mounted) return false;
+
+    if (await AuthStore.isFournisseurOnly()) {
+      if (!context.mounted) return false;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Compte fournisseur'),
+          content: const Text(
+            'Ce numéro est un compte fournisseur PeyaPay sans portefeuille client. '
+            'Utilisez l’espace professionnel du service et abonnez-vous en tant que fournisseur.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Compris'),
+            ),
+          ],
+        ),
+      );
+      return false;
+    }
 
     final registered = await ModuleAuth.ensureRegistered(context);
     if (!registered || !context.mounted) return false;
@@ -79,12 +113,13 @@ class MonPeyaBilletterieHostAdapter {
     );
     if (wantsSubscribe != true || !context.mounted) return false;
 
+    final subscriptionRole = await AuthStore.serviceSubscriptionRole();
     final subscribed = await Navigator.of(context, rootNavigator: true)
         .push<bool>(
       MaterialPageRoute<bool>(
-        builder: (_) => const ServiceAbonnementScreen(
+        builder: (_) => ServiceAbonnementScreen(
           moduleCode: backendModuleCode,
-          role: 'CLIENT',
+          role: subscriptionRole,
           serviceTitle: 'Billetterie',
         ),
       ),
@@ -96,19 +131,35 @@ class MonPeyaBilletterieHostAdapter {
   }
 
   static Future<bool> _hasActiveSubscription() async {
+    final role = await AuthStore.serviceSubscriptionRole();
     try {
       final decision = await monPeyaCheckAccess(
         moduleCode: backendModuleCode,
         actionCode: checkoutAction,
       );
-      return decision.allowed || decision.hasActiveSubscription == true;
+      if (decision.allowed || decision.hasActiveSubscription == true) {
+        return true;
+      }
+      final subs = await monPeyaMySubscriptions(
+        moduleCode: backendModuleCode,
+        role: role,
+      );
+      if (subs.any((s) => s.isActive)) return true;
     } catch (_) {
+      if (role == 'FOURNISSEUR') {
+        final profile = await TransportProfileStore().load();
+        return profile.canUseAsConductor;
+      }
       final profile = await TransportProfileStore().load();
       return profile.canUseAsClient;
     }
+    return false;
   }
 
   static Future<BilletterieClientIdentity?> _resolveClient() async {
+    // Guests may browse catalogs; personal tickets need login or a live token.
+    if (!await ModuleAuth.hasActiveSessionOrToken()) return null;
+
     final phone = await AuthStore.getPhone();
     if (phone == null || phone.trim().isEmpty) return null;
 
@@ -208,12 +259,7 @@ class MonPeyaBilletterieHostAdapter {
   ) async {
     if (!context.mounted) return false;
 
-    final ready = await _ensureCanPurchase(
-      context,
-      moduleKey: BilletterieModuleKeys.transport,
-    );
-    if (!ready || !context.mounted) return false;
-
+    // Login + subscription were already checked in the billet pay flow.
     final sender = await peyapayPrimarySender() ??
         const PeyapaySender(
           title: 'Compte principal',

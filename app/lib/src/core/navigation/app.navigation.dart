@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Shared back navigation for non-auth screens.
 class AppNavigation {
   AppNavigation._();
 

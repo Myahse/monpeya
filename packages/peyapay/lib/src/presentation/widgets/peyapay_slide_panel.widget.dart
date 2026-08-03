@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 mixin PeyapaySlideOverlayMixin<T extends StatefulWidget> on State<T>, TickerProviderStateMixin<T> {
   late final AnimationController paymentsSlideController;
   late final AnimationController sourceOfFundsSlideController;
+  late final AnimationController prepaidCardSlideController;
 
   bool showPaymentsServices = false;
   bool showSourceOfFunds = false;
+  bool showPrepaidCard = false;
 
   @override
   void initState() {
@@ -19,12 +21,17 @@ mixin PeyapaySlideOverlayMixin<T extends StatefulWidget> on State<T>, TickerProv
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    prepaidCardSlideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
   }
 
   @override
   void dispose() {
     paymentsSlideController.dispose();
     sourceOfFundsSlideController.dispose();
+    prepaidCardSlideController.dispose();
     super.dispose();
   }
 
@@ -48,6 +55,17 @@ mixin PeyapaySlideOverlayMixin<T extends StatefulWidget> on State<T>, TickerProv
     await sourceOfFundsSlideController.reverse();
     if (!mounted) return;
     setState(() => showSourceOfFunds = false);
+  }
+
+  Future<void> openPrepaidCard() async {
+    setState(() => showPrepaidCard = true);
+    await prepaidCardSlideController.forward(from: 0);
+  }
+
+  Future<void> closePrepaidCard() async {
+    await prepaidCardSlideController.reverse();
+    if (!mounted) return;
+    setState(() => showPrepaidCard = false);
   }
 }
 

@@ -1,11 +1,49 @@
 import 'package:flutter/material.dart';
 
-/// Creation flows — matches rental-app listing (`#0C5429`) & tenant (`#006F09`) palettes.
-abstract final class CreationTheme {
-  static const listingGreen = Color(0xFF0C5429);
-  static const tenantGreen = Color(0xFF006F09);
-  static const tenantGreenDark = Color(0xFF005507);
+import 'package:immo/src/core/constants/immo.brand.dart';
 
+/// Adaptive creation-flow palette — maps [ImmoRentalPalette] for light/dark.
+class CreationPalette {
+  const CreationPalette({required this.rental});
+
+  final ImmoRentalPalette rental;
+
+  bool get isDark => rental.isDark;
+
+  Color get bg => rental.bg;
+  Color get card => rental.card;
+  Color get textPrimary => rental.text;
+  Color get textSecondary => rental.muted;
+  Color get textMuted =>
+      isDark ? rental.muted.withValues(alpha: 0.75) : const Color(0xFF9E9E9E);
+  Color get border => rental.border;
+  Color get borderInput => rental.border;
+  Color get surfaceMuted => rental.searchFill;
+  Color get uploadBg => isDark ? rental.searchFill : const Color(0xFFFAFAFA);
+  Color get error => rental.danger;
+  Color get disabled => isDark ? const Color(0xFF555555) : const Color(0xFFCCCCCC);
+  Color get primary => rental.primary;
+
+  /// Subtle green tint for map placeholders, icon badges, success chips.
+  Color get greenTint => primary.withValues(alpha: isDark ? 0.2 : 0.12);
+
+  /// Save-exit header divider.
+  Color get headerBorder => rental.border;
+
+  static CreationPalette of(BuildContext context) =>
+      CreationPalette(rental: ImmoBrand.rentalOf(context));
+}
+
+/// Creation flows — greens match home header ([ImmoBrand.rentalGreen]).
+abstract final class CreationTheme {
+  /// Adaptive palette for the current device brightness.
+  static CreationPalette of(BuildContext context) => CreationPalette.of(context);
+
+  static const listingGreen = ImmoBrand.rentalGreen;
+  static const tenantGreen = ImmoBrand.rentalGreen;
+  static const tenantGreenDark = ImmoBrand.rentalGreen;
+
+  // Legacy fixed light tokens — prefer [of] for new UI.
   static const textPrimary = Color(0xFF333333);
   static const textSecondary = Color(0xFF6B7280);
   static const textMuted = Color(0xFF9E9E9E);
@@ -27,6 +65,6 @@ abstract final class CreationTheme {
   );
 
   static const tenantCtaGradient = LinearGradient(
-    colors: [tenantGreen, tenantGreenDark],
+    colors: [tenantGreen, tenantGreen],
   );
 }
