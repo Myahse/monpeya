@@ -20,6 +20,7 @@ target/
 .pub/
 build/
 **/build/
+**/flutter/ephemeral/
 
 # Miscellaneous
 *.log
