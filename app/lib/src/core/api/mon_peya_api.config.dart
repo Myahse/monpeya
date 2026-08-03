@@ -1,9 +1,11 @@
 abstract final class MonPeyaApiConfig {
   static const apiTimeout = Duration(seconds: 25);
 
+  /// Emulator → host loopback. Local Mon Peya still serves `/v1/*` on :8081.
+  /// Unified gateway (when running): `http://10.0.2.2:8082/api/platform`.
   static const _defineBaseUrl = String.fromEnvironment(
     'MONPEYA_API_URL',
-    defaultValue: 'http://10.0.2.2:8082/api/platform',
+    defaultValue: 'http://10.0.2.2:8081',
   );
 
   static String? _runtimeBaseUrl;

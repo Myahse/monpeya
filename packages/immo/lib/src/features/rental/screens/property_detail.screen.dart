@@ -11,6 +11,7 @@ import 'package:immo/src/features/rental/models/rental.property.dart';
 import 'package:immo/src/features/rental/services/rental_data.cache.dart';
 import 'package:immo/src/features/rental/theme/themes/rental.theme.dart';
 import 'package:immo/src/features/rental/utils/rental_maps.util.dart';
+import 'package:immo/src/features/rental/widgets/rental_layout_widgets.widget.dart';
 import 'package:immo/src/features/rental/widgets/rental_skeleton.widget.dart';
 
 /// Property detail — mockup layout (hero, provider card, CTAs, map).
@@ -45,6 +46,10 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen>
 
   static const _sheetOverlap = 48.0;
   static const _sheetRevealTravel = 56.0;
+  static const _heroOverlayStyle = SystemUiOverlayStyle(
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+  );
 
   void _ensureEntranceAnimation() {
     if (_entranceController != null) return;
@@ -358,11 +363,24 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen>
     }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: _heroOverlayStyle,
       child: Scaffold(
         backgroundColor: b.bg,
-        body: _buildBody(_property!),
+        body: _withNormalizedViewPadding(
+          context,
+          _buildBody(_property!),
+        ),
       ),
+    );
+  }
+
+  /// Uses [MediaQuery.viewPadding] as [MediaQuery.padding] so full-bleed
+  /// layouts match on iOS and Android (notch, Dynamic Island, home indicator).
+  Widget _withNormalizedViewPadding(BuildContext context, Widget child) {
+    final viewPadding = MediaQuery.viewPaddingOf(context);
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(padding: viewPadding),
+      child: child,
     );
   }
 
@@ -374,7 +392,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen>
         : (property.imageUrl != null ? [property.imageUrl!] : <String>[]);
     final rating = _rating(property);
     final surface = _surfaceLabel(property);
-    final bottomSafe = MediaQuery.paddingOf(context).bottom;
+    final bottomSafe = MediaQuery.viewPaddingOf(context).bottom;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -463,7 +481,7 @@ class _HeroHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.paddingOf(context).top;
+    final top = MediaQuery.viewPaddingOf(context).top;
     return SizedBox(
       height: 320 + top,
       child: Stack(
@@ -565,24 +583,30 @@ class _HeroHeader extends StatelessWidget {
             left: 0,
             right: 0,
             bottom: 0,
-            child: Container(
-              height: _greenBandHeight,
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-              alignment: Alignment.topLeft,
-              decoration: const BoxDecoration(
-                color: RentalTheme.green,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(_topRadius),
-                ),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(_topRadius),
               ),
-              child: Text(
-                providerLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
+              child: ColoredBox(
+                color: RentalTheme.green,
+                child: SizedBox(
+                  height: _greenBandHeight,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: Text(
+                        providerLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -656,12 +680,8 @@ class _PropertyOverviewSheet extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Material(
-          color: b.card,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(topRadius),
-          ),
-          clipBehavior: Clip.antiAlias,
+        RentalWhiteSheet(
+          topRadius: topRadius,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -830,29 +850,33 @@ class _SheetTopCap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: color,
-      elevation: 0,
-      surfaceTintColor: Colors.transparent,
-      borderRadius: const BorderRadius.vertical(
-        top: Radius.circular(topRadius),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(topRadius),
+        ),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: Align(
-          alignment: const Alignment(0, -0.55),
-          child: Image.asset(
-            _rentalLogoAsset,
-            package: 'immo',
-            width: logoSize,
-            height: logoSize,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(
-              Icons.home_work_rounded,
-              color: RentalTheme.green,
-              size: 36,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(topRadius),
+        ),
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Align(
+            alignment: const Alignment(0, -0.55),
+            child: Image.asset(
+              _rentalLogoAsset,
+              package: 'immo',
+              width: logoSize,
+              height: logoSize,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.home_work_rounded,
+                color: RentalTheme.green,
+                size: 36,
+              ),
             ),
           ),
         ),
