@@ -1,35 +1,26 @@
-# Mon Peya
+# Mon Peya — Mobile
 
-Monorepo **mobile + backend unifié**. Le mobile communique avec **un seul host** (`:8082`) via des chemins par module.
+Super-app Flutter pour l'écosystème **N'TERI** en Côte d'Ivoire.
+
+## Structure
 
 ```
-Mon Peya/
-├── mobile/                     # Super-app Flutter + packages métier
-│   ├── app/                    # Shell (auth globale, navigation)
-│   └── packages/               # peyapay, billetterie, immo, leadway
-└── backend/                    # Backend unifié (port 8082)
-    ├── modules/
-    │   ├── platform/           # Auth, abonnements → /api/platform
-    │   ├── billetterie/        # Tickets, événements → /api/billetterie
-    │   ├── immo/               # Mr Immo → /api/immo
-    │   ├── shared-kernel/      # Auth session partagée
-    │   └── server/             # Point d'entrée JVM unifié
-    └── compose.yaml            # Stack complète
+mobile/
+├── app/                    # Shell principal (auth, navigation, abonnements)
+├── packages/
+│   ├── peyapay/            # Wallet & paiements
+│   ├── billetterie/        # Billetterie électronique
+│   ├── immo/               # Immobilier (Mr Immo)
+│   └── leadway/            # Assurance Leadway
+└── melos.yaml              # Gestion du monorepo Flutter
 ```
 
-## Démarrage rapide
+## Prérequis
 
-### Backend (tout-en-un)
+- Flutter SDK ≥ 3.10 (Dart ^3.10.8)
+- Android Studio / Xcode pour les builds natifs
 
-```bash
-cd backend
-cp .env.example .env
-docker compose up -d
-```
-
-- Gateway : http://localhost:8082
-
-### Mobile
+## Installation
 
 ```bash
 cd mobile/app
@@ -38,16 +29,26 @@ flutter pub get
 flutter run
 ```
 
-## URLs mobile (`.env`)
+## Configuration (`.env`)
 
-```env
-MONPEYA_API_URL=http://10.0.2.2:8082/api/platform
-BILLETTERIE_API_URL=http://10.0.2.2:8082/api/billetterie
-IMMO_API_URL=http://10.0.2.2:8082/api/immo
+| Variable | Description | Défaut |
+|----------|-------------|--------|
+| `MONPEYA_API_URL` | Backend auth/abonnements | `http://10.0.2.2:8082/api/platform` |
+| `BILLETTERIE_API_URL` | Backend ticketing | `http://10.0.2.2:8082/api/billetterie` |
+| `IMMO_API_URL` | Backend Mr Immo | `http://10.0.2.2:8082/api/immo` |
+| `PEYAPAY_API_URL` | API Peya wallet | test1 |
+| `ENCRYPT_KEY` / `QR_ENCRYPT_KEY` | Crypto QR (parité backend) | — |
+
+Sur émulateur Android, `10.0.2.2` pointe vers la machine hôte. Sur iOS simulator, utiliser `localhost`.
+
+## Monorepo (Melos)
+
+```bash
+dart pub global activate melos
+cd mobile
+melos bootstrap
 ```
 
-Documentation : [backend/README.md](backend/README.md) · [mobile/README.md](mobile/README.md)
+## Documentation
 
-## License
-
-Propriétaire — Djogana.
+- [app/README.md](app/README.md) — guide complet de la super-app
