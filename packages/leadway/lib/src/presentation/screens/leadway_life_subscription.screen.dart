@@ -219,8 +219,9 @@ class _LeadwayLifeSubscriptionScreenState extends State<LeadwayLifeSubscriptionS
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+    return LeadwayTheme(
+      child: Scaffold(
+      backgroundColor: LeadwayBrand.of(context).bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -296,10 +297,12 @@ class _LeadwayLifeSubscriptionScreenState extends State<LeadwayLifeSubscriptionS
           ],
         ),
       ),
+    ),
     );
   }
 
   Widget _buildHeader() {
+    final brand = LeadwayBrand.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
       child: Row(
@@ -309,17 +312,17 @@ class _LeadwayLifeSubscriptionScreenState extends State<LeadwayLifeSubscriptionS
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.chevron_left),
           ),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Souscription Assurance Vie',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: LeadwayBrand.textDark),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: brand.text),
                 ),
                 Text(
                   'Leadway Assurance',
-                  style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 11, color: brand.muted, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -330,13 +333,14 @@ class _LeadwayLifeSubscriptionScreenState extends State<LeadwayLifeSubscriptionS
   }
 
   Widget _card({required String title, required List<Widget> children}) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -353,6 +357,7 @@ class _LeadwayLifeSubscriptionScreenState extends State<LeadwayLifeSubscriptionS
   }
 
   Widget _infoRow(String label, String value) {
+    final brand = LeadwayBrand.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -360,10 +365,10 @@ class _LeadwayLifeSubscriptionScreenState extends State<LeadwayLifeSubscriptionS
         children: [
           SizedBox(
             width: 110,
-            child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            child: Text(label, style: TextStyle(fontSize: 12, color: brand.muted)),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            child: Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: brand.text)),
           ),
         ],
       ),
@@ -377,10 +382,11 @@ class _LeadwayLifeSubscriptionScreenState extends State<LeadwayLifeSubscriptionS
     TextInputType? keyboard,
     List<TextInputFormatter>? inputFormatters,
   }) {
+    final brand = LeadwayBrand.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF555555))),
+        Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: brand.muted)),
         const SizedBox(height: 6),
         TextField(
           controller: ctrl,
@@ -391,16 +397,16 @@ class _LeadwayLifeSubscriptionScreenState extends State<LeadwayLifeSubscriptionS
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: brand.card,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+              borderSide: BorderSide(color: brand.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: LeadwayBrand.primary, width: 1.5),
+              borderSide: BorderSide(color: brand.primary, width: 1.5),
             ),
           ),
         ),
@@ -409,19 +415,20 @@ class _LeadwayLifeSubscriptionScreenState extends State<LeadwayLifeSubscriptionS
   }
 
   InputDecoration _dropdownDecoration(String label) {
+    final brand = LeadwayBrand.of(context);
     return InputDecoration(
       labelText: label,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: brand.card,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+        borderSide: BorderSide(color: brand.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: LeadwayBrand.primary, width: 1.5),
+        borderSide: BorderSide(color: brand.primary, width: 1.5),
       ),
     );
   }
@@ -545,11 +552,12 @@ class _LeadwayLifeSubscriptionScreenState extends State<LeadwayLifeSubscriptionS
   }
 
   Widget _successLine(String label, String value) {
+    final brand = LeadwayBrand.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
-          SizedBox(width: 100, child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700]))),
+          SizedBox(width: 100, child: Text(label, style: TextStyle(fontSize: 12, color: brand.muted))),
           Expanded(
             child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20))),
           ),

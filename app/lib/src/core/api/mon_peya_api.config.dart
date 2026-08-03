@@ -1,4 +1,3 @@
-/// Runtime + compile-time config for the Monpeya backend (`/v1/*`).
 abstract final class MonPeyaApiConfig {
   static const apiTimeout = Duration(seconds: 25);
 

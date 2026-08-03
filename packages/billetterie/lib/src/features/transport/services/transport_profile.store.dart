@@ -29,6 +29,18 @@ class TransportProfileStore {
     final merchant = await BilletterieHostBridge.isPeyapayMerchant();
     if (merchant != state.peyapayMerchant) {
       state = state.copyWith(peyapayMerchant: merchant);
+    }
+
+    final merchantOnly = await BilletterieHostBridge.isMerchantOnly();
+    if (merchantOnly) {
+      if (state.canUseAsConductor) {
+        state = state.copyWith(role: TransportProfileRole.conductor);
+      } else if (state.isClientMode) {
+        state = state.copyWith(role: TransportProfileRole.conductor);
+      }
+    }
+
+    if (merchant != state.peyapayMerchant || merchantOnly) {
       await save(state);
     }
     return state;
@@ -48,6 +60,9 @@ class TransportProfileStore {
 
   /// Client asks to subscribe so they can buy/use tickets.
   Future<TransportProfileState> requestClientSubscribe() async {
+    if (await BilletterieHostBridge.isMerchantOnly()) {
+      return load();
+    }
     final current = await load();
     final next = current.copyWith(
       role: TransportProfileRole.client,
@@ -138,6 +153,9 @@ class TransportProfileStore {
   }
 
   Future<TransportProfileState> switchToClientMode() async {
+    if (await BilletterieHostBridge.isMerchantOnly()) {
+      return load();
+    }
     final current = await load();
     final next = current.copyWith(role: TransportProfileRole.client);
     await save(next);

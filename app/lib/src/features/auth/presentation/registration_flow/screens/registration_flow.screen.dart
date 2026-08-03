@@ -5,7 +5,9 @@ import 'package:app/src/core/assets/constants/asset.paths.dart';
 import 'package:app/src/core/auth/auth.navigation.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 import 'package:app/src/core/widgets/pin_keypad.widget.dart';
+import 'package:app/src/core/api/mon_peya_api.exception.dart';
 import 'package:app/src/features/auth/presentation/widgets/auth_flow_scaffold.widget.dart';
+import 'package:app/src/integration/adapters/mon_peya_backend.adapter.dart';
 import 'package:app/src/integration/adapters/peyapay_host.adapter.dart';
 
 class RegistrationFlowScreen extends StatefulWidget {
@@ -269,8 +271,24 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
       return;
     }
 
-    await AuthStore.setPinForPhone(phone.trim(), _pin);
+    final trimmedPhone = phone.trim();
+    await AuthStore.setPinForPhone(trimmedPhone, _pin);
     await AuthStore.setSessionRegistered(true);
+
+    try {
+      await authenticateMonPeyaSession(phone: trimmedPhone, pin: _pin);
+    } on MonPeyaApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _pinError = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+      return;
+    }
+
     activateMonPeyaSession();
     notifyMonPeyaSessionChanged();
     if (!mounted) return;

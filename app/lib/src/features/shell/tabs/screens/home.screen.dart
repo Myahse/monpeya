@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:app/src/core/assets/constants/asset.paths.dart';
@@ -13,6 +15,7 @@ import 'package:app/src/features/notifications/presentation/screens/notification
 import 'package:app/src/features/shell/screens/mon_peya_my_services.screen.dart';
 import 'package:app/src/features/shell/services/module_launcher.service.dart';
 import 'package:app/src/core/modules/widgets/module.icon.dart';
+import 'package:app/src/features/shell/widgets/main_bottom_navigation_bar.widget.dart';
 import 'package:app/src/integration/adapters/peyapay_host.adapter.dart';
 import 'package:peyapay/peyapay.dart';
 
@@ -23,43 +26,109 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   bool _showBalance = false;
   int? _balanceSolde;
   bool _loadingBalance = false;
-  String _clientTitle = 'Mon Peya';
-  String _clientInitials = 'M';
+  String _clientTitle = PeyapayProfileDisplay.guestLabel;
+  String _clientInitials = 'UT';
+
+  late final AnimationController _enter;
+  late final Animation<double> _headerFade;
+  late final Animation<Offset> _headerSlide;
+  late final Animation<double> _miniFade;
+  late final Animation<Offset> _miniSlide;
+  late final Animation<double> _newsHeaderFade;
+  late final Animation<Offset> _newsHeaderSlide;
+  late final Animation<double> _newsFade;
+  late final Animation<Offset> _newsSlide;
+  late final Animation<double> _servicesHeaderFade;
+  late final Animation<Offset> _servicesHeaderSlide;
+  late final Animation<double> _servicesFade;
+  late final Animation<Offset> _servicesSlide;
+
+  static Animation<double> _fade(AnimationController c, double begin, double end) {
+    return CurvedAnimation(
+      parent: c,
+      curve: Interval(begin, end, curve: Curves.easeOutCubic),
+    );
+  }
+
+  static Animation<Offset> _slide(AnimationController c, double begin, double end) {
+    return Tween<Offset>(
+      begin: const Offset(0, 0.12),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: c,
+        curve: Interval(begin, end, curve: Curves.easeOutCubic),
+      ),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
+    _enter = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    _headerFade = _fade(_enter, 0.00, 0.34);
+    _headerSlide = Tween<Offset>(
+      begin: const Offset(0, -0.08),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _enter,
+        curve: const Interval(0.00, 0.34, curve: Curves.easeOutCubic),
+      ),
+    );
+    _miniFade = _fade(_enter, 0.16, 0.48);
+    _miniSlide = _slide(_enter, 0.16, 0.48);
+    _newsHeaderFade = _fade(_enter, 0.28, 0.58);
+    _newsHeaderSlide = _slide(_enter, 0.28, 0.58);
+    _newsFade = _fade(_enter, 0.36, 0.68);
+    _newsSlide = _slide(_enter, 0.36, 0.68);
+    _servicesHeaderFade = _fade(_enter, 0.46, 0.78);
+    _servicesHeaderSlide = _slide(_enter, 0.46, 0.78);
+    _servicesFade = _fade(_enter, 0.54, 0.90);
+    _servicesSlide = _slide(_enter, 0.54, 0.90);
+
     _showBalance = MonPeyaSession.instance.isSessionActive;
     MonPeyaSession.instance.addListener(_onSessionChanged);
     _loadProfileAndBalance();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _enter.forward();
+    });
   }
 
   @override
   void dispose() {
     MonPeyaSession.instance.removeListener(_onSessionChanged);
+    _enter.dispose();
     super.dispose();
   }
 
-  void _onSessionChanged() => _loadProfileAndBalance();
+  void _onSessionChanged() {
+    if (MonPeyaSession.instance.isSessionActive) {
+      setState(() => _showBalance = true);
+    }
+    unawaited(_loadProfileAndBalance());
+  }
 
   Future<void> _loadClientTitle() async {
-    final name = PeyapayProfileDisplay.clientName();
-    final title = PeyapayProfileDisplay.resolveHomeTitle();
+    final title = await PeyapayProfileDisplay.resolveHomeTitle();
     if (!mounted) return;
     setState(() {
       _clientTitle = title;
-      _clientInitials = name != null
-          ? PeyapayProfileDisplay.initials(name)
-          : 'M';
+      _clientInitials = PeyapayProfileDisplay.initials(title);
     });
   }
 
   Future<void> _loadProfileAndBalance() async {
-    if (MonPeyaSession.instance.isSessionActive) {
+    final signedIn = await ModuleAuth.hasActiveSessionOrToken();
+    if (signedIn) {
       final api = PeyapayHostBridge.api;
       final phone = await AuthStore.getPhone();
       if (api != null && phone != null && phone.isNotEmpty) {
@@ -73,7 +142,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadBalance() async {
-    if (!MonPeyaSession.instance.isSessionActive) {
+    final signedIn = await ModuleAuth.hasActiveSessionOrToken();
+    if (!signedIn) {
       if (!mounted) return;
       setState(() {
         _balanceSolde = null;
@@ -136,29 +206,6 @@ class _HomeScreenState extends State<HomeScreen> {
     ModuleLauncher.open(context, module);
   }
 
-  Future<void> _openQrScanner() async {
-    final ok = await ModuleAuth.ensureRegistered(context);
-    if (!ok || !mounted) return;
-
-    final scanned = await Navigator.of(context, rootNavigator: true).push<PeyapayScannedQrData>(
-      MaterialPageRoute<PeyapayScannedQrData>(
-        builder: (_) => const PeyapayQrScanScreen(),
-      ),
-    );
-    if (!mounted || scanned == null) return;
-
-    await Navigator.of(context, rootNavigator: true).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => PeyapayTransferScreen(
-          recipientName: scanned.recipientLabel,
-          recipientPhone: scanned.clientCodeKey,
-          recipientClientCode: scanned.clientCodeKey,
-          recipientUserType: scanned.userTypeKey,
-        ),
-      ),
-    );
-  }
-
   Future<void> _openMyQrCode() async {
     if (!MonPeyaSession.instance.isSessionActive) {
       final ok = await ModuleAuth.ensureRegistered(context);
@@ -212,90 +259,131 @@ class _HomeScreenState extends State<HomeScreen> {
       listenable: MonPeyaSession.instance,
       builder: (context, _) {
         return ColoredBox(
-      color: backgroundColor,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _GradientHeader(
-            sessionActive: MonPeyaSession.instance.isSessionActive,
-            clientTitle: _clientTitle,
-            clientInitials: _clientInitials,
-            showBalance: _showBalance,
-            balanceSolde: _balanceSolde,
-            loadingBalance: _loadingBalance,
-            formatFcfa: _formatFcfa,
-            onToggleBalance: _toggleBalanceVisibility,
-            onPressProfile: () =>
-                rootNavKey.currentState?.pushNamed(Routes.settings),
-            onPressNotifications: _openNotifications,
-            onDeposit: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const PeyapayAddMoneyScreen(),
+          color: backgroundColor,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _HomeEnter(
+                fade: _headerFade,
+                slide: _headerSlide,
+                child: _HomeHeader(
+                  sessionActive: MonPeyaSession.instance.isSessionActive,
+                  clientTitle: _clientTitle,
+                  clientInitials: _clientInitials,
+                  showBalance: _showBalance,
+                  balanceSolde: _balanceSolde,
+                  loadingBalance: _loadingBalance,
+                  formatFcfa: _formatFcfa,
+                  onToggleBalance: _toggleBalanceVisibility,
+                  onPressProfile: () =>
+                      rootNavKey.currentState?.pushNamed(Routes.settings),
+                  onPressNotifications: _openNotifications,
+                  onShowQr: _openMyQrCode,
+                ),
               ),
-            ),
-            onSend: () => _showHomeActionSnack(context, 'Envoyer'),
-            onShowQr: _openMyQrCode,
-            onScan: _openQrScanner,
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(hPad, 16, hPad, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _MonPeyaMiniCard(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const MonPeyaMyServicesScreen(),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    hPad,
+                    16,
+                    hPad,
+                    MainBottomNavigationBar.contentBottomPadding(context),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _HomeEnter(
+                        fade: _miniFade,
+                        slide: _miniSlide,
+                        child: _MonPeyaMiniCard(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  const MonPeyaMyServicesScreen(),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _SectionHeader(
-                    title: 'Actualités',
-                    actionLabel: 'Voir tout',
-                    onAction: () => _showHomeActionSnack(context, 'Actualités'),
-                  ),
-                  const SizedBox(height: 8),
-                  const Expanded(
-                    flex: 11,
-                    child: _HorizontalNewsCarousel(),
-                  ),
-                  const SizedBox(height: 12),
-                  _SectionHeader(
-                    title: 'Mes services',
-                    actionLabel:
-                        '${modules.length} disponible${modules.length > 1 ? 's' : ''}',
-                  ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    flex: 13,
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: _ServiceGrid(
-                        modules: modules,
-                        onOpen: _openModule,
+                      const SizedBox(height: 12),
+                      _HomeEnter(
+                        fade: _newsHeaderFade,
+                        slide: _newsHeaderSlide,
+                        child: _SectionHeader(
+                          title: 'Actualités',
+                          actionLabel: 'Voir tout',
+                          onAction: () =>
+                              _showHomeActionSnack(context, 'Actualités'),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: _HomeEnter(
+                          fade: _newsFade,
+                          slide: _newsSlide,
+                          child: const _HorizontalNewsCarousel(),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _HomeEnter(
+                        fade: _servicesHeaderFade,
+                        slide: _servicesHeaderSlide,
+                        child: _SectionHeader(
+                          title: 'Mes services',
+                          actionLabel:
+                              '${modules.length} disponible${modules.length > 1 ? 's' : ''}',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _HomeEnter(
+                        fade: _servicesFade,
+                        slide: _servicesSlide,
+                        child: _ServiceGrid(
+                          modules: modules,
+                          onOpen: _openModule,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
-    );
+        );
       },
     );
   }
 }
 
+/// Fade + slide entrance used by home sections.
+class _HomeEnter extends StatelessWidget {
+  const _HomeEnter({
+    required this.fade,
+    required this.slide,
+    required this.child,
+  });
+
+  final Animation<double> fade;
+  final Animation<Offset> slide;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: fade,
+      child: SlideTransition(
+        position: slide,
+        child: child,
+      ),
+    );
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
-// GRADIENT HEADER  (top bar + balance card + quick actions)
+// HOME HEADER  (top bar + inset balance card with live QR)
 // ═══════════════════════════════════════════════════════════════════════════
 
-class _GradientHeader extends StatelessWidget {
-  const _GradientHeader({
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({
     required this.sessionActive,
     required this.clientTitle,
     required this.clientInitials,
@@ -306,10 +394,7 @@ class _GradientHeader extends StatelessWidget {
     required this.onToggleBalance,
     required this.onPressProfile,
     required this.onPressNotifications,
-    required this.onDeposit,
-    required this.onSend,
     required this.onShowQr,
-    required this.onScan,
   });
 
   final bool sessionActive;
@@ -322,15 +407,14 @@ class _GradientHeader extends StatelessWidget {
   final VoidCallback onToggleBalance;
   final VoidCallback onPressProfile;
   final VoidCallback onPressNotifications;
-  final VoidCallback onDeposit;
-  final VoidCallback onSend;
   final Future<void> Function() onShowQr;
-  final VoidCallback onScan;
+
+  static const _balanceGreen = Color(0xFF006D56);
 
   String _balanceAmountText() {
-    if (!sessionActive || !showBalance) return '• • • • •';
+    if (!sessionActive || !showBalance) return '*****';
     if (loadingBalance && balanceSolde == null) return '...';
-    if (balanceSolde == null) return '• • • • •';
+    if (balanceSolde == null) return '*****';
     return formatFcfa(balanceSolde!.toDouble());
   }
 
@@ -339,289 +423,184 @@ class _GradientHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
 
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF006D56), Color(0xFF00453B)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
-      ),
-      child: Stack(
+    return Padding(
+      padding: EdgeInsets.only(top: peyapayStatusBarTop(context)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Subtle pattern circles
-          Positioned(
-            top: -40,
-            right: -30,
-            child: Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.04),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 40,
-            right: 60,
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.03),
-              ),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(20, top + 40, 20, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top bar
-                Row(
-                  children: [
-                    // Avatar
-                    GestureDetector(
-                      onTap: onPressProfile,
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.2),
-                          border: Border.all(
-                              color: Colors.white.withOpacity(0.4), width: 1.5),
+          SizedBox(
+            height: 78,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: onPressProfile,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark
+                            ? Colors.white.withOpacity(0.12)
+                            : const Color(0xFF006D56).withOpacity(0.12),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white.withOpacity(0.2)
+                              : const Color(0xFF006D56).withOpacity(0.25),
                         ),
-                        child: Center(
-                          child: Text(
-                            clientInitials,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 16,
-                            ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          clientInitials,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : _balanceGreen,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        'Bienvenue $clientTitle',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: cs.onSurface,
+                          height: 1.1,
+                        ),
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: onPressNotifications,
+                    child: SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
                         children: [
-                          Text(
-                            'Bienvenue',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          Icon(
+                            Icons.notifications_none_rounded,
+                            color: cs.onSurface,
+                            size: 24,
                           ),
-                          Text(
-                            clientTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFF5252),
+                                shape: BoxShape.circle,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    // Notification bell
-                    GestureDetector(
-                      onTap: onPressNotifications,
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.15),
-                        ),
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          alignment: Alignment.center,
-                          children: [
-                            const Icon(
-                              Icons.notifications_none_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFFF5252),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+            ),
+          ),
 
-                const SizedBox(height: 24),
-
-                // Balance section
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          Container(
+            margin: const EdgeInsets.fromLTRB(20, 6, 20, 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(
+              color: _balanceGreen,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              Text(
-                                'Solde disponible',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.75),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+                          const Text(
+                            'Solde actuel',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Color.fromRGBO(255, 255, 255, 0.92),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: onToggleBalance,
+                            child: Icon(
+                              showBalance
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: Colors.white.withOpacity(0.85),
+                              size: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: onToggleBalance,
+                        behavior: HitTestBehavior.opaque,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _balanceAmountText(),
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: 0.3,
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: onToggleBalance,
-                                child: Icon(
-                                  showBalance
-                                      ? Icons.visibility_off_outlined
-                                      : Icons.visibility_outlined,
-                                  color: Colors.white.withOpacity(0.75),
-                                  size: 16,
+                            ),
+                            if (_showFcfaSuffix) ...[
+                              const SizedBox(width: 6),
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  'XOF',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 6),
-                          GestureDetector(
-                            onTap: onToggleBalance,
-                            behavior: HitTestBehavior.opaque,
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  _balanceAmountText(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 34,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -1,
-                                  ),
-                                ),
-                                if (_showFcfaSuffix) ...[
-                                  const SizedBox(width: 6),
-                                  const Padding(
-                                    padding: EdgeInsets.only(bottom: 6),
-                                    child: Text(
-                                      'FCFA',
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    PeyapayWalletQrThumb(
-                      size: 96,
-                      fillFactor: 0.95,
-                      sessionActive: sessionActive,
-                      onTap: onShowQr,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-
-                const SizedBox(height: 24),
-
-                // Quick actions
-                Row(
-                  children: [
-                    _QuickAction(
-                      icon: Icons.add_rounded,
-                      label: 'Recharger',
-                      onTap: onDeposit,
-                    ),
-                    const SizedBox(width: 12),
-                    _QuickAction(
-                      icon: Icons.send_rounded,
-                      label: 'Envoyer',
-                      onTap: onSend,
-                    ),
-                    const SizedBox(width: 12),
-                    _QuickAction(
-                      icon: Icons.qr_code_scanner_rounded,
-                      label: 'Scanner',
-                      onTap: onScan,
-                    ),
-                  ],
+                const SizedBox(width: 12),
+                PeyapayWalletQrThumb(
+                  size: 96,
+                  fillFactor: 0.95,
+                  sessionActive: sessionActive,
+                  onTap: onShowQr,
                 ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _QuickAction extends StatelessWidget {
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: Colors.white, size: 22),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -749,9 +728,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// HORIZONTAL NEWS CAROUSEL  (cards with peek effect)
-// ═══════════════════════════════════════════════════════════════════════════
+
 
 class _HorizontalNewsCarousel extends StatefulWidget {
   const _HorizontalNewsCarousel();
@@ -835,7 +812,6 @@ class _HorizontalNewsCarouselState extends State<_HorizontalNewsCarousel> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        // Background image
                         Image.asset(
                           item.imageAsset,
                           fit: BoxFit.cover,
@@ -843,7 +819,6 @@ class _HorizontalNewsCarouselState extends State<_HorizontalNewsCarousel> {
                             color: item.color,
                           ),
                         ),
-                        // Dark gradient overlay
                         Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -856,16 +831,16 @@ class _HorizontalNewsCarouselState extends State<_HorizontalNewsCarousel> {
                             ),
                           ),
                         ),
-                        // Content
                         Padding(
                           padding: const EdgeInsets.all(14),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Badge
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.25),
                                   borderRadius: BorderRadius.circular(20),
@@ -939,40 +914,23 @@ class _HorizontalNewsCarouselState extends State<_HorizontalNewsCarousel> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SERVICE GRID  (4 columns, colored icon backgrounds)
+// SERVICE GRID  (fixed 2 rows, no horizontal slide)
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _ServiceGrid extends StatelessWidget {
-  const _ServiceGrid({required this.modules, required this.onOpen});
+  const _ServiceGrid({
+    required this.modules,
+    required this.onOpen,
+  });
 
   final List<AppModule> modules;
   final ValueChanged<AppModule> onOpen;
 
-  static const _serviceColors = [
-    Color(0xFFE8F5E9), // green
-    Color(0xFFE3F2FD), // blue
-    Color(0xFFFCE4EC), // pink
-    Color(0xFFFFF3E0), // orange
-    Color(0xFFF3E5F5), // purple
-    Color(0xFFE0F2F1), // teal
-    Color(0xFFFFF8E1), // amber
-    Color(0xFFE8EAF6), // indigo
-  ];
-
-  static const _serviceIconColors = [
-    Color(0xFF2E7D32),
-    Color(0xFF1565C0),
-    Color(0xFFC62828),
-    Color(0xFFE65100),
-    Color(0xFF6A1B9A),
-    Color(0xFF00695C),
-    Color(0xFFF57F17),
-    Color(0xFF283593),
-  ];
+  static const _columns = 4;
+  static const _tileHeight = 112.0;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (modules.isEmpty) {
       return Text(
         'Aucun service disponible pour le moment.',
@@ -983,32 +941,21 @@ class _ServiceGrid extends StatelessWidget {
       );
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const columns = 4;
-        const gap = 10.0;
-        final maxWidth = constraints.maxWidth.isFinite
-            ? constraints.maxWidth
-            : MediaQuery.sizeOf(context).width - 32;
-        final tileW = (maxWidth - gap * (columns - 1)) / columns;
-
-        return Wrap(
-          spacing: gap,
-          runSpacing: 14,
-          children: [
-            for (var index = 0; index < modules.length; index++)
-              SizedBox(
-                width: tileW,
-                child: _ServiceTile(
-                  module: modules[index],
-                  bgColor: isDark
-                      ? Colors.white.withOpacity(0.07)
-                      : _serviceColors[index % _serviceColors.length],
-                  iconColor: _serviceIconColors[index % _serviceIconColors.length],
-                  onTap: () => onOpen(modules[index]),
-                ),
-              ),
-          ],
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: modules.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: _columns,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        mainAxisExtent: _tileHeight,
+      ),
+      itemBuilder: (context, index) {
+        return _ServiceTile(
+          module: modules[index],
+          iconBoxHeight: _tileHeight,
+          onTap: () => onOpen(modules[index]),
         );
       },
     );
@@ -1018,15 +965,13 @@ class _ServiceGrid extends StatelessWidget {
 class _ServiceTile extends StatelessWidget {
   const _ServiceTile({
     required this.module,
-    required this.bgColor,
-    required this.iconColor,
     required this.onTap,
+    this.iconBoxHeight = 112,
   });
 
   final AppModule module;
-  final Color bgColor;
-  final Color iconColor;
   final VoidCallback onTap;
+  final double iconBoxHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -1036,43 +981,42 @@ class _ServiceTile extends StatelessWidget {
           iconKey: module.icon,
         ) !=
         null;
-    final iconSize = hasAsset ? 30.0 : 26.0;
+    final iconSize = hasAsset ? 40.0 : 34.0;
 
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
-          // Icon container
-          Container(
-            width: double.infinity,
-            height: 64,
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        height: iconBoxHeight,
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withOpacity(0.08)
+              : const Color(0xFFEEEEEE),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.fromLTRB(6, 10, 6, 8),
+        child: Column(
+          children: [
+            ModuleIcon.forModule(
+              module,
+              size: iconSize,
+              color: cs.onSurface,
             ),
-            child: Center(
-              child: ModuleIcon.forModule(
-                module,
-                size: iconSize,
-                color: iconColor,
+            const Spacer(),
+            Text(
+              module.name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: cs.onSurface,
+                height: 1.15,
               ),
             ),
-          ),
-          const SizedBox(height: 6),
-          // Label
-          Text(
-            module.name,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              color: cs.onSurface,
-              height: 1.2,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

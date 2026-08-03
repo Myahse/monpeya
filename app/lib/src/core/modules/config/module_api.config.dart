@@ -1,13 +1,11 @@
-/// WebView / embedded module URL helpers (Immo dev servers, etc.).
+
 class ModuleApiConfig {
   ModuleApiConfig._();
 
-  /// `--dart-define=RENTAL_API_URL=http://192.168.x.x:8081`
   static const rentalApiUrl = String.fromEnvironment('RENTAL_API_URL');
 
   static const _immoVitePorts = {3001, 3002, 3003};
 
-  /// API base passed into embedded web modules (`apiBase` query param).
   static String? apiBaseForModuleUrl(String moduleUrl) {
     if (rentalApiUrl.isNotEmpty) return rentalApiUrl;
     final uri = Uri.tryParse(moduleUrl);

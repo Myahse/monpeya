@@ -12,6 +12,12 @@ class PeyaPayAssets {
 
   static String card(String fileName) => 'assets/logo/cards/$fileName';
 
+  /// Official PeyaPay prepaid card face art (PNG for fast load).
+  static const prepaidCardRecto = 'recto-carte-peya-pay.png';
+
+  /// Official PeyaPay prepaid card back art (PNG for fast load).
+  static const prepaidCardVerso = 'verso.png';
+
   /// Full-color PeyaPay brand mark (`assets/logo/banks/logo peya.png`).
   static const brandLogo = 'logo peya.png';
 }

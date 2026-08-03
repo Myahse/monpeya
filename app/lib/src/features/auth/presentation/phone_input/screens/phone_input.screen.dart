@@ -216,7 +216,8 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
           onResend: () => monPeyaSendOtp(fullPhone),
           onSubmit: (code) async {
             try {
-              await monPeyaVerifyOtp(phone: fullPhone, code: code);
+              final session = await monPeyaVerifyOtp(phone: fullPhone, code: code);
+              await monPeyaPersistAuthSession(session);
               if (!context.mounted) return false;
               Navigator.of(context).pop();
               await _continueAfterOtp(fullPhone);
@@ -231,6 +232,15 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Connexion impossible. Vérifiez votre réseau et le backend Mon Peya.',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _submitting = false);

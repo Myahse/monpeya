@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:app/src/core/auth/module.auth.dart';
@@ -9,6 +11,7 @@ import 'package:app/src/features/shell/tabs/screens/home.screen.dart';
 import 'package:app/src/features/shell/tabs/screens/peyapay_tab.shell.dart';
 import 'package:app/src/features/shell/tabs/screens/subscriptions.screen.dart';
 import 'package:app/src/features/shell/widgets/main_bottom_navigation_bar.widget.dart';
+import 'package:peyapay/peyapay.dart';
 
 enum MainTab { home, peyapay, subscriptions }
 
@@ -21,7 +24,8 @@ class MainTabsShell extends StatefulWidget {
   State<MainTabsShell> createState() => _MainTabsShellState();
 }
 
-class _MainTabsShellState extends State<MainTabsShell> {
+class _MainTabsShellState extends State<MainTabsShell>
+    with SingleTickerProviderStateMixin {
   MainTab _tab = MainTab.home;
   AppStackController? _appStack;
 
@@ -30,6 +34,33 @@ class _MainTabsShellState extends State<MainTabsShell> {
     MainTab.peyapay: GlobalKey<NavigatorState>(),
     MainTab.subscriptions: GlobalKey<NavigatorState>(),
   };
+
+  final _peyapayReveal = PeyapayHomeRevealController();
+
+  late final AnimationController _navEnter;
+  late final Animation<double> _navFade;
+  late final Animation<Offset> _navSlide;
+
+  @override
+  void initState() {
+    super.initState();
+    _navEnter = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    final curve = CurvedAnimation(
+      parent: _navEnter,
+      curve: const Interval(0.62, 1.0, curve: Curves.easeOutCubic),
+    );
+    _navFade = curve;
+    _navSlide = Tween<Offset>(
+      begin: const Offset(0, 0.35),
+      end: Offset.zero,
+    ).animate(curve);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _navEnter.forward();
+    });
+  }
 
   bool _handleMainTabBack() {
     final nav = _navKeys[_tab]!.currentState;
@@ -40,11 +71,22 @@ class _MainTabsShellState extends State<MainTabsShell> {
     }
 
     if (_tab != MainTab.home) {
+      // Animate PeyaPay actions card closed before leaving the tab.
+      if (_tab == MainTab.peyapay) {
+        unawaited(_leavePeyapayToHome());
+        return true;
+      }
       setState(() => _tab = MainTab.home);
       return true;
     }
 
     return false;
+  }
+
+  Future<void> _leavePeyapayToHome() async {
+    await _peyapayReveal.playExit();
+    if (!mounted) return;
+    setState(() => _tab = MainTab.home);
   }
 
   @override
@@ -63,6 +105,7 @@ class _MainTabsShellState extends State<MainTabsShell> {
     if (_appStack?.onMainBack == _handleMainTabBack) {
       _appStack!.onMainBack = null;
     }
+    _navEnter.dispose();
     super.dispose();
   }
 
@@ -77,7 +120,19 @@ class _MainTabsShellState extends State<MainTabsShell> {
       if (!ok || !mounted) return;
     }
 
+    // Play actions-card exit before IndexedStack hides PeyaPay.
+    if (_tab == MainTab.peyapay && next != MainTab.peyapay) {
+      await _peyapayReveal.playExit();
+      if (!mounted) return;
+    }
+
     setState(() => _tab = next);
+
+    if (next == MainTab.peyapay) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _peyapayReveal.playEnter();
+      });
+    }
   }
 
   bool _hideBottomNav() => MonPeyaSession.instance.isAuthOverlayVisible;
@@ -91,7 +146,6 @@ class _MainTabsShellState extends State<MainTabsShell> {
         return MainTabsScope(
           selectTab: _selectTab,
           child: Scaffold(
-            extendBody: hideNav,
             extendBodyBehindAppBar: true,
             backgroundColor: Theme.of(context).colorScheme.surface,
             body: ColoredBox(
@@ -99,28 +153,50 @@ class _MainTabsShellState extends State<MainTabsShell> {
               child: MediaQuery.removePadding(
                 context: context,
                 removeTop: true,
-                child: IndexedStack(
-                  index: _tab.index,
+                child: Stack(
                   children: [
-                    _TabNavigator(navigatorKey: _navKeys[MainTab.home]!, root: const HomeScreen()),
-                    _TabNavigator(
-                      navigatorKey: _navKeys[MainTab.peyapay]!,
-                      root: const PeyapayTabShell(),
+                    Positioned.fill(
+                      child: IndexedStack(
+                        index: _tab.index,
+                        children: [
+                          _TabNavigator(
+                            navigatorKey: _navKeys[MainTab.home]!,
+                            root: const HomeScreen(),
+                          ),
+                          _TabNavigator(
+                            navigatorKey: _navKeys[MainTab.peyapay]!,
+                            root: PeyapayTabShell(
+                              revealController: _peyapayReveal,
+                            ),
+                          ),
+                          _TabNavigator(
+                            navigatorKey: _navKeys[MainTab.subscriptions]!,
+                            root: const SubscriptionsScreen(),
+                          ),
+                        ],
+                      ),
                     ),
-                    _TabNavigator(
-                      navigatorKey: _navKeys[MainTab.subscriptions]!,
-                      root: const SubscriptionsScreen(),
-                    ),
+                    if (!hideNav)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: FadeTransition(
+                          opacity: _navFade,
+                          child: SlideTransition(
+                            position: _navSlide,
+                            child: MainBottomNavigationBar(
+                              selectedIndex: _tab.index,
+                              onDestinationSelected: (idx) =>
+                                  _selectTab(MainTab.values[idx]),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
             ),
-            bottomNavigationBar: hideNav
-                ? null
-                : MainBottomNavigationBar(
-                    selectedIndex: _tab.index,
-                    onDestinationSelected: (idx) => _selectTab(MainTab.values[idx]),
-                  ),
           ),
         );
       },

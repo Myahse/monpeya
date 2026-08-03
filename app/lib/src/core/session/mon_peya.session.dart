@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-/// In-memory Mon Peya login session (PIN validated). Cleared on logout or when the app leaves the foreground.
 class MonPeyaSession extends ChangeNotifier {
   MonPeyaSession._();
 
@@ -11,7 +10,6 @@ class MonPeyaSession extends ChangeNotifier {
 
   bool get isSessionActive => _sessionActive;
 
-  /// True while a full-screen login / registration route is open.
   bool get isAuthOverlayVisible => _authOverlayDepth > 0;
 
   void beginAuthOverlay() {
@@ -27,7 +25,7 @@ class MonPeyaSession extends ChangeNotifier {
   }
 
   void activateSession() {
-    if (_sessionActive) return;
+    _authOverlayDepth = 0;
     _sessionActive = true;
     notifyListeners();
   }

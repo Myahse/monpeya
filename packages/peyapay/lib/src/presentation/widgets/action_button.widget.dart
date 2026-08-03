@@ -29,6 +29,7 @@ class ActionButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               width: 60,

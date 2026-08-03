@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 
 import 'package:app/src/core/modules/app.module.dart';
 
-/// Resolves module URLs for local dev overrides (Vite apps on the LAN).
 class ModuleUrlResolver {
   ModuleUrlResolver._();
 

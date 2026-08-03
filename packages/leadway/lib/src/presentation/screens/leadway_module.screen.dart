@@ -21,7 +21,9 @@ import 'package:leadway/src/presentation/screens/leadway_life_recurring_payments
 import 'package:leadway/src/presentation/screens/leadway_life_subscription.screen.dart';
 import 'package:leadway/src/presentation/screens/leadway_life_subscriptions.screen.dart';
 import 'package:leadway/src/presentation/screens/leadway_pdf_viewer.screen.dart';
+import 'package:leadway/src/presentation/widgets/leadway_peyapay_logo.widget.dart';
 import 'package:leadway/src/presentation/widgets/leadway_toast.widget.dart';
+import 'package:leadway/src/shared/utils/leadway_peyapay_payment.util.dart';
 import 'package:leadway/src/data/models/leadway_quote_request.model.dart';
 import 'package:leadway/src/data/models/leadway_quote_response.model.dart';
 import 'package:leadway/src/data/models/leadway_api_payment_init_request.model.dart';
@@ -83,12 +85,13 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     if (auth == null) return;
 
     try {
+      if (!await auth.isSessionActive()) return;
       final phone = await auth.getPhone();
       final name = await auth.displayName();
       if (!mounted) return;
 
       if (phone != null && phone.trim().isNotEmpty && _phoneNoCtrl.text.trim().isEmpty) {
-        _phoneNoCtrl.text = _formatPhoneForLeadway(phone);
+        _phoneNoCtrl.text = LeadwayPeyapayPaymentUtil.formatPhoneForLeadway(phone);
       }
       if (name != null && name.trim().isNotEmpty && _fullNameCtrl.text.trim().isEmpty) {
         _fullNameCtrl.text = name.trim();
@@ -97,14 +100,23 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     } catch (_) {}
   }
 
-  static String _formatPhoneForLeadway(String phone) {
-    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length >= 10) {
-      final local = digits.length > 10 ? digits.substring(digits.length - 10) : digits;
-      return '+225 ${local.substring(0, 2)} ${local.substring(2, 4)} '
-          '${local.substring(4, 6)} ${local.substring(6, 8)} ${local.substring(8)}';
+  Future<void> _prefillPaymentPhone() async {
+    if (_paymentPhoneCtrl.text.trim().isNotEmpty) return;
+
+    if (_phoneNoCtrl.text.trim().isNotEmpty) {
+      _paymentPhoneCtrl.text = _phoneNoCtrl.text.trim();
+      return;
     }
-    return phone.trim();
+
+    try {
+      final auth = LeadwayHostBridge.auth;
+      if (auth != null && await auth.isSessionActive()) {
+        final phone = await auth.getPhone();
+        if (phone != null && phone.trim().isNotEmpty) {
+          _paymentPhoneCtrl.text = LeadwayPeyapayPaymentUtil.formatPhoneForLeadway(phone);
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadSubscriptions() async {
@@ -452,6 +464,31 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     }
   }
 
+  Future<void> _onPaymentOperatorChanged(String operator) async {
+    String? sessionPhone;
+    if (operator == LeadwayPaymentOperator.peyapay) {
+      final phone = await LeadwayHostBridge.sessionPhone();
+      if (phone != null && phone.trim().isNotEmpty) {
+        sessionPhone = LeadwayPeyapayPaymentUtil.formatPhoneForLeadway(phone);
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _paymentOperator = operator;
+      _paymentInitiated = false;
+      _paymentAwaitingOtp = false;
+      _paymentId = null;
+      _paymentToken = null;
+      _paymentOtpCtrl.clear();
+      _stopPaymentPolling();
+      _paymentPolling = false;
+      if (sessionPhone != null) {
+        _paymentPhoneCtrl.text = sessionPhone;
+      }
+    });
+  }
+
   Future<void> _initiatePayment() async {
     if (_policyNumber == null || _premium == null) {
       _showToast('Informations de devis manquantes.', LeadwayToastType.error);
@@ -459,7 +496,16 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     }
 
     final isPeyaPay = _paymentOperator == LeadwayPaymentOperator.peyapay;
-    if (!isPeyaPay && _paymentPhoneCtrl.text.trim().isEmpty) {
+    if (isPeyaPay) {
+      setState(() => _loading = true);
+      final phone = await LeadwayPeyapayPaymentUtil.ensureLoggedInPhone(context);
+      if (!mounted) return;
+      if (phone == null) {
+        setState(() => _loading = false);
+        return;
+      }
+      _paymentPhoneCtrl.text = phone;
+    } else if (_paymentPhoneCtrl.text.trim().isEmpty) {
       _showToast('Veuillez saisir votre numéro de téléphone de paiement.', LeadwayToastType.error);
       return;
     }
@@ -481,7 +527,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
         quoteNo: _policyNumber!,
         amount: _premium!,
         operator: _paymentOperator,
-        phoneNo: isPeyaPay ? '' : _paymentPhoneCtrl.text.trim(),
+        phoneNo: _paymentPhoneCtrl.text.trim(),
         email: _paymentEmailCtrl.text.trim(),
         effectDate: effectDate,
         agentCode: LeadwayPaymentDefaults.agentCode,
@@ -506,6 +552,27 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
         _paymentToken = token;
         _paymentInitiated = true;
       });
+
+      if (isPeyaPay) {
+        final typeLabel = _vehicleType == LeadwayVehicleType.auto ? 'auto' : 'moto';
+        final walletOk = await LeadwayPeyapayPaymentUtil.collectWalletPayment(
+          context,
+          amount: _premium!,
+          label: 'Assurance $typeLabel Leadway',
+          reference: _policyNumber,
+        );
+        if (!mounted) return;
+        if (!walletOk) {
+          setState(() {
+            _loading = false;
+            _paymentInitiated = false;
+            _paymentId = null;
+            _paymentToken = null;
+          });
+          _showToast('Paiement Peya Pay annulé.', LeadwayToastType.info);
+          return;
+        }
+      }
 
       if (isPeyaPay || _paymentOperator == LeadwayPaymentOperator.wave) {
         await _confirmPayment();
@@ -542,13 +609,11 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
 
     setState(() => _loading = true);
     try {
-      final isPeyaPay = _paymentOperator == LeadwayPaymentOperator.peyapay;
-
       await _apiService.confirmPayment(
         LeadwayApiPaymentRequest(
           paymentId: _paymentId!,
           operator: _paymentOperator,
-          phoneNo: isPeyaPay ? '' : _paymentPhoneCtrl.text.trim(),
+          phoneNo: _paymentPhoneCtrl.text.trim(),
           otp: isOrange ? _paymentOtpCtrl.text.trim() : '',
           token: _paymentToken ?? '',
         ),
@@ -827,10 +892,10 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                 child: const Icon(Icons.check_circle_outline, color: Color(0xFF2E7D32), size: 48),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Téléchargement réussi !',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: LeadwayBrand.textDark),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: LeadwayBrand.of(context).text),
               ),
               const SizedBox(height: 12),
               RichText(
@@ -841,7 +906,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                     TextSpan(text: 'L\'attestation officielle de votre assurance ${_vehicleType.description.toLowerCase()} a été générée et enregistrée dans votre dossier de téléchargements sous le nom :\n\n'),
                     TextSpan(
                       text: 'attestation_${_policyNumber ?? (_vehicleType == LeadwayVehicleType.auto ? 'AUTO' : 'MOTO')}.pdf\n',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: LeadwayBrand.textDark, fontFamily: 'monospace'),
+                      style: TextStyle(fontWeight: FontWeight.bold, color: LeadwayBrand.of(context).text, fontFamily: 'monospace'),
                     ),
                   ],
                 ),
@@ -899,6 +964,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
             _paymentEmailCtrl.text = _emailCtrl.text.trim();
           }
           _paymentEffectDate ??= DateTime.now();
+          unawaited(_prefillPaymentPhone());
         }
         _step = nextStep;
       });
@@ -940,20 +1006,26 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    switch (_selectedService) {
-      case LeadwayServiceType.none:
-        return _buildServiceSelectionView();
-      case LeadwayServiceType.life:
-        return _buildLifeInsuranceView();
-      case LeadwayServiceType.nonLife:
-        return _buildNonLifeView();
-    }
+    return LeadwayTheme(
+      child: Builder(
+        builder: (context) {
+          switch (_selectedService) {
+            case LeadwayServiceType.none:
+              return _buildServiceSelectionView();
+            case LeadwayServiceType.life:
+              return _buildLifeInsuranceView();
+            case LeadwayServiceType.nonLife:
+              return _buildNonLifeView();
+          }
+        },
+      ),
+    );
   }
 
   Widget _buildNonLifeView() {
     if (_viewingSubscriptions) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF8F8F8),
+        backgroundColor: LeadwayBrand.of(context).bg,
         body: SafeArea(
           child: Column(
             children: [
@@ -980,7 +1052,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: LeadwayBrand.of(context).bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -1006,7 +1078,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
 
   Widget _buildServiceSelectionView() {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: LeadwayBrand.of(context).bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -1017,7 +1089,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                   IconButton(
                     tooltip: 'Retour',
                     onPressed: () => LeadwayHostBridge.exitModule(context),
-                    icon: const Icon(Icons.chevron_left, color: LeadwayBrand.textDark),
+                    icon: Icon(Icons.chevron_left, color: LeadwayBrand.of(context).text),
                   ),
                   Image.asset(
                     'assets/logo/leadway.png',
@@ -1031,7 +1103,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1040,14 +1112,14 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
-                            color: LeadwayBrand.textDark,
+                            color: LeadwayBrand.of(context).text,
                           ),
                         ),
                         Text(
                           'Partenaire de votre sécurité',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey,
+                            color: LeadwayBrand.of(context).muted,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1065,12 +1137,12 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Nos Solutions d\'Assurance',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w900,
-                        color: LeadwayBrand.textDark,
+                        color: LeadwayBrand.of(context).text,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -1079,7 +1151,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                       'Sélectionnez une catégorie de service pour simuler vos cotisations et souscrire en toute simplicité.',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey[600],
+                        color: LeadwayBrand.of(context).muted,
                         height: 1.4,
                       ),
                     ),
@@ -1134,14 +1206,15 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     required Color badgeColor,
     required VoidCallback onTap,
   }) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey[200]!, width: 1.5),
+        border: Border.all(color: brand.border, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: brand.isDark ? 0.25 : 0.02),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -1163,7 +1236,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: LeadwayBrand.primary.withOpacity(0.08),
+                        color: LeadwayBrand.primary.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -1175,7 +1248,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: badgeColor.withOpacity(0.1),
+                        color: badgeColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -1193,10 +1266,10 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                 const SizedBox(height: 16),
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
-                    color: LeadwayBrand.textDark,
+                    color: brand.text,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1205,7 +1278,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: LeadwayBrand.primary.withOpacity(0.8),
+                    color: LeadwayBrand.primary.withValues(alpha: 0.8),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1213,7 +1286,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                   description,
                   style: TextStyle(
                     fontSize: 12.5,
-                    color: Colors.grey[600],
+                    color: brand.muted,
                     height: 1.4,
                   ),
                 ),
@@ -1316,7 +1389,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadLifeProducts());
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: LeadwayBrand.of(context).bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -1331,7 +1404,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                         _selectedService = LeadwayServiceType.none;
                       });
                     },
-                    icon: const Icon(Icons.chevron_left, color: LeadwayBrand.textDark),
+                    icon: Icon(Icons.chevron_left, color: LeadwayBrand.of(context).text),
                   ),
                   Image.asset(
                     'assets/logo/leadway.png',
@@ -1345,7 +1418,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1354,14 +1427,14 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
-                            color: LeadwayBrand.textDark,
+                            color: LeadwayBrand.of(context).text,
                           ),
                         ),
                         Text(
                           'Leadway Assurance',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey,
+                            color: LeadwayBrand.of(context).muted,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1444,12 +1517,12 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                             ],
                           ),
                           const SizedBox(height: 24),
-                          const Text(
+                          Text(
                             'Nos produits',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
-                              color: LeadwayBrand.textDark,
+                              color: LeadwayBrand.of(context).text,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -1478,8 +1551,9 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     required String title,
     required VoidCallback onTap,
   }) {
+    final brand = LeadwayBrand.of(context);
     return Material(
-      color: Colors.white,
+      color: brand.card,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -1488,7 +1562,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFEEEEEE)),
+            border: Border.all(color: brand.border),
           ),
           child: Column(
             children: [
@@ -1497,7 +1571,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: LeadwayBrand.textDark),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: brand.text),
               ),
             ],
           ),
@@ -1512,14 +1586,15 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     required IconData icon,
     required VoidCallback onPressed,
   }) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[100]!, width: 1.5),
+        border: Border.all(color: brand.border, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.01),
+            color: Colors.black.withValues(alpha: brand.isDark ? 0.25 : 0.01),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1545,16 +1620,16 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
-                      color: LeadwayBrand.textDark,
+                      color: LeadwayBrand.of(context).text,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     description,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.4),
+                    style: TextStyle(fontSize: 12, color: LeadwayBrand.of(context).muted, height: 1.4),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -1762,16 +1837,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
           awaitingOtp: _paymentAwaitingOtp,
           polling: _paymentPolling,
           enablePeyaPay: LeadwayApiConfig.enablePeyaPay,
-          onOperatorChanged: (v) => setState(() {
-            _paymentOperator = v;
-            _paymentInitiated = false;
-            _paymentAwaitingOtp = false;
-            _paymentId = null;
-            _paymentToken = null;
-            _paymentOtpCtrl.clear();
-            _stopPaymentPolling();
-            _paymentPolling = false;
-          }),
+          onOperatorChanged: _onPaymentOperatorChanged,
           onCancelPayment: _cancelPayment,
           vehicleType: _vehicleType,
         ),
@@ -1923,10 +1989,10 @@ class _LeadwayHeader extends StatelessWidget {
               children: [
                 Text(
                   vehicleType == LeadwayVehicleType.auto ? 'Assurance Auto' : 'Assurance Moto',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
-                    color: LeadwayBrand.textDark,
+                    color: LeadwayBrand.of(context).text,
                   ),
                 ),
                 const Text(
@@ -2158,12 +2224,13 @@ class _PremiumStep extends StatelessWidget {
 
   bool get _showsSurMesureGaranties => codeProduit == LeadwayProductCode.surMesure;
 
-  Widget _cardSection({required String title, required List<Widget> children}) {
+  Widget _cardSection(BuildContext context, {required String title, required List<Widget> children}) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -2172,7 +2239,7 @@ class _PremiumStep extends StatelessWidget {
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2193,25 +2260,31 @@ class _PremiumStep extends StatelessWidget {
     );
   }
 
-  InputDecoration _dropdownDecoration(String label) {
+  InputDecoration _dropdownDecoration(BuildContext context, String label) {
+    final brand = LeadwayBrand.of(context);
     return InputDecoration(
       labelText: label,
+      labelStyle: TextStyle(color: brand.muted, fontWeight: FontWeight.w600),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: brand.card,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+        borderSide: BorderSide(color: brand.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: LeadwayBrand.primary, width: 1.5),
+        borderSide: BorderSide(color: brand.primary, width: 1.5),
       ),
     );
   }
 
-  Widget _buildGarantieToggle({
+  Widget _buildGarantieToggle(
+    BuildContext context, {
     required String label,
     required String description,
     required bool value,
@@ -2227,7 +2300,7 @@ class _PremiumStep extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: LeadwayBrand.textDark),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: LeadwayBrand.of(context).text),
                 ),
                 Text(
                   description,
@@ -2262,7 +2335,7 @@ class _PremiumStep extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: LeadwayBrand.of(context).card,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
@@ -2271,12 +2344,12 @@ class _PremiumStep extends StatelessWidget {
                 offset: const Offset(0, 4),
               ),
             ],
-            border: Border.all(color: const Color(0xFFEEEEEE)),
+            border: Border.all(color: LeadwayBrand.of(context).border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Type de véhicule *', style: _labelStyle),
+              Text('Type de véhicule *', style: _labelStyle(context)),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -2295,7 +2368,7 @@ class _PremiumStep extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         color: vehicleType == LeadwayVehicleType.auto
                             ? LeadwayBrand.primary
-                            : LeadwayBrand.textDark,
+                            : LeadwayBrand.of(context).text,
                       ),
                       side: BorderSide(
                         color: vehicleType == LeadwayVehicleType.auto
@@ -2323,7 +2396,7 @@ class _PremiumStep extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         color: vehicleType == LeadwayVehicleType.moto
                             ? LeadwayBrand.primary
-                            : LeadwayBrand.textDark,
+                            : LeadwayBrand.of(context).text,
                       ),
                       side: BorderSide(
                         color: vehicleType == LeadwayVehicleType.moto
@@ -2342,12 +2415,12 @@ class _PremiumStep extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        _cardSection(
+        _cardSection(context,
           title: '1. Contrat',
           children: [
             DropdownButtonFormField<LeadwayProductCode>(
               value: codeProduit,
-              decoration: _dropdownDecoration('Formule / Code produit *'),
+              decoration: _dropdownDecoration(context, 'Formule / Code produit *'),
               items: (vehicleType == LeadwayVehicleType.auto
                       ? [
                           LeadwayProductCode.tiersSimple,
@@ -2363,7 +2436,7 @@ class _PremiumStep extends StatelessWidget {
             const SizedBox(height: 12),
             DropdownButtonFormField<LeadwayVehicleCategory>(
               value: categorieVehicule,
-              decoration: _dropdownDecoration('Catégorie de véhicule *'),
+              decoration: _dropdownDecoration(context, 'Catégorie de véhicule *'),
               items: (vehicleType == LeadwayVehicleType.auto
                       ? [
                           LeadwayVehicleCategory.particular,
@@ -2391,7 +2464,7 @@ class _PremiumStep extends StatelessWidget {
               initialValue: LeadwayContractDuration.values.map((d) => d.days).contains(dureeContratEnJour)
                   ? dureeContratEnJour
                   : 30,
-              decoration: _dropdownDecoration('Durée du contrat *'),
+              decoration: _dropdownDecoration(context, 'Durée du contrat *'),
               items: LeadwayContractDuration.values
                   .map<DropdownMenuItem<int>>((d) => DropdownMenuItem(value: d.days, child: Text(d.label)))
                   .toList(),
@@ -2402,7 +2475,7 @@ class _PremiumStep extends StatelessWidget {
           ],
         ),
 
-        _cardSection(
+        _cardSection(context,
           title: '2. Véhicule',
           children: [
             _Field(
@@ -2441,17 +2514,17 @@ class _PremiumStep extends StatelessWidget {
           ],
         ),
 
-        _cardSection(
+        _cardSection(context,
           title: '3. Options',
           children: [
-            _buildGarantieToggle(
+            _buildGarantieToggle(context,
               label: 'Véhicule VTC',
               description: 'Utilisé pour le transport de personnes',
               value: isVehiculeVTC,
               onChanged: onVtcChanged,
             ),
             const Divider(height: 12),
-            _buildGarantieToggle(
+            _buildGarantieToggle(context,
               label: 'Équipé GPS',
               description: 'Le véhicule dispose d\'un traceur GPS',
               value: isGPS,
@@ -2460,7 +2533,7 @@ class _PremiumStep extends StatelessWidget {
             const Divider(height: 12),
             DropdownButtonFormField<int>(
               value: garantieAssistanceAuto,
-              decoration: _dropdownDecoration('Niveau d\'assistance auto'),
+              decoration: _dropdownDecoration(context, 'Niveau d\'assistance auto'),
               items: LeadwayAssistanceLevel.values
                   .map<DropdownMenuItem<int>>(
                     (level) => DropdownMenuItem(value: level.value, child: Text(level.description)),
@@ -2469,7 +2542,7 @@ class _PremiumStep extends StatelessWidget {
               onChanged: onAssistanceChanged,
             ),
             const Divider(height: 12),
-            _buildGarantieToggle(
+            _buildGarantieToggle(context,
               label: 'Recours anticipé',
               description: 'Active le recours anticipé sur le contrat',
               value: withRecoursAnticipe,
@@ -2477,7 +2550,7 @@ class _PremiumStep extends StatelessWidget {
             ),
             if (_needsTransportHydro) ...[
               const Divider(height: 12),
-              _buildGarantieToggle(
+              _buildGarantieToggle(context,
                 label: 'Transport hydro',
                 description: 'Transport de matières dangereuses',
                 value: isTransportHydro,
@@ -2486,7 +2559,7 @@ class _PremiumStep extends StatelessWidget {
             ],
             if (_needsTracteurRoutier) ...[
               const Divider(height: 12),
-              _buildGarantieToggle(
+              _buildGarantieToggle(context,
                 label: 'Tracteur routier',
                 description: 'Véhicule tracteur routier',
                 value: isTracteurRoutier,
@@ -2497,11 +2570,11 @@ class _PremiumStep extends StatelessWidget {
         ),
 
         if (_showsGarantieSecurite)
-          _cardSection(
+          _cardSection(context,
             title: _showsSurMesureGaranties ? '4. Garanties (Sur Mesure)' : '4. Garanties',
             children: [
               if (_showsGarantieSecurite)
-                _buildGarantieToggle(
+                _buildGarantieToggle(context,
                   label: 'Sécurité routière',
                   description: 'Assistance en cas d\'accident',
                   value: garantieSecuriteRoutiere,
@@ -2509,35 +2582,35 @@ class _PremiumStep extends StatelessWidget {
                 ),
               if (_showsSurMesureGaranties) ...[
                 const Divider(height: 12),
-                _buildGarantieToggle(
+                _buildGarantieToggle(context,
                   label: 'Vol',
                   description: 'Couvre le vol du véhicule',
                   value: garantieVol,
                   onChanged: onVolChanged,
                 ),
                 const Divider(height: 12),
-                _buildGarantieToggle(
+                _buildGarantieToggle(context,
                   label: 'Vol accessoires',
                   description: 'Couvre le vol des accessoires',
                   value: garantieVolAccessoires,
                   onChanged: onVolAccessoiresChanged,
                 ),
                 const Divider(height: 12),
-                _buildGarantieToggle(
+                _buildGarantieToggle(context,
                   label: 'Incendie',
                   description: 'Couvre les dégâts causés par le feu',
                   value: garantieIncendie,
                   onChanged: onIncendieChanged,
                 ),
                 const Divider(height: 12),
-                _buildGarantieToggle(
+                _buildGarantieToggle(context,
                   label: 'Bris de glace',
                   description: 'Couvre les vitres brisées',
                   value: garantieBrisDeGlace,
                   onChanged: onBrisGlaceChanged,
                 ),
                 const Divider(height: 12),
-                _buildGarantieToggle(
+                _buildGarantieToggle(context,
                   label: 'Recours anticipé (garantie)',
                   description: 'Recours rapide contre le tiers',
                   value: garantieRecoursAnticipe,
@@ -2605,20 +2678,25 @@ class _QuoteStep extends StatelessWidget {
   final TextEditingController carRegNoCtrl;
   final LeadwayVehicleType vehicleType;
 
-  InputDecoration _dropdownDecoration(String label) {
+  InputDecoration _dropdownDecoration(BuildContext context, String label) {
+    final brand = LeadwayBrand.of(context);
     return InputDecoration(
       labelText: label,
+      labelStyle: TextStyle(color: brand.muted, fontWeight: FontWeight.w600),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: brand.card,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+        borderSide: BorderSide(color: brand.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: LeadwayBrand.primary, width: 1.5),
+        borderSide: BorderSide(color: brand.primary, width: 1.5),
       ),
     );
   }
@@ -2630,12 +2708,13 @@ class _QuoteStep extends StatelessWidget {
     return '$days jours';
   }
 
-  Widget _cardSection({required String title, required List<Widget> children}) {
+  Widget _cardSection(BuildContext context, {required String title, required List<Widget> children}) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -2644,7 +2723,7 @@ class _QuoteStep extends StatelessWidget {
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2678,7 +2757,7 @@ class _QuoteStep extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         if (!confirmed) ...[
-          _cardSection(
+          _cardSection(context,
             title: '1. Informations du souscripteur',
             children: [
               _Field(
@@ -2702,7 +2781,7 @@ class _QuoteStep extends StatelessWidget {
               ),
             ],
           ),
-          _cardSection(
+          _cardSection(context,
             title: '2. Informations du véhicule',
             children: [
               _Field(
@@ -2739,7 +2818,7 @@ class _QuoteStep extends StatelessWidget {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<LeadwayEnergy>(
                   value: energie,
-                  decoration: _dropdownDecoration('Type d\'énergie *'),
+                  decoration: _dropdownDecoration(context, 'Type d\'énergie *'),
                   items: LeadwayEnergy.values
                       .map<DropdownMenuItem<LeadwayEnergy>>(
                         (e) => DropdownMenuItem(value: e, child: Text(e.name)),
@@ -2758,7 +2837,7 @@ class _QuoteStep extends StatelessWidget {
             ],
           ),
         ],
-        _cardSection(
+        _cardSection(context,
           title: '3. Résumé du devis',
           children: [
             _SummaryCard(
@@ -2859,15 +2938,16 @@ class _PaymentStep extends StatelessWidget {
   bool get _isOrange => operator == LeadwayPaymentOperator.orange;
   bool get _isWave => operator == LeadwayPaymentOperator.wave;
 
-  Widget _buildPhoneField() {
+  Widget _buildPhoneField(BuildContext context) {
+    final brand = LeadwayBrand.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFFFAFAFA),
+          color: brand.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE5E5E5)),
+          border: Border.all(color: brand.border),
         ),
         child: _Field(
           label: 'Numéro de téléphone (Mobile Money) *',
@@ -2879,12 +2959,13 @@ class _PaymentStep extends StatelessWidget {
     );
   }
 
-  Widget _buildOtpField() {
+  Widget _buildOtpField(BuildContext context) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: LeadwayBrand.primary.withValues(alpha: 0.3)),
         boxShadow: [
@@ -2915,7 +2996,7 @@ class _PaymentStep extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Paiement initié sur le ${phoneCtrl.text}. Composez #144*82# pour obtenir votre code OTP.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.4),
+            style: TextStyle(fontSize: 12, color: LeadwayBrand.of(context).muted, height: 1.4),
           ),
           const SizedBox(height: 16),
           _Field(
@@ -2929,20 +3010,20 @@ class _PaymentStep extends StatelessWidget {
     );
   }
 
-  Widget _buildCancelButton() {
+  Widget _buildCancelButton(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
           onPressed: onCancelPayment,
-          icon: Icon(Icons.close, size: 18, color: Colors.grey[700]),
+          icon: Icon(Icons.close, size: 18, color: LeadwayBrand.of(context).muted),
           label: Text(
             'Annuler le paiement',
-            style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600),
+            style: TextStyle(color: LeadwayBrand.of(context).muted, fontWeight: FontWeight.w600),
           ),
           style: OutlinedButton.styleFrom(
-            side: BorderSide(color: Colors.grey.shade400),
+            side: BorderSide(color: LeadwayBrand.of(context).border),
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -2951,12 +3032,13 @@ class _PaymentStep extends StatelessWidget {
     );
   }
 
-  Widget _cardSection({required String title, required List<Widget> children}) {
+  Widget _cardSection(BuildContext context, {required String title, required List<Widget> children}) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -2965,7 +3047,7 @@ class _PaymentStep extends StatelessWidget {
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3007,10 +3089,10 @@ class _PaymentStep extends StatelessWidget {
         const SizedBox(height: 16),
         if (!paid) ...[
           if (awaitingOtp && _isOrange) ...[
-            _buildOtpField(),
-            _buildCancelButton(),
+            _buildOtpField(context),
+            _buildCancelButton(context),
           ] else if (!initiated && !polling) ...[
-            _cardSection(
+            _cardSection(context,
               title: '1. Informations de paiement',
               children: [
                 _Field(
@@ -3029,7 +3111,7 @@ class _PaymentStep extends StatelessWidget {
                 ),
               ],
             ),
-            _cardSection(
+            _cardSection(context,
               title: '2. Choisissez votre opérateur',
               children: [
                 if (enablePeyaPay) ...[
@@ -3037,7 +3119,7 @@ class _PaymentStep extends StatelessWidget {
                     selected: operator == LeadwayPaymentOperator.peyapay,
                     title: 'Peya Pay',
                     subtitle: 'Réglez directement via votre Wallet Peya Pay',
-                    icon: Icons.account_balance_wallet_outlined,
+                    iconWidget: const LeadwayPeyapayLogo(size: 36),
                     onTap: () => onOperatorChanged(LeadwayPaymentOperator.peyapay),
                   ),
                   const SizedBox(height: 8),
@@ -3049,7 +3131,7 @@ class _PaymentStep extends StatelessWidget {
                   icon: Icons.phone_android,
                   onTap: () => onOperatorChanged(LeadwayPaymentOperator.orange),
                 ),
-                if (_isOrange) _buildPhoneField(),
+                if (_isOrange) _buildPhoneField(context),
                 const SizedBox(height: 8),
                 _PaymentMethodTile(
                   selected: operator == LeadwayPaymentOperator.wave,
@@ -3058,7 +3140,7 @@ class _PaymentStep extends StatelessWidget {
                   icon: Icons.waves,
                   onTap: () => onOperatorChanged(LeadwayPaymentOperator.wave),
                 ),
-                if (_isWave) _buildPhoneField(),
+                if (_isWave) _buildPhoneField(context),
                 const SizedBox(height: 8),
                 _PaymentMethodTile(
                   selected: operator == LeadwayPaymentOperator.mtn,
@@ -3083,9 +3165,9 @@ class _PaymentStep extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: LeadwayBrand.of(context).card,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFEEEEEE)),
+                border: Border.all(color: LeadwayBrand.of(context).border),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.02),
@@ -3107,7 +3189,7 @@ class _PaymentStep extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     polling ? 'Vérification du paiement…' : 'Paiement en attente…',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: LeadwayBrand.textDark),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: LeadwayBrand.of(context).text),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -3115,12 +3197,12 @@ class _PaymentStep extends StatelessWidget {
                         ? 'Votre paiement Peya Pay est en cours de traitement. Veuillez patienter.'
                         : 'Une demande de validation a été envoyée sur le numéro ${phoneCtrl.text}. Veuillez confirmer la transaction sur votre téléphone.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 13, color: LeadwayBrand.of(context).muted),
                   ),
                 ],
               ),
             ),
-            _buildCancelButton(),
+            _buildCancelButton(context),
           ],
         ] else ...[
           const SizedBox(height: 16),
@@ -3183,19 +3265,21 @@ class _DownloadStep extends StatelessWidget {
   final Future<void> Function(LeadwayPdfDocumentType type, LeadwayPdfAction action) onDocumentAction;
   final LeadwayVehicleType vehicleType;
 
-  Widget _buildDocumentCard({
+  Widget _buildDocumentCard(
+    BuildContext context, {
     required String title,
     required String subtitle,
     required IconData icon,
     required LeadwayPdfDocumentType type,
   }) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -3221,7 +3305,7 @@ class _DownloadStep extends StatelessWidget {
                   children: [
                     Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                    Text(subtitle, style: TextStyle(fontSize: 12, color: LeadwayBrand.of(context).muted)),
                   ],
                 ),
               ),
@@ -3296,16 +3380,18 @@ class _DownloadStep extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryRow({required IconData icon, required String label, required String value, Color? valueColor}) {
+  Widget _buildSummaryRow(
+    BuildContext context, {
+    required IconData icon, required String label, required String value, Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: Colors.grey[600]),
+          Icon(icon, size: 16, color: LeadwayBrand.of(context).muted),
           const SizedBox(width: 10),
           Text(
             label,
-            style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500),
+            style: TextStyle(color: LeadwayBrand.of(context).muted, fontSize: 13, fontWeight: FontWeight.w500),
           ),
           const Spacer(),
           Text(
@@ -3313,7 +3399,7 @@ class _DownloadStep extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 13,
-              color: valueColor ?? LeadwayBrand.textDark,
+              color: valueColor ?? LeadwayBrand.of(context).text,
             ),
           ),
         ],
@@ -3358,9 +3444,9 @@ class _DownloadStep extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: LeadwayBrand.of(context).card,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFEEEEEE)),
+            border: Border.all(color: LeadwayBrand.of(context).border),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.02),
@@ -3390,12 +3476,12 @@ class _DownloadStep extends StatelessWidget {
                   const SizedBox(width: 10),
                   Text(
                     'Véhicule :',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500),
+                    style: TextStyle(color: LeadwayBrand.of(context).muted, fontSize: 13, fontWeight: FontWeight.w500),
                   ),
                   const Spacer(),
                   Text(
                     '$brand $model'.trim().isEmpty ? (vehicleType == LeadwayVehicleType.auto ? 'Voiture' : 'Moto') : '$brand $model'.toUpperCase(),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: LeadwayBrand.textDark),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: LeadwayBrand.of(context).text),
                   ),
                 ],
               ),
@@ -3407,30 +3493,30 @@ class _DownloadStep extends StatelessWidget {
                     const SizedBox(width: 10),
                     Text(
                       'Immatriculation :',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500),
+                      style: TextStyle(color: LeadwayBrand.of(context).muted, fontSize: 13, fontWeight: FontWeight.w500),
                     ),
                     const Spacer(),
                     _buildLicensePlate(carRegNo),
                   ],
                 ),
               ],
-              const Divider(height: 24, color: Color(0xFFEEEEEE)),
+              Divider(height: 24, color: LeadwayBrand.of(context).border),
 
               // --- Section Détails Contrat ---
-              _buildSummaryRow(icon: Icons.shield_outlined, label: 'Assureur', value: 'Leadway Assurance'),
-              _buildSummaryRow(icon: Icons.description_outlined, label: 'Produit', value: vehicleType == LeadwayVehicleType.auto ? 'Assurance auto' : 'Assurance moto'),
-              _buildSummaryRow(icon: Icons.calendar_today_outlined, label: 'Mise en circulation', value: driveDateFormatted),
-              _buildSummaryRow(icon: Icons.history_toggle_off_outlined, label: 'Validité', value: '12 mois'),
+              _buildSummaryRow(context, icon: Icons.shield_outlined, label: 'Assureur', value: 'Leadway Assurance'),
+              _buildSummaryRow(context, icon: Icons.description_outlined, label: 'Produit', value: vehicleType == LeadwayVehicleType.auto ? 'Assurance auto' : 'Assurance moto'),
+              _buildSummaryRow(context, icon: Icons.calendar_today_outlined, label: 'Mise en circulation', value: driveDateFormatted),
+              _buildSummaryRow(context, icon: Icons.history_toggle_off_outlined, label: 'Validité', value: '12 mois'),
               
-              const Divider(height: 24, color: Color(0xFFEEEEEE)),
+              Divider(height: 24, color: LeadwayBrand.of(context).border),
 
               // --- Section Montant Réglé ---
               if (premium != null) ...[
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       'Montant total réglé',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: LeadwayBrand.textDark),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: LeadwayBrand.of(context).text),
                     ),
                     const Spacer(),
                     Text(
@@ -3459,12 +3545,14 @@ class _DownloadStep extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _buildDocumentCard(
+          context,
           title: 'Contrat d\'assurance',
           subtitle: 'Police ${policyNumber ?? '—'}',
           icon: Icons.description_outlined,
           type: LeadwayPdfDocumentType.contract,
         ),
         _buildDocumentCard(
+          context,
           title: 'Devis',
           subtitle: 'Document devis ${policyNumber ?? '—'}',
           icon: Icons.request_quote_outlined,
@@ -3536,7 +3624,7 @@ class _Field extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: _labelStyle),
+        Text(label, style: _labelStyle(context)),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -3546,12 +3634,12 @@ class _Field extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: LeadwayBrand.of(context).card,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+              borderSide: BorderSide(color: LeadwayBrand.of(context).border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -3601,22 +3689,23 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         children: [
           for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0) const Divider(height: 20),
+            if (i > 0) Divider(height: 20, color: brand.border),
             Row(
               children: [
-                Expanded(child: Text(rows[i].$1, style: TextStyle(color: Colors.grey.shade600, fontSize: 13))),
-                Text(rows[i].$2, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                Expanded(child: Text(rows[i].$1, style: TextStyle(color: brand.muted, fontSize: 13))),
+                Text(rows[i].$2, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: brand.text)),
               ],
             ),
           ],
@@ -3631,7 +3720,8 @@ class _PaymentMethodTile extends StatelessWidget {
     required this.selected,
     required this.title,
     required this.subtitle,
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     this.enabled = true,
     this.onTap,
   });
@@ -3639,12 +3729,16 @@ class _PaymentMethodTile extends StatelessWidget {
   final bool selected;
   final String title;
   final String subtitle;
-  final IconData icon;
+  final IconData? icon;
+  final Widget? iconWidget;
   final bool enabled;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final brand = LeadwayBrand.of(context);
+    final leading = iconWidget ??
+        Icon(icon ?? Icons.payment, color: selected ? brand.primary : brand.muted);
     return Opacity(
       opacity: enabled ? 1 : 0.45,
       child: InkWell(
@@ -3653,23 +3747,23 @@ class _PaymentMethodTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: brand.card,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: selected ? LeadwayBrand.primary : const Color(0xFFE0E0E0),
+              color: selected ? brand.primary : brand.border,
               width: selected ? 2 : 1,
             ),
           ),
           child: Row(
             children: [
-              Icon(icon, color: selected ? LeadwayBrand.primary : Colors.grey),
+              leading,
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
-                    Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: brand.text)),
+                    Text(subtitle, style: TextStyle(fontSize: 12, color: brand.muted)),
                   ],
                 ),
               ),
@@ -3699,10 +3793,11 @@ class _BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, -4))],
       ),
       child: FilledButton(
@@ -3752,7 +3847,7 @@ class _DateField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: _labelStyle),
+        Text(label, style: _labelStyle(context)),
         const SizedBox(height: 6),
         InkWell(
           onTap: () async {
@@ -3768,16 +3863,23 @@ class _DateField extends StatelessWidget {
               firstDate: minDate,
               lastDate: maxDate,
               builder: (context, child) {
+                final pickerBrand = LeadwayBrand.of(context);
                 return Theme(
                   data: Theme.of(context).copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: LeadwayBrand.primary,
+                    colorScheme: ColorScheme(
+                      brightness: pickerBrand.isDark ? Brightness.dark : Brightness.light,
+                      primary: pickerBrand.primary,
                       onPrimary: Colors.white,
-                      onSurface: LeadwayBrand.textDark,
+                      secondary: pickerBrand.primaryDark,
+                      onSecondary: Colors.white,
+                      surface: pickerBrand.card,
+                      onSurface: pickerBrand.text,
+                      error: pickerBrand.danger,
+                      onError: Colors.white,
                     ),
                     textButtonTheme: TextButtonThemeData(
                       style: TextButton.styleFrom(
-                        foregroundColor: LeadwayBrand.primary,
+                        foregroundColor: pickerBrand.primary,
                       ),
                     ),
                   ),
@@ -3793,9 +3895,9 @@ class _DateField extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: LeadwayBrand.of(context).card,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE0E0E0)),
+              border: Border.all(color: LeadwayBrand.of(context).border),
             ),
             child: Row(
               children: [
@@ -3804,7 +3906,7 @@ class _DateField extends StatelessWidget {
                     formatted,
                     style: TextStyle(
                       fontSize: 14,
-                      color: selectedDate != null ? LeadwayBrand.textDark : Colors.grey[600],
+                      color: selectedDate != null ? LeadwayBrand.of(context).text : LeadwayBrand.of(context).muted,
                     ),
                   ),
                 ),
@@ -3822,7 +3924,7 @@ class _DateField extends StatelessWidget {
   }
 }
 
-const _labelStyle = TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: LeadwayBrand.textDark);
+TextStyle _labelStyle(BuildContext context) => TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: LeadwayBrand.of(context).text);
 
 class _DownloadProgressDialog extends StatefulWidget {
   const _DownloadProgressDialog({required this.onCompleted});
@@ -3896,13 +3998,13 @@ class _DownloadProgressDialogState extends State<_DownloadProgressDialog> {
             const SizedBox(height: 24),
             Text(
               '${(_progress * 100).toInt()}%',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: LeadwayBrand.textDark),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: LeadwayBrand.of(context).text),
             ),
             const SizedBox(height: 8),
             Text(
               _status,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 13, color: LeadwayBrand.of(context).muted),
             ),
             const SizedBox(height: 16),
             ClipRRect(
@@ -3970,12 +4072,12 @@ class LeadwayCertificateViewerScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: LeadwayBrand.textDark),
+          icon: Icon(Icons.close, color: LeadwayBrand.of(context).text),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
+        title: Text(
           'Visualisation Attestation',
-          style: TextStyle(color: LeadwayBrand.textDark, fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(color: LeadwayBrand.of(context).text, fontWeight: FontWeight.bold, fontSize: 16),
         ),
         actions: [
           IconButton(
@@ -4080,7 +4182,7 @@ class LeadwayCertificateViewerScreen extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        const Center(
+                        Center(
                           child: Column(
                             children: [
                               Text(
@@ -4089,7 +4191,7 @@ class LeadwayCertificateViewerScreen extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                  color: LeadwayBrand.textDark,
+                                  color: LeadwayBrand.of(context).text,
                                   letterSpacing: 0.3,
                                 ),
                               ),
@@ -4104,7 +4206,7 @@ class LeadwayCertificateViewerScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        const Divider(height: 32, thickness: 1.5, color: Color(0xFFEEEEEE)),
+                        Divider(height: 32, thickness: 1.5, color: LeadwayBrand.of(context).border),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -4115,10 +4217,10 @@ class LeadwayCertificateViewerScreen extends StatelessWidget {
                                   _buildMetaLabel('ATTESTATION N°'),
                                   Text(
                                     policyNumber,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w900,
                                       fontSize: 13,
-                                      color: LeadwayBrand.textDark,
+                                      color: LeadwayBrand.of(context).text,
                                       fontFamily: 'monospace',
                                     ),
                                   ),
@@ -4151,30 +4253,31 @@ class LeadwayCertificateViewerScreen extends StatelessWidget {
                         const SizedBox(height: 20),
                         _buildSectionHeader('SOUSCRIPTEUR'),
                         const SizedBox(height: 6),
-                        _buildRow('Nom complet :', fullName.toUpperCase()),
-                        _buildRow('Téléphone :', phoneNo),
+                        _buildRow(context, 'Nom complet :', fullName.toUpperCase()),
+                        _buildRow(context, 'Téléphone :', phoneNo),
                         const SizedBox(height: 16),
                         _buildSectionHeader('CARACTÉRISTIQUES DU VÉHICULE'),
                         const SizedBox(height: 6),
-                        _buildRow('Marque & Modèle :', '$brand $model'.toUpperCase()),
-                        _buildRow('Immatriculation :', carRegNo.toUpperCase()),
-                        _buildRow('Catégorie/Usage :', vehicleType == LeadwayVehicleType.auto ? 'AUTO (Usage 1)' : 'MOTO (Usage 1)'),
+                        _buildRow(context, 'Marque & Modèle :', '$brand $model'.toUpperCase()),
+                        _buildRow(context, 'Immatriculation :', carRegNo.toUpperCase()),
+                        _buildRow(context, 'Catégorie/Usage :', vehicleType == LeadwayVehicleType.auto ? 'AUTO (Usage 1)' : 'MOTO (Usage 1)'),
                         const SizedBox(height: 16),
                         _buildSectionHeader('PÉRIODE DE VALIDITÉ'),
                         const SizedBox(height: 6),
-                        _buildRow('Date de prise d\'effet :', startDateFormatted),
-                        _buildRow('Date d\'échéance :', endDateFormatted),
-                        _buildRow('Durée de validité :', '365 JOURS (12 Mois)'),
+                        _buildRow(context, 'Date de prise d\'effet :', startDateFormatted),
+                        _buildRow(context, 'Date d\'échéance :', endDateFormatted),
+                        _buildRow(context, 'Durée de validité :', '365 JOURS (12 Mois)'),
                         const SizedBox(height: 16),
                         _buildSectionHeader('GARANTIES & FACTURATION'),
                         const SizedBox(height: 6),
-                        _buildRow('Garanties souscrites :', 'RC, DEFENSE RECOURS, INCENDIE, VOL, BRIS DE GLACE'),
+                        _buildRow(context, 'Garanties souscrites :', 'RC, DEFENSE RECOURS, INCENDIE, VOL, BRIS DE GLACE'),
                         _buildRow(
+                          context,
                           'Prime TTC Réglée :',
                           _formatAmount(premium),
                           valueColor: const Color(0xFF2E7D32),
                         ),
-                        const Divider(height: 32, thickness: 1.5, color: Color(0xFFEEEEEE)),
+                        Divider(height: 32, thickness: 1.5, color: LeadwayBrand.of(context).border),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -4251,7 +4354,7 @@ class LeadwayCertificateViewerScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRow(String label, String value, {Color? valueColor}) {
+  Widget _buildRow(BuildContext context, String label, String value, {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
       child: Row(
@@ -4259,7 +4362,7 @@ class LeadwayCertificateViewerScreen extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 11, color: Colors.grey[700], fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: 11, color: LeadwayBrand.of(context).muted, fontWeight: FontWeight.w500),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -4269,7 +4372,7 @@ class LeadwayCertificateViewerScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
-                color: valueColor ?? LeadwayBrand.textDark,
+                color: valueColor ?? LeadwayBrand.of(context).text,
               ),
             ),
           ),
@@ -4331,7 +4434,7 @@ class _SubscriptionsHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: LeadwayBrand.of(context).card,
       child: Column(
         children: [
           Padding(
@@ -4343,10 +4446,10 @@ class _SubscriptionsHeader extends StatelessWidget {
                 IconButton(
                   tooltip: 'Retour',
                   onPressed: onBack,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.arrow_back_ios_new_rounded,
                     size: 18,
-                    color: LeadwayBrand.textDark,
+                    color: LeadwayBrand.of(context).text,
                   ),
                 ),
                 const SizedBox(width: 2),
@@ -4356,12 +4459,12 @@ class _SubscriptionsHeader extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
+                      Text(
                         'Mes Souscriptions',
                         style: TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 19,
-                          color: LeadwayBrand.textDark,
+                          color: LeadwayBrand.of(context).text,
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -4459,14 +4562,15 @@ class _SubscriptionsView extends StatelessWidget {
     return '$day/$month/$year';
   }
 
-  Widget _buildFeatureItem(IconData icon, String title, String description, Color color) {
+  Widget _buildFeatureItem(BuildContext context, IconData icon, String title, String description, Color color) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF1F1F1)),
+        border: Border.all(color: brand.border),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.01),
@@ -4493,10 +4597,10 @@ class _SubscriptionsView extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
-                    color: LeadwayBrand.textDark,
+                    color: LeadwayBrand.of(context).text,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -4504,7 +4608,7 @@ class _SubscriptionsView extends StatelessWidget {
                   description,
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.grey[600],
+                    color: LeadwayBrand.of(context).muted,
                     height: 1.3,
                   ),
                 ),
@@ -4517,47 +4621,50 @@ class _SubscriptionsView extends StatelessWidget {
   }
 
   Widget _buildBottomButton() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        child: Container(
+    return Builder(
+      builder: (context) {
+        final brand = LeadwayBrand.of(context);
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [LeadwayBrand.gradientTop, LeadwayBrand.primary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(14),
+            color: brand.card,
             boxShadow: [
               BoxShadow(
-                color: LeadwayBrand.primary.withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: brand.isDark ? 0.3 : 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, -4),
               ),
             ],
           ),
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              foregroundColor: Colors.white,
-              shadowColor: Colors.transparent,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
-            onPressed: onNewPolicy,
-            icon: const Icon(Icons.add_rounded, size: 20),
+          child: SizedBox(
+            width: double.infinity,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [LeadwayBrand.gradientTop, LeadwayBrand.primary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: LeadwayBrand.primary.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                ),
+                onPressed: onNewPolicy,
+                icon: const Icon(Icons.add_rounded, size: 20),
             label: const Text(
               'Souscrire une nouvelle assurance',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
@@ -4565,6 +4672,8 @@ class _SubscriptionsView extends StatelessWidget {
           ),
         ),
       ),
+        );
+      },
     );
   }
 
@@ -4614,13 +4723,13 @@ class _SubscriptionsView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
+                  Text(
                     'Assurez votre moto en 2 min',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w900,
-                      color: LeadwayBrand.textDark,
+                      color: LeadwayBrand.of(context).text,
                       letterSpacing: -0.5,
                     ),
                   ),
@@ -4630,24 +4739,27 @@ class _SubscriptionsView extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey[600],
+                      color: LeadwayBrand.of(context).muted,
                       height: 1.4,
                     ),
                   ),
                   const SizedBox(height: 32),
                   _buildFeatureItem(
+                    context,
                     Icons.bolt_rounded,
                     'Estimation ultra-rapide',
                     'Calculez votre prime sur-mesure en moins d\'une minute.',
                     LeadwayBrand.primary,
                   ),
                   _buildFeatureItem(
+                    context,
                     Icons.payments_outlined,
                     'Paiement 100% sécurisé',
                     'Réglez facilement via PeyaPay ou Mobile Money.',
                     const Color(0xFF2E7D32),
                   ),
                   _buildFeatureItem(
+                    context,
                     Icons.share_outlined,
                     'Attestation instantanée',
                     'Partagez ou visualisez votre police d\'assurance immédiatement après validation.',
@@ -4670,12 +4782,12 @@ class _SubscriptionsView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Bienvenue sur votre espace',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
-                  color: LeadwayBrand.textDark,
+                  color: LeadwayBrand.of(context).text,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -4684,7 +4796,7 @@ class _SubscriptionsView extends StatelessWidget {
                 'Retrouvez ci-dessous la liste de vos contrats d\'assurance moto actifs.',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: LeadwayBrand.of(context).muted,
                 ),
               ),
             ],
@@ -4735,7 +4847,7 @@ class _SubscriptionsView extends StatelessWidget {
                         // Carte principale
                         Expanded(
                           child: Material(
-                            color: Colors.white,
+                            color: LeadwayBrand.of(context).card,
                             child: InkWell(
                               onTap: () => onView(sub),
                               child: Column(
@@ -4748,7 +4860,7 @@ class _SubscriptionsView extends StatelessWidget {
                                         Container(
                                           padding: const EdgeInsets.all(10),
                                           decoration: BoxDecoration(
-                                            color: LeadwayBrand.primary.withOpacity(0.08),
+                                            color: LeadwayBrand.primary.withValues(alpha: 0.08),
                                             borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: const Icon(Icons.two_wheeler_rounded, color: LeadwayBrand.primary, size: 22),
@@ -4760,10 +4872,10 @@ class _SubscriptionsView extends StatelessWidget {
                                             children: [
                                               Text(
                                                 '$brand $model',
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontWeight: FontWeight.w800,
                                                   fontSize: 15,
-                                                  color: LeadwayBrand.textDark,
+                                                  color: LeadwayBrand.of(context).text,
                                                 ),
                                               ),
                                               const SizedBox(height: 2),
@@ -4771,7 +4883,7 @@ class _SubscriptionsView extends StatelessWidget {
                                                 'N° $quoteNo',
                                                 style: TextStyle(
                                                   fontSize: 11,
-                                                  color: Colors.grey[500],
+                                                  color: LeadwayBrand.of(context).muted,
                                                   fontFamily: 'monospace',
                                                   fontWeight: FontWeight.bold,
                                                 ),
@@ -4811,20 +4923,22 @@ class _SubscriptionsView extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                                  Divider(height: 1, color: LeadwayBrand.of(context).border),
                                   Padding(
                                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                                     child: Column(
                                       children: [
-                                        _detailRow(Icons.person_outline, 'Assuré', fullName),
+                                        _detailRow(context, Icons.person_outline, 'Assuré', fullName),
                                         const SizedBox(height: 6),
                                         _detailRow(
+                                          context,
                                           Icons.calendar_today_outlined,
                                           'Période',
                                           'Du ${_formatDate(firstDriveDate)} au ${_formatDate(expiryDate)}',
                                         ),
                                         const SizedBox(height: 6),
                                         _detailRow(
+                                          context,
                                           Icons.payments_outlined,
                                           'Prime réglée',
                                           premiumFormatted,
@@ -4890,19 +5004,19 @@ class _SubscriptionsView extends StatelessWidget {
     );
   }
 
-  Widget _detailRow(IconData icon, String label, String value, {bool isBold = false, Color? valueColor}) {
+  Widget _detailRow(BuildContext context, IconData icon, String label, String value, {bool isBold = false, Color? valueColor}) {
     return Row(
       children: [
-        Icon(icon, size: 15, color: Colors.grey[400]),
+        Icon(icon, size: 15, color: LeadwayBrand.of(context).muted),
         const SizedBox(width: 8),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        Text(label, style: TextStyle(fontSize: 12, color: LeadwayBrand.of(context).muted)),
         const Spacer(),
         Text(
           value,
           style: TextStyle(
             fontSize: 12,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-            color: valueColor ?? LeadwayBrand.textDark,
+            color: valueColor ?? LeadwayBrand.of(context).text,
           ),
         ),
       ],

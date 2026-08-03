@@ -68,58 +68,80 @@ class TransportTicketFront extends StatelessWidget {
             final topFlex = (56 + 10 * t).round().clamp(56, 66);
             final bottomFlex = 100 - topFlex;
 
+            final isLight =
+                Theme.of(context).brightness == Brightness.light;
             final card = SizedBox(
               width: cardWidth,
               height: cardHeight,
-              child: ClipPath(
-                clipper: TicketShapeClipper(
-                  cornerRadius: cornerRadius,
-                  notchRadius: notchRadius,
-                  dividerFraction: dividerFraction,
-                ),
-                child: ColoredBox(
-                  color: brand.ticketBg,
-                  child: Stack(
-                    children: [
-                      Column(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipPath(
+                    clipper: TicketShapeClipper(
+                      cornerRadius: cornerRadius,
+                      notchRadius: notchRadius,
+                      dividerFraction: dividerFraction,
+                    ),
+                    child: ColoredBox(
+                      color: brand.ticketBg,
+                      child: Stack(
                         children: [
-                          Expanded(
-                            flex: topFlex,
-                            child: Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                16,
-                                12 - t,
-                                16,
-                                6,
+                          Column(
+                            children: [
+                              Expanded(
+                                flex: topFlex,
+                                child: Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    16,
+                                    12 - t,
+                                    16,
+                                    6,
+                                  ),
+                                  child: _TopSection(
+                                    ticket: ticket,
+                                    badge: badge,
+                                    expandProgress: t,
+                                  ),
+                                ),
                               ),
-                              child: _TopSection(
-                                ticket: ticket,
-                                badge: badge,
-                                expandProgress: t,
+                              Expanded(
+                                flex: bottomFlex,
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(14, 8, 14, 10),
+                                  child: _BottomSection(ticket: ticket),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                          Expanded(
-                            flex: bottomFlex,
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-                              child: _BottomSection(ticket: ticket),
+                          Positioned(
+                            left: notchRadius,
+                            right: notchRadius,
+                            top: cardHeight * dividerFraction,
+                            child: CustomPaint(
+                              size: Size(cardWidth - notchRadius * 2, 1),
+                              painter: _DashedLinePainter(
+                                color: brand.ticketDivider,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      Positioned(
-                        left: notchRadius,
-                        right: notchRadius,
-                        top: cardHeight * dividerFraction,
-                        child: CustomPaint(
-                          size: Size(cardWidth - notchRadius * 2, 1),
-                          painter: _DashedLinePainter(color: brand.ticketDivider),
+                    ),
+                  ),
+                  if (isLight)
+                    IgnorePointer(
+                      child: CustomPaint(
+                        painter: TicketShapeBorderPainter(
+                          cornerRadius: cornerRadius,
+                          notchRadius: notchRadius,
+                          dividerFraction: dividerFraction,
+                          color: brand.border,
+                          strokeWidth: 1.0,
                         ),
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                ],
               ),
             );
 

@@ -31,6 +31,9 @@ class BilletterieTransportTicket {
     this.amountPaid,
     this.orderRef,
     this.paymentReference,
+    this.sellerName,
+    this.receiptSubtitle,
+    this.salesChannel,
   });
 
   final String fromCode;
@@ -48,7 +51,6 @@ class BilletterieTransportTicket {
   /// Payload encoded in the ticket QR (owned tickets).
   final String? qrPayload;
 
-  // --- Backend TicketDto fields ---
 
   /// Public identifier, e.g. `TKT-A1B2C3D4`.
   final String? ticketCode;
@@ -91,6 +93,9 @@ class BilletterieTransportTicket {
   final int? amountPaid;
   final String? orderRef;
   final String? paymentReference;
+  final String? sellerName;
+  final String? receiptSubtitle;
+  final String? salesChannel;
 
   /// Duration in minutes parsed from [durationLabel] (e.g. '20min' → 20).
   int get durationMinutes =>

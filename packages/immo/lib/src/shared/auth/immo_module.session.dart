@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
 
+import 'package:immo/src/core/host/immo_host.bridge.dart';
+import 'package:immo/src/shared/auth/services/immo_auth.service.dart';
 import 'package:immo/src/shared/services/immo_api.client.dart';
 
-/// Shared Mr Immo session — runs without Mon Peya / PeyaPay auth until integrated later.
+/// Shared Mr Immo session — guests browse; personal data needs host login/token.
 class ImmoModuleSession extends ChangeNotifier {
-  ImmoModuleSession({ImmoApiClient? apiClient}) : _apiClient = apiClient ?? ImmoApiClient();
+  ImmoModuleSession({ImmoApiClient? apiClient})
+      : _apiClient = apiClient ?? ImmoApiClient();
 
   final ImmoApiClient _apiClient;
 
@@ -14,7 +17,7 @@ class ImmoModuleSession extends ChangeNotifier {
   String? _phone;
 
   bool get authFailed => false;
-  bool get authenticated => _bootstrapComplete;
+  bool get authenticated => _bootstrapComplete && !_guestMode;
   bool get guestMode => _guestMode;
   String? get error => null;
   String? get userId => _userId;
@@ -25,6 +28,25 @@ class ImmoModuleSession extends ChangeNotifier {
     _guestMode = true;
     _userId = null;
     _phone = null;
+
+    try {
+      final host = ImmoHostBridge.auth;
+      final active = host != null && await host.isSessionActive();
+      if (active) {
+        final result = await ImmoAuthService(client: _apiClient).ensureSession(
+          apiClient: _apiClient,
+        );
+        if (result.ok) {
+          _guestMode = false;
+          _userId = result.userId ?? await host.immoUserId();
+          _phone = await host.getPhone();
+        }
+      }
+    } catch (_) {
+      _guestMode = true;
+      _userId = null;
+    }
+
     _bootstrapComplete = true;
     notifyListeners();
   }

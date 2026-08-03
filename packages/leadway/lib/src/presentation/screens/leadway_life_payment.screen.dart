@@ -4,14 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:leadway/src/core/constants/leadway_api.constants.dart';
+import 'package:leadway/src/core/host/leadway_host.bridge.dart';
 import 'package:leadway/src/data/models/leadway_api.exception.dart';
 import 'package:leadway/src/data/models/leadway_life_payment.model.dart';
 import 'package:leadway/src/data/services/leadway_api.service.dart';
 import 'package:leadway/src/data/services/leadway_life_api.service.dart';
 import 'package:leadway/src/presentation/constants/leadway.brand.dart';
+import 'package:leadway/src/presentation/widgets/leadway_peyapay_logo.widget.dart';
 import 'package:leadway/src/presentation/widgets/leadway_toast.widget.dart';
+import 'package:leadway/src/shared/utils/leadway_peyapay_payment.util.dart';
 
-/// Paiement Assurance Vie — Orange / Wave / Peya Pay + vérification check-paiement.
 class LeadwayLifePaymentScreen extends StatefulWidget {
   const LeadwayLifePaymentScreen({
     super.key,
@@ -20,6 +22,7 @@ class LeadwayLifePaymentScreen extends StatefulWidget {
     required this.telephone,
     this.policyNumber,
     this.premiumLabel,
+    this.premiumAmount,
   });
 
   final String subscriptionRef;
@@ -27,6 +30,7 @@ class LeadwayLifePaymentScreen extends StatefulWidget {
   final String telephone;
   final String? policyNumber;
   final String? premiumLabel;
+  final int? premiumAmount;
 
   @override
   State<LeadwayLifePaymentScreen> createState() => _LeadwayLifePaymentScreenState();
@@ -94,7 +98,19 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
   }
 
   Future<void> _pay() async {
-    if (!_isPeyaPay && _phoneCtrl.text.trim().isEmpty) {
+    String payerPhone = _phoneCtrl.text.trim();
+
+    if (_isPeyaPay) {
+      setState(() => _loading = true);
+      final sessionPhone = await LeadwayPeyapayPaymentUtil.ensureLoggedInPhone(context);
+      if (!mounted) return;
+      if (sessionPhone == null) {
+        setState(() => _loading = false);
+        return;
+      }
+      payerPhone = sessionPhone;
+      _phoneCtrl.text = sessionPhone;
+    } else if (payerPhone.isEmpty) {
       LeadwayToast.show(
         context,
         message: 'Veuillez saisir le numéro de téléphone du payeur.',
@@ -123,9 +139,31 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
     });
 
     try {
+      if (_isPeyaPay) {
+        final amount = widget.premiumAmount ?? 0;
+        if (amount > 0) {
+          final walletOk = await LeadwayPeyapayPaymentUtil.collectWalletPayment(
+            context,
+            amount: amount,
+            label: widget.productLabel,
+            reference: widget.subscriptionRef,
+          );
+          if (!mounted) return;
+          if (!walletOk) {
+            setState(() => _loading = false);
+            LeadwayToast.show(
+              context,
+              message: 'Paiement Peya Pay annulé.',
+              type: LeadwayToastType.info,
+            );
+            return;
+          }
+        }
+      }
+
       final request = LeadwayLifePaymentRequest(
         method: _apiMethod,
-        payerPhone: _isPeyaPay ? '' : _phoneCtrl.text.trim(),
+        payerPhone: payerPhone,
         returnUrl: 'monpeya://leadway/life/payment',
         otp: _isOrange ? _otpCtrl.text.trim() : '',
       );
@@ -254,12 +292,34 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
     }
   }
 
+  Future<void> _selectPaymentMethod(String code) async {
+    String? sessionPhone;
+    if (code == LeadwayPaymentOperator.peyapay) {
+      final phone = await LeadwayHostBridge.sessionPhone();
+      if (phone != null && phone.trim().isNotEmpty) {
+        sessionPhone = LeadwayPeyapayPaymentUtil.formatPhoneForLeadway(phone);
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _method = code;
+      _otpCtrl.clear();
+      _initResult = null;
+      _checkResult = null;
+      if (sessionPhone != null) {
+        _phoneCtrl.text = sessionPhone;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final showForm = !_paid && !_polling && !_loading;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+    return LeadwayTheme(
+      child: Scaffold(
+      backgroundColor: LeadwayBrand.of(context).bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -288,7 +348,7 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
                             code: LeadwayPaymentOperator.peyapay,
                             title: 'Peya Pay',
                             subtitle: 'Paiement via votre Wallet Peya Pay',
-                            icon: Icons.account_balance_wallet_outlined,
+                            iconWidget: const LeadwayPeyapayLogo(size: 36),
                           ),
                           const SizedBox(height: 8),
                         ],
@@ -306,7 +366,7 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
                           const SizedBox(height: 6),
                           Text(
                             'Composez #144*82# pour obtenir votre code OTP.',
-                            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                            style: TextStyle(fontSize: 11, color: LeadwayBrand.of(context).muted),
                           ),
                         ],
                         const SizedBox(height: 8),
@@ -365,10 +425,10 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: _cancelPayment,
-                        icon: Icon(Icons.close, size: 18, color: Colors.grey[700]),
+                        icon: Icon(Icons.close, size: 18, color: LeadwayBrand.of(context).muted),
                         label: Text(
                           'Annuler le paiement',
-                          style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600),
+                          style: TextStyle(color: LeadwayBrand.of(context).muted, fontWeight: FontWeight.w600),
                         ),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -383,10 +443,12 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
   Widget _header() {
+    final brand = LeadwayBrand.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
       child: Row(
@@ -401,17 +463,17 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
             },
             icon: const Icon(Icons.chevron_left),
           ),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Paiement Assurance Vie',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: LeadwayBrand.textDark),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: brand.text),
                 ),
                 Text(
                   'Leadway Assurance',
-                  style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 11, color: brand.muted, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -422,13 +484,14 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
   }
 
   Widget _card({required String title, required List<Widget> children}) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -442,13 +505,14 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
   }
 
   Widget _row(String label, String value) {
+    final brand = LeadwayBrand.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 100, child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600]))),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700))),
+          SizedBox(width: 100, child: Text(label, style: TextStyle(fontSize: 12, color: brand.muted))),
+          Expanded(child: Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: brand.text))),
         ],
       ),
     );
@@ -458,43 +522,42 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
     required String code,
     required String title,
     required String subtitle,
-    required IconData icon,
+    IconData? icon,
+    Widget? iconWidget,
   }) {
+    final brand = LeadwayBrand.of(context);
     final selected = _method == code;
+    final leading = iconWidget ??
+        Icon(icon ?? Icons.payment, color: selected ? brand.primary : brand.muted);
     return InkWell(
-      onTap: () => setState(() {
-        _method = code;
-        _otpCtrl.clear();
-        _initResult = null;
-        _checkResult = null;
-      }),
+      onTap: () => _selectPaymentMethod(code),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? LeadwayBrand.primary : const Color(0xFFE0E0E0),
+            color: selected ? brand.primary : brand.border,
             width: selected ? 1.5 : 1,
           ),
-          color: selected ? LeadwayBrand.primary.withValues(alpha: 0.06) : Colors.white,
+          color: selected ? brand.primary.withValues(alpha: 0.06) : brand.card,
         ),
         child: Row(
           children: [
-            Icon(icon, color: selected ? LeadwayBrand.primary : Colors.grey),
+            leading,
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.w700, color: selected ? LeadwayBrand.primary : LeadwayBrand.textDark)),
-                  Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                  Text(title, style: TextStyle(fontWeight: FontWeight.w700, color: selected ? brand.primary : brand.text)),
+                  Text(subtitle, style: TextStyle(fontSize: 11, color: brand.muted)),
                 ],
               ),
             ),
             Icon(
               selected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: selected ? LeadwayBrand.primary : Colors.grey,
+              color: selected ? brand.primary : brand.muted,
             ),
           ],
         ),
@@ -503,10 +566,11 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
   }
 
   Widget _field(String label, TextEditingController ctrl, String hint, TextInputType keyboard) {
+    final brand = LeadwayBrand.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF555555))),
+        Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: brand.muted)),
         const SizedBox(height: 6),
         TextField(
           controller: ctrl,
@@ -514,16 +578,16 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: brand.card,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+              borderSide: BorderSide(color: brand.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: LeadwayBrand.primary, width: 1.5),
+              borderSide: BorderSide(color: brand.primary, width: 1.5),
             ),
           ),
         ),
@@ -532,15 +596,16 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
   }
 
   Widget _pollingCard() {
+    final brand = LeadwayBrand.of(context);
     final status = _checkResult?.data.status ?? _initResult?.data.paymentStatus ?? 'PENDING';
     final redirect = _initResult?.data.redirectUrl ?? '';
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         children: [
@@ -553,9 +618,9 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Vérification du paiement…',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: LeadwayBrand.textDark),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: brand.text),
           ),
           const SizedBox(height: 8),
           Text(
@@ -563,7 +628,7 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
                 ? 'Validez le paiement Wave puis revenez ici. Statut : $status'
                 : 'Confirmez la transaction sur votre téléphone. Statut : $status',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 13, color: brand.muted),
           ),
           if (_transactionId != null) ...[
             const SizedBox(height: 12),
@@ -615,22 +680,23 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
   }
 
   Widget _initCard(LeadwayLifePaymentResult result) {
+    final brand = LeadwayBrand.of(context);
     final d = result.data;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.pending, color: LeadwayBrand.primary),
-              SizedBox(width: 8),
-              Text('Paiement initié', style: TextStyle(fontWeight: FontWeight.w800, color: LeadwayBrand.textDark)),
+              const Icon(Icons.pending, color: LeadwayBrand.primary),
+              const SizedBox(width: 8),
+              Text('Paiement initié', style: TextStyle(fontWeight: FontWeight.w800, color: brand.text)),
             ],
           ),
           const SizedBox(height: 12),

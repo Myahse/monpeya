@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Design tokens passed from Flutter into embedded web modules.
 class ModuleShellTheme {
   const ModuleShellTheme({
     required this.primary,

@@ -1,20 +1,37 @@
 import 'package:peyapay/peyapay.dart';
 
+import 'package:app/src/core/auth/module.auth.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 
-/// Display helpers for PeyaPay client profile (name from `/wClients/etatclient`).
+/// Shared display helpers for the signed-in PeyaPay profile.
+///
+/// When there is no active session, UI should show [guestLabel] ("Utilisateur").
 abstract final class PeyapayProfileDisplay {
+  static const guestLabel = 'Utilisateur';
+
   static String? clientName() {
     final nom = PeyapayHostBridge.api?.clientState?.nomClient?.trim();
     if (nom == null || nom.isEmpty) return null;
     return nom;
   }
 
-  static String resolveHomeTitle({String fallback = 'Mon Peya'}) {
-    return clientName() ?? fallback;
+  /// Home / shell title: real name when logged in, otherwise [guestLabel].
+  static Future<String> resolveHomeTitle({String fallback = guestLabel}) async {
+    if (!await ModuleAuth.hasActiveSessionOrToken()) return fallback;
+
+    final nom = clientName();
+    if (nom != null) return nom;
+
+    final phone = await AuthStore.getPhone();
+    if (phone != null && phone.trim().isNotEmpty) {
+      return formatPhone(phone);
+    }
+    return fallback;
   }
 
-  static Future<String> resolveTitle({String guestLabel = 'Mon Peya'}) async {
+  static Future<String> resolveTitle({String guestLabel = guestLabel}) async {
+    if (!await ModuleAuth.hasActiveSessionOrToken()) return guestLabel;
+
     final nom = clientName();
     if (nom != null) return nom;
 
@@ -37,7 +54,9 @@ abstract final class PeyapayProfileDisplay {
 
   static String initials(String? name) {
     if (name == null || name.trim().isEmpty) return '?';
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (name.trim() == guestLabel) return 'UT';
+    final parts =
+        name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return '?';
     final first = parts.first;
     final last = parts.length > 1 ? parts.last : '';

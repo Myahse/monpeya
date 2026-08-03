@@ -3,8 +3,10 @@ import 'package:immo/src/shared/services/immo_api.client.dart';
 import 'package:immo/src/shared/services/immo_country.service.dart';
 import 'package:immo/src/shared/services/immo_upload.service.dart';
 import 'package:immo/src/features/rental/config/rental_api.endpoints.dart';
+import 'package:immo/src/features/rental/data/rental_mock_properties.dart';
 import 'package:immo/src/features/rental/models/create_listing.draft.dart';
 import 'package:immo/src/features/rental/models/rental.property.dart';
+import 'package:immo/src/features/rental/services/rental_data.cache.dart';
 
 /// Properties API — port from rental-app `propertyService.ts`.
 class RentalPropertyService {
@@ -16,6 +18,7 @@ class RentalPropertyService {
   final ImmoApiClient _client;
   final ImmoUploadService _upload;
   final ImmoCountryService _countries;
+  final RentalDataCache _cache = RentalDataCache.instance;
 
   Future<List<RentalProperty>> fetchProperties({
     String? search,
@@ -35,26 +38,119 @@ class RentalPropertyService {
     );
 
     final items = _extractItems(response);
-    return items
+    final mapped = items
         .map((e) => RentalProperty.fromBackend(e, apiBaseUrl: _client.baseUrl))
         .where((p) => p.id.isNotEmpty)
         .toList();
+    for (final p in mapped) {
+      _cache.putProperty(p);
+    }
+    return mapped;
   }
 
   /// Published listings open for rent (seeker browse).
+  /// Prefers `GET /api/biens/available` from the Immo backend.
   Future<List<RentalProperty>> fetchAvailableProperties({
     String? search,
     String? city,
+    bool forceRefresh = false,
   }) async {
+    final hasFilter =
+        (search != null && search.isNotEmpty) || (city != null && city.isNotEmpty);
+
+    if (!hasFilter && !forceRefresh) {
+      final cached = _cache.availableIfFresh;
+      if (cached != null) return cached;
+    }
+
+    if (!hasFilter) {
+      final response = await _client.getJson(RentalApiEndpoints.availableProperties);
+      if (response.success) {
+        final items = _extractItems(response);
+        if (items.isNotEmpty || response.data != null) {
+          final mapped = items
+              .map((e) => RentalProperty.fromBackend(e, apiBaseUrl: _client.baseUrl))
+              .where((p) => p.id.isNotEmpty)
+              .toList(growable: false);
+          if (mapped.isNotEmpty) {
+            final enriched = RentalMockProperties.enrichMissingImages(mapped);
+            _cache.putAvailable(enriched);
+            return enriched;
+          }
+        }
+      }
+    }
+
     final all = await fetchProperties(search: search, city: city);
-    return all.where((p) => p.isAvailableForRent).toList(growable: false);
+    final available = all.where((p) => p.isAvailableForRent).toList(growable: false);
+    if (available.isNotEmpty) {
+      final enriched = RentalMockProperties.enrichMissingImages(available);
+      if (!hasFilter) _cache.putAvailable(enriched);
+      return enriched;
+    }
+
+    return RentalMockProperties.samples;
   }
 
   /// Properties owned by the connected landlord.
   Future<List<RentalProperty>> fetchMyProperties({String? ownerUserId}) =>
       fetchProperties(ownerUserId: ownerUserId);
 
-  Future<RentalProperty?> fetchPropertyById(String id) async {
+  Future<RentalProperty?> fetchPropertyById(
+    String id, {
+    bool forceRefresh = false,
+  }) async {
+    final trimmed = id.trim();
+    if (trimmed.isEmpty) return null;
+
+    final mock = RentalMockProperties.byId(trimmed);
+    if (mock != null) return mock;
+
+    if (!forceRefresh) {
+      final fresh = _cache.propertyById(trimmed, requireFresh: true);
+      if (fresh != null) return fresh;
+    }
+
+    final fromCriteria = await _fetchPropertyByCriteria(trimmed);
+    if (fromCriteria != null) {
+      final enriched =
+          RentalMockProperties.enrichMissingImages([fromCriteria]).first;
+      _cache.putProperty(enriched);
+      return enriched;
+    }
+
+    final fromPublic = await _fetchPropertyFromPublicEndpoint(trimmed);
+    if (fromPublic == null) {
+      return _cache.propertyById(trimmed);
+    }
+    final enriched =
+        RentalMockProperties.enrichMissingImages([fromPublic]).first;
+    _cache.putProperty(enriched);
+    return enriched;
+  }
+
+  Future<RentalProperty?> _fetchPropertyByCriteria(String id) async {
+    for (final key in ['biensId', 'id']) {
+      final response = await _client.postJson(
+        RentalApiEndpoints.listProperties,
+        body: {
+          'data': {key: id},
+        },
+      );
+      if (!response.success || response.data == null) continue;
+
+      final items = _extractItems(response);
+      if (items.isEmpty) continue;
+
+      return RentalProperty.fromBackend(
+        items.first,
+        apiBaseUrl: _client.baseUrl,
+      );
+    }
+    return null;
+  }
+
+  Future<RentalProperty?> _fetchPropertyFromPublicEndpoint(String id) async {
     final response = await _client.getJson('${RentalApiEndpoints.publicProperty}/$id');
     if (!response.success || response.data == null) return null;
 
@@ -104,6 +200,9 @@ class RentalPropertyService {
       final msg = (data['status'] as Map?)?['message'] as String?;
       throw Exception(msg ?? 'Erreur backend');
     }
+
+    // WS will push the new bien; invalidate so next browse hits network if needed.
+    _cache.invalidateAvailable();
   }
 
   List<Map<String, dynamic>> _extractItems(ImmoApiResponse<Map<String, dynamic>> response) {

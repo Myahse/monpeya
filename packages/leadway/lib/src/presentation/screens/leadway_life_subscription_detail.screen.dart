@@ -98,8 +98,9 @@ class _LeadwayLifeSubscriptionDetailScreenState extends State<LeadwayLifeSubscri
     final preview = widget.preview;
     final d = _detail;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+    return LeadwayTheme(
+      child: Scaffold(
+      backgroundColor: LeadwayBrand.of(context).bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -108,12 +109,26 @@ class _LeadwayLifeSubscriptionDetailScreenState extends State<LeadwayLifeSubscri
               child: Row(
                 children: [
                   IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.chevron_left)),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Détail souscription', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: LeadwayBrand.textDark)),
-                        Text('Leadway Assurance Vie', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+                        Text(
+                          'Détail souscription',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: LeadwayBrand.of(context).text,
+                          ),
+                        ),
+                        Text(
+                          'Leadway Assurance Vie',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: LeadwayBrand.of(context).muted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -174,7 +189,7 @@ class _LeadwayLifeSubscriptionDetailScreenState extends State<LeadwayLifeSubscri
                                     padding: const EdgeInsets.only(top: 4, bottom: 8),
                                     child: Text(
                                       _issue!.data.message,
-                                      style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.4),
+                                      style: TextStyle(fontSize: 13, color: LeadwayBrand.of(context).muted, height: 1.4),
                                     ),
                                   ),
                                 Container(
@@ -229,6 +244,7 @@ class _LeadwayLifeSubscriptionDetailScreenState extends State<LeadwayLifeSubscri
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -237,13 +253,14 @@ class _LeadwayLifeSubscriptionDetailScreenState extends State<LeadwayLifeSubscri
   }
 
   Widget _card({required String title, required List<Widget> children}) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,13 +274,14 @@ class _LeadwayLifeSubscriptionDetailScreenState extends State<LeadwayLifeSubscri
   }
 
   Widget _row(String label, String value) {
+    final brand = LeadwayBrand.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 110, child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600]))),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700))),
+          SizedBox(width: 110, child: Text(label, style: TextStyle(fontSize: 12, color: brand.muted))),
+          Expanded(child: Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: brand.text))),
         ],
       ),
     );

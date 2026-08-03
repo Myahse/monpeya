@@ -81,16 +81,63 @@ class ImmoApiClient {
     }
   }
 
+  /// POST that treats HTTP 2xx as success even when the body is plain text
+  /// (e.g. `/api/favoris/{user}/{bien}` → `"Favorite added successfully"`).
+  Future<ImmoApiResponse<void>> postOk(
+    String path, {
+    Object? body,
+    Duration? timeout,
+  }) async {
+    try {
+      final response = await _http
+          .post(
+            resolve(path),
+            headers: _headers(),
+            body: body == null ? null : jsonEncode(body),
+          )
+          .timeout(timeout ?? const Duration(milliseconds: ImmoApiConfig.timeoutMs));
+      return _parseOk(response);
+    } catch (e) {
+      return ImmoApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  Future<ImmoApiResponse<Map<String, dynamic>>> deleteJson(String path) async {
+    try {
+      final response = await _http
+          .delete(resolve(path), headers: _headers())
+          .timeout(const Duration(milliseconds: ImmoApiConfig.timeoutMs));
+
+      return _parseResponse(response);
+    } catch (e) {
+      return ImmoApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  /// DELETE that treats HTTP 2xx as success even when the body is plain text.
+  Future<ImmoApiResponse<void>> deleteOk(String path) async {
+    try {
+      final response = await _http
+          .delete(resolve(path), headers: _headers())
+          .timeout(const Duration(milliseconds: ImmoApiConfig.timeoutMs));
+      return _parseOk(response);
+    } catch (e) {
+      return ImmoApiResponse(success: false, error: e.toString());
+    }
+  }
+
   ImmoApiResponse<dynamic> _parseBody(http.Response response) {
     dynamic data;
     if (response.body.isNotEmpty) {
-      data = jsonDecode(response.body);
+      data = _tryDecode(response.body) ?? response.body;
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final message = data is Map
           ? (data['message'] as String? ?? data['error'] as String? ?? 'HTTP ${response.statusCode}')
-          : 'HTTP ${response.statusCode}';
+          : (data is String && data.isNotEmpty
+              ? data
+              : 'HTTP ${response.statusCode}');
       return ImmoApiResponse(success: false, error: message, data: data);
     }
 
@@ -99,23 +146,46 @@ class ImmoApiClient {
 
   ImmoApiResponse<Map<String, dynamic>> _parseResponse(http.Response response) {
     Map<String, dynamic>? data;
-    if (response.body.isNotEmpty) {
-      final decoded = jsonDecode(response.body);
-      if (decoded is Map<String, dynamic>) {
-        data = decoded;
-      } else if (decoded is Map) {
-        data = Map<String, dynamic>.from(decoded);
-      }
+    final decoded = response.body.isNotEmpty ? _tryDecode(response.body) : null;
+    if (decoded is Map<String, dynamic>) {
+      data = decoded;
+    } else if (decoded is Map) {
+      data = Map<String, dynamic>.from(decoded);
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final message = data?['message'] as String? ??
           data?['error'] as String? ??
-          'HTTP ${response.statusCode}';
+          (decoded is String && decoded.isNotEmpty
+              ? decoded
+              : 'HTTP ${response.statusCode}');
       return ImmoApiResponse(success: false, error: message, data: data);
     }
 
     return ImmoApiResponse(success: true, data: data);
+  }
+
+  ImmoApiResponse<void> _parseOk(http.Response response) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return const ImmoApiResponse(success: true);
+    }
+    final decoded = response.body.isNotEmpty ? _tryDecode(response.body) : null;
+    final message = decoded is Map
+        ? (decoded['message'] as String? ??
+            decoded['error'] as String? ??
+            'HTTP ${response.statusCode}')
+        : (response.body.isNotEmpty
+            ? response.body
+            : 'HTTP ${response.statusCode}');
+    return ImmoApiResponse(success: false, error: message);
+  }
+
+  dynamic _tryDecode(String body) {
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      return null;
+    }
   }
 
   dynamic decodeJson(String body) {

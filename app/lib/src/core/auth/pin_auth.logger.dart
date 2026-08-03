@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-/// Debug-only tracing for PIN login / storage — never logs the PIN itself.
 abstract final class PinAuthLogger {
   static const _tag = '[PinAuth]';
 

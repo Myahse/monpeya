@@ -1,3 +1,5 @@
+import 'package:billetterie/src/features/event/models/event_ticket_layout.dart';
+
 class TicketCategory {
   const TicketCategory({
     required this.id,
@@ -45,6 +47,11 @@ class BilletterieEvent {
     this.status,
     this.startAtIso,
     this.endAtIso,
+    this.latitude,
+    this.longitude,
+    this.tip,
+    this.galleryImageUrls,
+    this.ticketLayout = EventTicketLayout.horizontal,
   });
 
   /// Public event code from ticketing API (`eventCode`).
@@ -67,6 +74,41 @@ class BilletterieEvent {
   final String? status;
   final String? startAtIso;
   final String? endAtIso;
+  final double? latitude;
+  final double? longitude;
+  final String? tip;
+  final List<String>? galleryImageUrls;
+  final EventTicketLayout ticketLayout;
+
+  /// Unit ticket price in FCFA (from API `ticketPrice` / first category).
+  int get ticketPrice {
+    if (ticketCategories.isEmpty) return 0;
+    return ticketCategories.first.price;
+  }
+
+  /// Estimated revenue from sold tickets for this event.
+  int get revenueEarned => (ticketsSold ?? 0) * ticketPrice;
+
+  /// True when the event is not yet sold publicly.
+  bool get isDraft {
+    final s = (status ?? '').trim().toUpperCase();
+    return s.isEmpty ||
+        s == 'DRAFT' ||
+        s == 'BROUILLON' ||
+        s == 'CREATED' ||
+        s == 'PENDING';
+  }
+
+  String get statusLabelFr {
+    final s = (status ?? '').trim().toUpperCase();
+    if (isDraft) return 'Brouillon';
+    return switch (s) {
+      'PUBLISHED' || 'PUBLIE' || 'PUBLIÉ' || 'OPEN' || 'OUVERT' => 'Publié',
+      'CLOSED' || 'FERME' || 'FERMÉ' => 'Fermé',
+      'CANCELLED' || 'CANCELED' || 'ANNULE' || 'ANNULÉ' => 'Annulé',
+      _ => status?.trim().isNotEmpty == true ? status!.trim() : 'Brouillon',
+    };
+  }
 
   factory BilletterieEvent.fromTicketingJson(Map<String, dynamic> json) {
     final eventCode = json['eventCode']?.toString() ?? '';
@@ -80,6 +122,11 @@ class BilletterieEvent {
     final address = json['address']?.toString() ?? '';
     final city = json['city']?.toString() ?? '';
     final remaining = (maxTickets - sold).clamp(0, maxTickets);
+    final apiDescription = json['description']?.toString();
+    final coverImage = json['coverImageUrl']?.toString();
+    final gallery = json['galleryImageUrls'];
+    final lat = _asDouble(json['latitude']);
+    final lng = _asDouble(json['longitude']);
 
     return BilletterieEvent(
       id: eventCode,
@@ -89,13 +136,15 @@ class BilletterieEvent {
       venue: venueName.isNotEmpty ? venueName : address,
       date: _formatEventDate(startAt),
       time: _formatEventTime(startAt, endAt),
-      description: _buildDescription(
-        category: category,
-        venueName: venueName,
-        address: address,
-        city: city,
-        creatorName: json['creatorName']?.toString(),
-      ),
+      description: (apiDescription != null && apiDescription.isNotEmpty)
+          ? apiDescription
+          : _buildDescription(
+              category: category,
+              venueName: venueName,
+              address: address,
+              city: city,
+              creatorName: json['creatorName']?.toString(),
+            ),
       tags: [category],
       ticketCategories: price > 0
           ? [
@@ -103,16 +152,28 @@ class BilletterieEvent {
                 id: 'standard',
                 label: 'Standard',
                 price: price,
-                remaining: remaining,
+                remaining: _asInt(json['ticketsRemaining']) > 0
+                    ? _asInt(json['ticketsRemaining'])
+                    : remaining,
               ),
             ]
           : const [],
+      flyerImage: coverImage,
       ticketsSold: sold,
       expectedAttendees: maxTickets > 0 ? maxTickets : null,
       conversionRate: maxTickets > 0 ? ((sold * 100) / maxTickets).round() : null,
       status: json['status']?.toString(),
       startAtIso: startAt,
       endAtIso: endAt,
+      latitude: lat,
+      longitude: lng,
+      tip: json['tip']?.toString(),
+      galleryImageUrls: gallery is List
+          ? gallery.map((e) => e.toString()).toList(growable: false)
+          : null,
+      ticketLayout: EventTicketLayout.fromApi(
+        json['ticketLayout']?.toString() ?? json['ticketFormat']?.toString(),
+      ),
     );
   }
 
@@ -169,6 +230,13 @@ class BilletterieEvent {
 int _asInt(Object? value) {
   if (value is int) return value;
   return int.tryParse('$value') ?? 0;
+}
+
+double? _asDouble(Object? value) {
+  if (value == null) return null;
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  return double.tryParse('$value');
 }
 
 String formatBilletterieCurrency(int amount) {

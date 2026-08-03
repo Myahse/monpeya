@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:image/image.dart' as img;
 
-/// Generates Android `mipmap-night-*` launcher icons from the dark theme asset.
 void main() {
   const sourcePath = 'assets/logo/app-icons/mon peya-dark.png';
   const sizes = <String, int>{

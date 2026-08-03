@@ -12,6 +12,7 @@ import 'package:billetterie/src/features/transport/services/billetterie_notifica
 import 'package:billetterie/src/features/transport/services/transport_profile.store.dart';
 import 'package:billetterie/src/shared/widgets/billetterie_bottom_nav.widget.dart';
 import 'package:billetterie/src/shared/widgets/billetterie_skeleton.widget.dart';
+import 'package:billetterie/src/shared/widgets/ticket_purchase_result.dialog.dart';
 
 /// Profile tab — user info + settings groups; subscribe / conductor only here.
 class TransportProfileScreen extends StatefulWidget {
@@ -29,34 +30,63 @@ class _TransportProfileScreenState extends State<TransportProfileScreen> {
   BilletterieClientIdentity? _identity;
   bool _loading = true;
   int _unreadNotifications = 0;
+  String _displayName = BilletterieHostBridge.guestDisplayName;
+  bool _merchantOnly = false;
+
+  bool get _isGuest => _identity == null;
 
   @override
   void initState() {
     super.initState();
+    BilletterieHostBridge.sessionChanges?.addListener(_onHostSessionChanged);
     _reload();
   }
 
+  @override
+  void dispose() {
+    BilletterieHostBridge.sessionChanges?.removeListener(_onHostSessionChanged);
+    super.dispose();
+  }
+
+  void _onHostSessionChanged() => _reload();
+
+  Future<void> _connect() async {
+    final ok = await BilletterieHostBridge.promptLogin(context);
+    if (!mounted) return;
+    if (ok) await _reload();
+  }
+
   Future<void> _reload() async {
-    setState(() => _loading = true);
+    final firstLoad = _loading;
+    if (firstLoad) {
+      setState(() => _loading = true);
+    }
     try {
       final state = await _store.load();
       final unread = await _notifications.unreadCount();
-      BilletterieClientIdentity? identity;
-      try {
-        identity = await BilletterieHostBridge.requireClient();
-      } catch (_) {
-        identity = null;
-      }
+      final identity = await BilletterieHostBridge.resolveClientOrNull();
+      final merchantOnly = await BilletterieHostBridge.isMerchantOnly();
       if (!mounted) return;
+      final guest = BilletterieHostBridge.guestDisplayName;
       setState(() {
         _state = state;
         _identity = identity;
+        _merchantOnly = merchantOnly;
+        _displayName = identity == null
+            ? guest
+            : (identity.resolvedDisplayName.trim().isEmpty
+                ? guest
+                : identity.resolvedDisplayName.trim());
         _unreadNotifications = unread;
         _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _identity = null;
+        _displayName = BilletterieHostBridge.guestDisplayName;
+        _loading = false;
+      });
     }
   }
 
@@ -73,11 +103,11 @@ class _TransportProfileScreenState extends State<TransportProfileScreen> {
   }
 
   void _soon(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label — bientôt disponible'),
-        behavior: SnackBarBehavior.floating,
-      ),
+    showBilletterieResultDialog(
+      context,
+      title: 'Bientôt disponible',
+      message: '$label sera disponible prochainement.',
+      kind: BilletterieResultKind.info,
     );
   }
 
@@ -94,11 +124,11 @@ class _TransportProfileScreenState extends State<TransportProfileScreen> {
 
   Future<void> _subscribeAsClient() async {
     if (_state.canUseAsClient) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Abonnement client déjà actif'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      await showBilletterieResultDialog(
+        context,
+        title: 'Déjà abonné',
+        message: 'Votre abonnement client est déjà actif.',
+        kind: BilletterieResultKind.info,
       );
       return;
     }
@@ -108,11 +138,11 @@ class _TransportProfileScreenState extends State<TransportProfileScreen> {
     final active = await _store.activateClient();
     if (!mounted) return;
     setState(() => _state = active);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Abonnement client activé'),
-        behavior: SnackBarBehavior.floating,
-      ),
+    await showBilletterieResultDialog(
+      context,
+      title: 'Abonnement activé',
+      message: 'Votre abonnement client a été activé avec succès.',
+      kind: BilletterieResultKind.success,
     );
   }
 
@@ -143,6 +173,21 @@ class _TransportProfileScreenState extends State<TransportProfileScreen> {
   }
 
   Future<void> _switchRole(TransportProfileRole role) async {
+    if (role == TransportProfileRole.client &&
+        (_merchantOnly || await BilletterieHostBridge.isMerchantOnly())) {
+      if (!mounted) return;
+      await showBilletterieResultDialog(
+        context,
+        title: 'Compte marchand',
+        message:
+            'Ce numéro PeyaPay est un compte marchand sans portefeuille client. '
+            'L’achat de billets côté client n’est pas disponible.',
+        kind: BilletterieResultKind.info,
+        brand: BilletterieBrand.of(context),
+      );
+      return;
+    }
+
     final next = role == TransportProfileRole.conductor
         ? await _store.switchToConductorMode()
         : await _store.switchToClientMode();
@@ -175,62 +220,120 @@ class _TransportProfileScreenState extends State<TransportProfileScreen> {
             color: brand.text,
           ),
         ),
-        const SizedBox(height: 20),
-        _ModeCard(
-          brand: brand,
-          state: _state,
-          onSwitchClient: () => _switchRole(TransportProfileRole.client),
-          onSwitchConductor: _state.canUseAsConductor
-              ? () => _switchRole(TransportProfileRole.conductor)
-              : null,
+        const SizedBox(height: 12),
+        Text(
+          _displayName,
+          textAlign: TextAlign.center,
+          style: textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: brand.text,
+          ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 4),
+        Text(
+          _isGuest
+              ? 'Mode invité — parcourez le catalogue librement'
+              : 'Compte connecté',
+          textAlign: TextAlign.center,
+          style: textTheme.bodySmall?.copyWith(color: brand.muted),
+        ),
+        if (_isGuest) ...[
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: _connect,
+            icon: const Icon(Icons.login_rounded),
+            label: const Text('Connexion'),
+            style: FilledButton.styleFrom(
+              backgroundColor: brand.primaryDark,
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 20),
+        if (!_isGuest) ...[
+          if (_merchantOnly)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: brand.primarySoft,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: brand.border),
+              ),
+              child: Text(
+                'Compte marchand PeyaPay — espace conducteur uniquement. '
+                'L’achat de billets côté client n’est pas disponible pour ce numéro.',
+                style: TextStyle(
+                  color: brand.text,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+            )
+          else
+            _ModeCard(
+              brand: brand,
+              state: _state,
+              onSwitchClient: () => _switchRole(TransportProfileRole.client),
+              onSwitchConductor: _state.canUseAsConductor
+                  ? () => _switchRole(TransportProfileRole.conductor)
+                  : null,
+            ),
+          const SizedBox(height: 16),
+        ],
         _SettingsGroup(
           brand: brand,
           items: [
             _SettingsItem(
               icon: Icons.badge_outlined,
               label: 'Informations personnelles',
-              onTap: _openPersonalInfo,
+              onTap: _isGuest ? _connect : _openPersonalInfo,
             ),
             _SettingsItem(
               icon: Icons.folder_outlined,
               label: 'Documents',
               trailing: _state.hasAnyDocument ? 'OK' : null,
-              onTap: _openDocuments,
+              onTap: _isGuest ? _connect : _openDocuments,
             ),
           ],
         ),
-        const SizedBox(height: 14),
-        _SettingsGroup(
-          brand: brand,
-          items: [
-            _SettingsItem(
-              icon: Icons.confirmation_number_outlined,
-              label: 'Abonnement billets',
-              trailing: _state.canUseAsClient ? 'Actif' : null,
-              onTap: _subscribeAsClient,
-            ),
-            _SettingsItem(
-              icon: Icons.directions_bus_outlined,
-              label: 'Devenir conducteur',
-              trailing: _state.canUseAsConductor
-                  ? 'Actif'
-                  : (_state.hasConductorRequestPending ||
-                          _state.hasPartnerRequestPending
-                      ? 'En cours'
-                      : null),
-              onTap: _openBecomeConductor,
-            ),
-            if (_state.peyapayMerchant)
+        if (!_isGuest) ...[
+          const SizedBox(height: 14),
+          _SettingsGroup(
+            brand: brand,
+            items: [
               _SettingsItem(
-                icon: Icons.storefront_outlined,
-                label: 'Marchand PeyaPay',
-                trailing: 'Détecté',
-                onTap: () => _soon('Marchand PeyaPay'),
+                icon: Icons.confirmation_number_outlined,
+                label: 'Abonnement billets',
+                trailing: _state.canUseAsClient ? 'Actif' : null,
+                onTap: _merchantOnly ? () => _soon('Compte marchand') : _subscribeAsClient,
               ),
-          ],
-        ),
+              _SettingsItem(
+                icon: Icons.directions_bus_outlined,
+                label: 'Devenir conducteur',
+                trailing: _state.canUseAsConductor
+                    ? 'Actif'
+                    : (_state.hasConductorRequestPending ||
+                            _state.hasPartnerRequestPending
+                        ? 'En cours'
+                        : null),
+                onTap: _openBecomeConductor,
+              ),
+              if (_state.peyapayMerchant)
+                _SettingsItem(
+                  icon: Icons.storefront_outlined,
+                  label: 'Marchand PeyaPay',
+                  trailing: 'Détecté',
+                  onTap: () => _soon('Marchand PeyaPay'),
+                ),
+            ],
+          ),
+        ],
         const SizedBox(height: 14),
         _SettingsGroup(
           brand: brand,
@@ -248,8 +351,8 @@ class _TransportProfileScreenState extends State<TransportProfileScreen> {
             ),
             _SettingsItem(
               icon: Icons.lock_outline_rounded,
-              label: 'Connexion & sécurité',
-              onTap: () => _soon('Connexion & sécurité'),
+              label: _isGuest ? 'Connexion' : 'Connexion & sécurité',
+              onTap: _isGuest ? _connect : () => _soon('Connexion & sécurité'),
             ),
             _SettingsItem(
               icon: Icons.translate_rounded,

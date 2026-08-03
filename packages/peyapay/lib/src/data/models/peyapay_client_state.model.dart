@@ -1,3 +1,5 @@
+import 'package:peyapay/src/data/models/peyapay_type_client.model.dart';
+
 /// Enum representing the client state in PeyaPay
 enum PeyapayClientEtat {
   newCustomer('NEW_CUSTOMER'),
@@ -28,6 +30,8 @@ class PeyapayClientState {
     this.gsmPrincipale,
     this.identifiantPush,
     this.idwTypeClient,
+    this.estFournisseur,
+    this.wtypeClient,
     this.imei,
     this.modele,
     this.nomClient,
@@ -45,6 +49,8 @@ class PeyapayClientState {
   final String? gsmPrincipale;
   final String? identifiantPush;
   final int? idwTypeClient;
+  final String? estFournisseur;
+  final PeyapayTypeClient? wtypeClient;
   final String? imei;
   final String? modele;
   final String? nomClient;
@@ -69,6 +75,8 @@ class PeyapayClientState {
       idwTypeClient: json['idwTypeClient'] is int
           ? json['idwTypeClient'] as int
           : int.tryParse('${json['idwTypeClient']}'),
+      estFournisseur: json['estFournisseur']?.toString(),
+      wtypeClient: _readWtypeClient(json),
       imei: json['imei']?.toString(),
       modele: json['modele']?.toString(),
       nomClient: json['nomClient']?.toString(),
@@ -84,4 +92,12 @@ class PeyapayClientState {
         PeyapayClientEtat.codePin => 'PIN à définir',
         null => '—',
       };
+}
+
+PeyapayTypeClient? _readWtypeClient(Map<String, dynamic> json) {
+  final raw = json['wtypeClient'] ?? json['wTypeClient'];
+  if (raw is Map) {
+    return PeyapayTypeClient.fromJson(Map<String, dynamic>.from(raw));
+  }
+  return null;
 }

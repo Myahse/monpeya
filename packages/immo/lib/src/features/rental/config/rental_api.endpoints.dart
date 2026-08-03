@@ -1,5 +1,6 @@
 abstract final class RentalApiEndpoints {
   static const listProperties = '/api/biens/getByCriteria';
+  static const availableProperties = '/api/biens/available';
   static const createProperty = '/api/biens/create';
   static const publicProperty = '/api/biens/public';
   static const listTenants = '/api/locataires/getByCriteria';
@@ -10,6 +11,9 @@ abstract final class RentalApiEndpoints {
   static const sendMessage = '/api/messages';
   static const uploadFile = '/api/upload/file';
   static const listCountries = '/api/codePays/getByCriteria';
+  static const favorites = '/api/favoris';
+  static const createUser = '/api/utilisateurs/create';
+  static const usersByCriteria = '/api/utilisateurs/getByCriteria';
 }
 
 /// Property type UUIDs from rental-app `App.tsx`.

@@ -26,9 +26,6 @@ class ConductorEarningsSummary {
   final String currency;
 }
 
-/// Local catalog of tickets created by the signed-in conductor.
-///
-/// Used as source of truth when generate / my-generated APIs are unavailable.
 class ConductorTicketStore {
   ConductorTicketStore();
 

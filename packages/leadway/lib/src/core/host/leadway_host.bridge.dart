@@ -29,28 +29,26 @@ typedef LeadwayPaymentHandler = Future<bool> Function(
   LeadwayPaymentRequest request,
 );
 
-/// Hooks injectés par Mon Peya (`ServiceMetadataStore` vit dans l'app).
+typedef LeadwayEnsureSession = Future<bool> Function(BuildContext context);
+
+
 typedef LeadwayMetaSetter = Future<void> Function(String key, String value);
 typedef LeadwayMetaGetter = Future<String?> Function(String key);
 
-/// Clés métier Leadway — le stockage JSON est côté app uniquement.
 abstract class LeadwayMetaKeys {
   static const customerId = 'customerId';
   static const subscriptionRef = 'subscriptionRef';
   static const phone = 'phone';
 }
 
-/// Bridge Mon Peya ↔ Leadway.
-///
-/// Les métadonnées ne sont **pas** stockées ici : [setMeta] / [getMeta]
-/// appellent uniquement les handlers enregistrés par l'app
-/// (`ServiceMetadataStore.set/get` avec le service `leadway`).
+
 class LeadwayHostBridge {
   LeadwayHostBridge._();
 
   static LeadwayHostAuth? auth;
   static LeadwayExitHandler? onExitModule;
   static LeadwayPaymentHandler? onPayment;
+  static LeadwayEnsureSession? ensureSession;
 
   /// Branché par l'app sur [ServiceMetadataStore.set].
   static LeadwayMetaSetter? onSetMeta;
@@ -84,6 +82,31 @@ class LeadwayHostBridge {
       throw StateError('LeadwayHostBridge.onPayment not configured by Mon Peya shell.');
     }
     return handler(context, request);
+  }
+
+  /// Opens host login / PIN when a Peya Pay payment needs an active session.
+  static Future<bool> ensureLoggedIn(BuildContext context) async {
+    try {
+      if (await requireAuth.isSessionActive()) return true;
+    } catch (_) {
+      return false;
+    }
+    final handler = ensureSession;
+    if (handler == null) return false;
+    return handler(context);
+  }
+
+  /// Phone from the active Mon Peya session (after [ensureLoggedIn]).
+  static Future<String?> sessionPhone() async {
+    try {
+      if (!await requireAuth.isSessionActive()) return null;
+      final phone = await requireAuth.getPhone();
+      final trimmed = phone?.trim();
+      if (trimmed == null || trimmed.isEmpty) return null;
+      return trimmed;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Appelle la fonction app : `ServiceMetadataStore.set('leadway', key, value)`.

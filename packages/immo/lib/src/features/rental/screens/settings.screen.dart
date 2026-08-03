@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:immo/src/core/constants/immo.brand.dart';
 import 'package:immo/src/core/host/immo_host.bridge.dart';
 import 'package:immo/src/features/rental/auth/scopes/rental_session.scope.dart';
+import 'package:immo/src/features/rental/navigation/rental_bottom.navigation.dart';
 import 'package:immo/src/features/rental/theme/themes/rental.theme.dart';
 import 'package:immo/src/features/rental/screens/personal_information.screen.dart';
 
@@ -26,29 +28,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final session = RentalSessionScope.of(context);
+    final b = RentalTheme.of(context);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
+      value: b.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: ColoredBox(
-        color: Colors.white,
+        color: b.bg,
         child: ListView(
           padding: EdgeInsets.fromLTRB(
             RentalTheme.spacingLg,
             MediaQuery.paddingOf(context).top + RentalTheme.spacingXxl,
             RentalTheme.spacingLg,
-            RentalTheme.scrollBottomPad,
+            RentalBottomNavigation.contentBottomPadding(context),
           ),
           children: [
-            const Text(
+            Text(
               'Compte',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
-                color: RentalTheme.textPrimary,
+                color: b.text,
               ),
             ),
             const SizedBox(height: RentalTheme.spacingLg),
-            _section([
+            _section(b, [
               _SettingsTile(
                 icon: Icons.person_outline,
                 title: 'Informations personnelles',
@@ -56,8 +59,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => PersonalInformationScreen(
-                        phone: null,
-                        immoUserId: session.userId,
+                        displayName: session.displayName,
+                        phone: session.phone,
                       ),
                     ),
                   );
@@ -74,7 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: widget.onNavigateToContracts,
               ),
             ]),
-            _section([
+            _section(b, [
               _SettingsTile(
                 icon: Icons.lock_outline,
                 title: 'Connexion & sécurité',
@@ -86,7 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () {},
               ),
             ]),
-            _section([
+            _section(b, [
               _SettingsTile(
                 icon: Icons.support_agent_outlined,
                 title: 'Assistance client',
@@ -102,15 +105,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Center(
               child: TextButton(
                 onPressed: _showLogoutDialog,
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.logout, size: 18, color: Colors.black87),
-                    SizedBox(width: 8),
+                    Icon(Icons.logout, size: 18, color: b.text),
+                    const SizedBox(width: 8),
                     Text(
                       'Déconnexion',
                       style: TextStyle(
-                        color: Colors.black87,
+                        color: b.text,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -126,7 +129,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Text(
                     'Mr Immo',
                     style: TextStyle(
-                      color: RentalTheme.greenMid,
+                      color: RentalTheme.green,
                       fontWeight: FontWeight.w800,
                       fontSize: 22,
                       letterSpacing: 0.5,
@@ -135,7 +138,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Text(
                     'Location',
                     style: TextStyle(
-                      color: RentalTheme.greenMid.withValues(alpha: 0.8),
+                      color: RentalTheme.green.withValues(alpha: 0.8),
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
@@ -149,11 +152,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _section(List<Widget> children) {
+  Widget _section(ImmoRentalPalette b, List<Widget> children) {
     return Container(
       margin: const EdgeInsets.only(top: RentalTheme.spacingLg),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.black),
+        color: b.card,
+        border: Border.all(color: b.border),
         borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
@@ -161,7 +165,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           for (var i = 0; i < children.length; i++) ...[
             if (i > 0)
-              const Divider(height: 1, thickness: 1, color: Colors.black, indent: RentalTheme.spacingLg),
+              Divider(height: 1, thickness: 1, color: b.border, indent: RentalTheme.spacingLg),
             children[i],
           ],
         ],
@@ -173,59 +177,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(RentalTheme.spacingXl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Déconnexion',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
-              ),
-              const SizedBox(height: RentalTheme.spacingSm),
-              const Text(
-                'Voulez-vous quitter Mr Immo Location ?',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Color(0xFF6B7280), height: 1.4),
-              ),
-              const SizedBox(height: RentalTheme.spacingXl),
-              SizedBox(
-                width: MediaQuery.sizeOf(ctx).width * 0.5,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    gradient: RentalTheme.modalCancelGradient,
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => Navigator.pop(ctx, false),
+      builder: (ctx) {
+        final db = RentalTheme.of(ctx);
+        return Dialog(
+          backgroundColor: db.card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(RentalTheme.spacingXl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Déconnexion',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: db.text),
+                ),
+                const SizedBox(height: RentalTheme.spacingSm),
+                Text(
+                  'Voulez-vous quitter Mr Immo Location ?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: db.muted, height: 1.4),
+                ),
+                const SizedBox(height: RentalTheme.spacingXl),
+                SizedBox(
+                  width: MediaQuery.sizeOf(ctx).width * 0.5,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 10),
-                        child: Text(
-                          'Annuler',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      gradient: RentalTheme.modalCancelGradient,
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => Navigator.pop(ctx, false),
+                        borderRadius: BorderRadius.circular(12),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          child: Text(
+                            'Annuler',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text(
-                  'Quitter',
-                  style: TextStyle(color: Colors.black, fontSize: 12),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(
+                    'Quitter',
+                    style: TextStyle(color: db.text, fontSize: 12),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
     if (confirmed == true && mounted) {
       (widget.onExitModule ?? () => ImmoHostBridge.exitModule(context))();
@@ -246,8 +254,9 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final b = RentalTheme.of(context);
     return Material(
-      color: Colors.white,
+      color: b.card,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -257,22 +266,22 @@ class _SettingsTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: RentalTheme.textPrimary),
+              Icon(icon, size: 20, color: b.text),
               const SizedBox(width: RentalTheme.spacingSm),
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: RentalTheme.textPrimary,
+                    color: b.text,
                   ),
                 ),
               ),
               if (onTap != null)
-                const Text(
+                Text(
                   '›',
-                  style: TextStyle(fontSize: 18, color: Colors.black),
+                  style: TextStyle(fontSize: 18, color: b.muted),
                 ),
             ],
           ),

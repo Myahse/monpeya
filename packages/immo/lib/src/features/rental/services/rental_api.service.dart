@@ -1,4 +1,5 @@
 import 'package:immo/src/shared/services/immo_api.client.dart';
+import 'package:immo/src/features/rental/services/rental_favorites.service.dart';
 import 'package:immo/src/features/rental/services/rental_message.service.dart';
 import 'package:immo/src/features/rental/services/rental_payment.service.dart';
 import 'package:immo/src/features/rental/services/rental_property.service.dart';
@@ -10,7 +11,8 @@ class RentalApiService {
       : properties = RentalPropertyService(client: client),
         tenants = RentalTenantService(client: client),
         payments = RentalPaymentService(client: client),
-        messages = RentalMessageService(client: client);
+        messages = RentalMessageService(client: client),
+        favorites = RentalFavoritesService(client: client);
 
   factory RentalApiService({ImmoApiClient? client}) =>
       RentalApiService._(client ?? ImmoApiClient());
@@ -20,6 +22,7 @@ class RentalApiService {
   final RentalTenantService tenants;
   final RentalPaymentService payments;
   final RentalMessageService messages;
+  final RentalFavoritesService favorites;
 
   static final instance = RentalApiService();
 }

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:app/src/core/system/system_ui.config.dart';
-import 'package:app/src/integration/adapters/billetterie_host.adapter.dart';
+import 'package:app/src/core/system/system_ui.config.dart';import 'package:app/src/integration/adapters/billetterie_host.adapter.dart';
 import 'package:app/src/integration/adapters/immo_host.adapter.dart';
 import 'package:app/src/integration/adapters/leadway_host.adapter.dart';
 import 'package:app/src/integration/adapters/mon_peya_backend.adapter.dart';
@@ -30,8 +29,7 @@ class _MonPeyaSuperAppState extends State<MonPeyaSuperApp> {
   static bool _hostsRegistered = false;
 
   @override
-  Widget build(BuildContext context) {
-    if (!_hostsRegistered) {
+  Widget build(BuildContext context) {    if (!_hostsRegistered) {
       _registerModuleHosts();
       _hostsRegistered = true;
     }

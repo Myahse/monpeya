@@ -2,7 +2,102 @@ import 'package:flutter/material.dart';
 
 import 'package:billetterie/src/core/constants/billetterie.brand.dart';
 
-/// Modal shown after a successful ticket purchase (replaces snackbar).
+enum BilletterieResultKind { success, error, info }
+
+/// Shared result modal for Billetterie (replaces snackbars / debug banners).
+Future<void> showBilletterieResultDialog(
+  BuildContext context, {
+  required String title,
+  required String message,
+  BilletterieResultKind kind = BilletterieResultKind.info,
+  String confirmLabel = 'OK',
+  BilletterieBrand? brand,
+}) {
+  final palette = brand ?? BilletterieBrand.of(context);
+  final (icon, iconColor, iconBg) = switch (kind) {
+    BilletterieResultKind.success => (
+        Icons.check_rounded,
+        const Color(0xFF059669),
+        const Color(0xFF059669).withValues(alpha: 0.12),
+      ),
+    BilletterieResultKind.error => (
+        Icons.error_outline_rounded,
+        palette.danger,
+        palette.danger.withValues(alpha: 0.12),
+      ),
+    BilletterieResultKind.info => (
+        Icons.info_outline_rounded,
+        palette.primaryDark,
+        palette.primarySoft.withValues(alpha: 0.55),
+      ),
+  };
+
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: kind != BilletterieResultKind.success,
+    builder: (context) {
+      return AlertDialog(
+        backgroundColor: palette.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: iconBg,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 36),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: palette.text,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w400,
+                    fontSize: 13,
+                    color: palette.muted,
+                    height: 1.35,
+                  ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.primaryDark,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: Text(confirmLabel),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+/// Modal shown after a successful ticket purchase.
 Future<void> showTicketPurchaseSuccessDialog(
   BuildContext context, {
   String? orderRef,
@@ -39,7 +134,7 @@ Future<void> showTicketPurchaseSuccessDialog(
             ),
             const SizedBox(height: 16),
             Text(
-              'Billet enregistre',
+              'Achat confirmé',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
@@ -49,8 +144,8 @@ Future<void> showTicketPurchaseSuccessDialog(
             const SizedBox(height: 8),
             Text(
               order != null && order.isNotEmpty
-                  ? 'Votre paiement a ete enregistre.\nReference : $order'
-                  : 'Votre paiement a ete enregistre dans ticketing.',
+                  ? 'Votre billet a été acheté avec succès.\nRéférence : $order'
+                  : 'Votre billet a été acheté avec succès.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w400,
@@ -94,37 +189,15 @@ Future<void> showTicketPurchaseSuccessDialog(
   );
 }
 
-/// Simple error modal (same style family as success).
+/// Simple error modal for purchase failures.
 Future<void> showTicketPurchaseErrorDialog(
   BuildContext context, {
   required String message,
 }) {
-  final brand = BilletterieBrand.of(context);
-  return showDialog<void>(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        backgroundColor: brand.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Echec du paiement',
-          style: TextStyle(color: brand.text, fontWeight: FontWeight.w700),
-        ),
-        content: Text(
-          message,
-          style: TextStyle(
-            color: brand.muted,
-            fontSize: 13,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('OK', style: TextStyle(color: brand.primaryDark)),
-          ),
-        ],
-      );
-    },
+  return showBilletterieResultDialog(
+    context,
+    title: 'Échec du paiement',
+    message: message,
+    kind: BilletterieResultKind.error,
   );
 }

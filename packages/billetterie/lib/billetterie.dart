@@ -1,4 +1,4 @@
-/// Mon Peya Billetterie — transport + event ticketing modules.
+/// Mon Peya Billetterie
 library;
 
 export 'package:billetterie/src/core/constants/billetterie.brand.dart';

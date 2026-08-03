@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:billetterie/src/core/constants/billetterie.brand.dart';
 import 'package:billetterie/src/core/host/billetterie_host.bridge.dart';
 import 'package:billetterie/src/features/transport/models/transport_profile.model.dart';
+import 'package:billetterie/src/shared/widgets/ticket_purchase_result.dialog.dart';
 
 enum _SexAtBirth { male, female }
 
@@ -78,16 +79,21 @@ class _TransportPersonalInfoScreenState
       _loadError = null;
     });
     try {
-      // Always refresh from host / PeyaPay so fields are up to date.
-      final identity = await BilletterieHostBridge.requireClient();
+      final identity = await BilletterieHostBridge.resolveClientOrNull();
       if (!mounted) return;
+      if (identity == null) {
+        setState(() {
+          _loadError = 'Connectez-vous pour charger votre profil client';
+          _loading = false;
+        });
+        return;
+      }
       setState(() {
         _applyIdentity(identity);
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      // Keep any seed identity already applied.
       if (widget.identity == null) {
         setState(() {
           _loadError = 'Impossible de charger le profil client';
@@ -108,11 +114,11 @@ class _TransportPersonalInfoScreenState
   }
 
   void _soon(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label — bientôt disponible'),
-        behavior: SnackBarBehavior.floating,
-      ),
+    showBilletterieResultDialog(
+      context,
+      title: 'Bientôt disponible',
+      message: '$label sera disponible prochainement.',
+      kind: BilletterieResultKind.info,
     );
   }
 

@@ -33,14 +33,29 @@ class MonPeyaAuthUser {
       codeClient: json['codeClient']?.toString(),
       nomClient: json['nomClient']?.toString(),
       displayName: json['displayName']?.toString(),
-      isPeyaClient: json['isPeyaClient'] as bool?,
-      isPeyapayMerchant: json['isPeyapayMerchant'] as bool?,
-      isDeplafonne: json['isDeplafonne'] as bool?,
+      isPeyaClient: _readBool(json['isPeyaClient']),
+      isPeyapayMerchant: _readBool(json['isPeyapayMerchant']),
+      // Backend may expose either Mon Peya or raw Peya field names.
+      isDeplafonne: _readBool(json['isDeplafonne'] ?? json['deplafonner']),
       numerocomptecomplet: json['numerocomptecomplet']?.toString(),
       accountId: json['accountId']?.toString(),
       codePaysResidence: json['codePaysResidence']?.toString(),
     );
   }
+}
+
+bool? _readBool(Object? value) {
+  if (value == null) return null;
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  final s = value.toString().trim().toLowerCase();
+  if (s == 'true' || s == '1' || s == 'o' || s == 'oui' || s == 'yes') {
+    return true;
+  }
+  if (s == 'false' || s == '0' || s == 'n' || s == 'non' || s == 'no') {
+    return false;
+  }
+  return null;
 }
 
 class MonPeyaAuthSession {
@@ -105,7 +120,6 @@ class MonPeyaAccessDecision {
   final String? requiredRole;
   final String? userRole;
 
-  /// Legacy alias used by older clients.
   String? get level => requiredLevel;
 
   factory MonPeyaAccessDecision.fromJson(Map<String, dynamic> json) {
