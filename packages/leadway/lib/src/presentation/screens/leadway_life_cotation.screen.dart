@@ -849,7 +849,6 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
                       telephone: phone.isNotEmpty ? phone : widget.telephone,
                       policyNumber: widget.policyNumber,
                       premiumLabel: premiumLabel,
-                      premiumAmount: p.gross.amountRounded,
                     ),
                   ),
                 );

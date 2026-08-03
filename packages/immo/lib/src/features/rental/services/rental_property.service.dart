@@ -48,8 +48,7 @@ class RentalPropertyService {
     return mapped;
   }
 
-  /// Published listings open for rent (seeker browse).
-  /// Prefers `GET /api/biens/available` from the Immo backend.
+  
   Future<List<RentalProperty>> fetchAvailableProperties({
     String? search,
     String? city,
