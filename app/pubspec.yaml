@@ -34,7 +34,6 @@ dependencies:
     path: ../packages/peyapay
   local_auth: ^2.3.0
   flutter_secure_storage: ^10.0.0
-  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -68,7 +67,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - .env.example
     - assets/images/
     - assets/logo/
     - assets/logo/app-icons/
