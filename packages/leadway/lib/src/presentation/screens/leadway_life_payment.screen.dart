@@ -6,12 +6,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:leadway/src/core/constants/leadway_api.constants.dart';
 import 'package:leadway/src/data/models/leadway_api.exception.dart';
 import 'package:leadway/src/data/models/leadway_life_payment.model.dart';
-import 'package:leadway/src/data/services/leadway_api.service.dart';
 import 'package:leadway/src/data/services/leadway_life_api.service.dart';
 import 'package:leadway/src/presentation/constants/leadway.brand.dart';
 import 'package:leadway/src/presentation/widgets/leadway_toast.widget.dart';
 
-/// Paiement Assurance Vie — Orange / Wave / Peya Pay + vérification check-paiement.
+/// Paiement Assurance Vie — Wave + vérification check-paiement.
 class LeadwayLifePaymentScreen extends StatefulWidget {
   const LeadwayLifePaymentScreen({
     super.key,
@@ -37,7 +36,7 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
   final _phoneCtrl = TextEditingController();
   final _otpCtrl = TextEditingController();
 
-  String _method = LeadwayPaymentOperator.orange;
+  String _method = LeadwayPaymentOperator.wave;
   bool _loading = false;
   bool _polling = false;
   bool _paid = false;
@@ -46,23 +45,18 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
   String? _transactionId;
   LeadwayLifePaymentResult? _initResult;
   LeadwayLifePaymentCheckResult? _checkResult;
+  bool _waveRedirectOpened = false;
 
   static const _maxPollAttempts = 120;
 
-  bool get _isOrange => _method == LeadwayPaymentOperator.orange;
-  bool get _isWave => _method == LeadwayPaymentOperator.wave;
-  bool get _isPeyaPay => _method == LeadwayPaymentOperator.peyapay;
-
-  /// Codes API Vie en majuscules (ex. WAVE, ORANGE).
+  /// Codes API Vie en majuscules (ex. WAVE).
   String get _apiMethod => _method.toUpperCase();
 
   @override
   void initState() {
     super.initState();
     _phoneCtrl.text = widget.telephone;
-    _method = LeadwayApiConfig.enablePeyaPay
-        ? LeadwayPaymentOperator.peyapay
-        : LeadwayPaymentOperator.orange;
+    _method = LeadwayPaymentOperator.wave;
   }
 
   @override
@@ -89,23 +83,16 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
       _checkResult = null;
       _paid = false;
       _otpCtrl.clear();
+      _waveRedirectOpened = false;
     });
     LeadwayToast.show(context, message: 'Paiement annulé. Choisissez un moyen de paiement.', type: LeadwayToastType.info);
   }
 
   Future<void> _pay() async {
-    if (!_isPeyaPay && _phoneCtrl.text.trim().isEmpty) {
+    if (_phoneCtrl.text.trim().isEmpty) {
       LeadwayToast.show(
         context,
         message: 'Veuillez saisir le numéro de téléphone du payeur.',
-        type: LeadwayToastType.error,
-      );
-      return;
-    }
-    if (_isOrange && _otpCtrl.text.trim().isEmpty) {
-      LeadwayToast.show(
-        context,
-        message: 'Le code OTP Orange Money est requis (#144*82#).',
         type: LeadwayToastType.error,
       );
       return;
@@ -120,14 +107,15 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
       _initResult = null;
       _checkResult = null;
       _transactionId = null;
+      _waveRedirectOpened = false;
     });
 
     try {
       final request = LeadwayLifePaymentRequest(
         method: _apiMethod,
-        payerPhone: _isPeyaPay ? '' : _phoneCtrl.text.trim(),
+        payerPhone: _phoneCtrl.text.trim(),
         returnUrl: 'monpeya://leadway/life/payment',
-        otp: _isOrange ? _otpCtrl.text.trim() : '',
+        otp: '',
       );
 
       debugPrint('[Leadway Vie] Paiement — requête: ${request.toJson()}');
@@ -153,14 +141,14 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
         _polling = true;
       });
 
-      if (result.data.redirectUrl.isNotEmpty) {
-        await _openRedirect(result.data.redirectUrl);
-      }
+      await _openWaveRedirectIfNeeded(result.data.redirectUrl);
 
       if (!mounted) return;
       LeadwayToast.show(
         context,
-        message: 'Paiement initié. Vérification en cours…',
+        message: _waveRedirectOpened
+            ? 'Wave ouvert dans le navigateur. Vérification en cours…'
+            : 'Paiement initié. Vérification en cours…',
         type: LeadwayToastType.info,
       );
       _startPolling();
@@ -211,6 +199,11 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
       if (!mounted) return;
       setState(() => _checkResult = check);
 
+      final redirectUrl = _extractRedirectUrl(check.raw);
+      if (redirectUrl != null) {
+        await _openWaveRedirectIfNeeded(redirectUrl);
+      }
+
       if (check.data.isFailed) {
         _stopPolling();
         setState(() => _polling = false);
@@ -235,11 +228,47 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
     }
   }
 
-  Future<void> _openRedirect(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
+  String? _extractRedirectUrl(Map<String, dynamic>? raw) {
+    if (raw == null) return null;
+    final data = raw['data'];
+    if (data is! Map) return null;
+    final map = Map<String, dynamic>.from(data);
+    final url = LeadwayLifePaymentData.fromJson(map).redirectUrl;
+    return url.isEmpty ? null : url;
+  }
+
+  Future<void> _openWaveRedirectIfNeeded(String url) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty || _waveRedirectOpened) return;
+
+    final opened = await _openRedirect(trimmed);
+    if (opened) {
+      _waveRedirectOpened = true;
+    }
+  }
+
+  Future<bool> _openRedirect(String url) async {
+    final normalized = url.startsWith('http://') || url.startsWith('https://') ? url : 'https://$url';
+    final uri = Uri.tryParse(normalized);
+    if (uri == null) return false;
+
     try {
-      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final canOpen = await canLaunchUrl(uri);
+      if (!canOpen) {
+        if (mounted) {
+          LeadwayToast.show(
+            context,
+            message: 'Impossible d\'ouvrir le lien de paiement Wave.',
+            type: LeadwayToastType.error,
+          );
+        }
+        return false;
+      }
+
+      final ok = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
       if (!ok && mounted) {
         LeadwayToast.show(
           context,
@@ -247,10 +276,12 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
           type: LeadwayToastType.error,
         );
       }
+      return ok;
     } catch (e) {
       if (mounted) {
         LeadwayToast.show(context, message: 'Ouverture Wave impossible : $e', type: LeadwayToastType.error);
       }
+      return false;
     }
   }
 
@@ -283,43 +314,14 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
                     _card(
                       title: 'Moyen de paiement',
                       children: [
-                        if (LeadwayApiConfig.enablePeyaPay) ...[
-                          _methodTile(
-                            code: LeadwayPaymentOperator.peyapay,
-                            title: 'Peya Pay',
-                            subtitle: 'Paiement via votre Wallet Peya Pay',
-                            icon: Icons.account_balance_wallet_outlined,
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                        _methodTile(
-                          code: LeadwayPaymentOperator.orange,
-                          title: 'Orange Money',
-                          subtitle: 'Numéro + code OTP (#144*82#)',
-                          icon: Icons.phone_android,
-                        ),
-                        if (_isOrange) ...[
-                          const SizedBox(height: 12),
-                          _field('Numéro de téléphone *', _phoneCtrl, 'Ex. 0707070707', TextInputType.phone),
-                          const SizedBox(height: 12),
-                          _field('Code OTP *', _otpCtrl, 'Ex. 123456', TextInputType.number),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Composez #144*82# pour obtenir votre code OTP.',
-                            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                          ),
-                        ],
-                        const SizedBox(height: 8),
                         _methodTile(
                           code: LeadwayPaymentOperator.wave,
                           title: 'Wave',
                           subtitle: 'Paiement via Wave (redirection possible)',
                           icon: Icons.waves,
                         ),
-                        if (_isWave) ...[
-                          const SizedBox(height: 12),
-                          _field('Numéro de téléphone *', _phoneCtrl, 'Ex. 0707070707', TextInputType.phone),
-                        ],
+                        const SizedBox(height: 12),
+                        _field('Numéro de téléphone *', _phoneCtrl, 'Ex. 0707070707', TextInputType.phone),
                       ],
                     ),
                   if (_polling) _pollingCard(),
@@ -559,9 +561,7 @@ class _LeadwayLifePaymentScreenState extends State<LeadwayLifePaymentScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            _isWave
-                ? 'Validez le paiement Wave puis revenez ici. Statut : $status'
-                : 'Confirmez la transaction sur votre téléphone. Statut : $status',
+            'Validez le paiement Wave puis revenez ici. Statut : $status',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: Colors.grey[600]),
           ),

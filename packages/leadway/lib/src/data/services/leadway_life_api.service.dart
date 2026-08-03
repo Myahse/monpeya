@@ -135,13 +135,14 @@ class LeadwayLifeApiService {
       }
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        if (decoded is Map<String, dynamic>) {
-          return LeadwayLifeCotationResult.fromJson(decoded);
-        }
-        if (decoded is Map) {
-          return LeadwayLifeCotationResult.fromJson(Map<String, dynamic>.from(decoded));
-        }
-        throw const LeadwayApiException(message: 'Format cotation Vie inattendu');
+        final Map<String, dynamic> payload = decoded is Map<String, dynamic>
+            ? decoded
+            : decoded is Map
+                ? Map<String, dynamic>.from(decoded)
+                : throw const LeadwayApiException(message: 'Format cotation Vie inattendu');
+
+        final result = LeadwayLifeCotationResult.fromJson(payload);
+        return _applyTierInputAmountFallback(result, request);
       }
 
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
@@ -499,6 +500,24 @@ class LeadwayLifeApiService {
     }
   }
 
+  LeadwayLifeCotationResult _applyTierInputAmountFallback(
+    LeadwayLifeCotationResult result,
+    LeadwayLifeCotationRequest request,
+  ) {
+    if (result.data.premium.gross.amount != 0) {
+      return result;
+    }
+    if (request.tierInputAmount <= 0) {
+      return result;
+    }
+
+    print(
+      '⚠️ [LeadwayLifeApi] data.premium.gross.amount == 0 — '
+      'fallback tierInputAmount=${request.tierInputAmount}',
+    );
+    return result.withTierInputAmountFallback(request.tierInputAmount);
+  }
+
   List<LeadwayLifeEnumItem> _simulateEnums(String path) {
     if (path.contains('relationship')) {
       return LeadwayLifeRelationship.values
@@ -548,7 +567,10 @@ class LeadwayLifeApiService {
     };
     print('<-- 200 $url (SIMULATION)');
     print('Response Body: ${jsonEncode(mock)}');
-    return LeadwayLifeCotationResult.fromJson(mock);
+    return _applyTierInputAmountFallback(
+      LeadwayLifeCotationResult.fromJson(mock),
+      request,
+    );
   }
 
   Future<LeadwayLifeSubscriptionResult> _simulateSubscription(

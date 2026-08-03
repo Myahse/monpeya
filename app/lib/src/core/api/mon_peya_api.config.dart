@@ -4,7 +4,7 @@ abstract final class MonPeyaApiConfig {
 
   static const _defineBaseUrl = String.fromEnvironment(
     'MONPEYA_API_URL',
-    defaultValue: 'http://10.0.2.2:8081',
+    defaultValue: 'http://10.0.2.2:8082/api/platform',
   );
 
   static String? _runtimeBaseUrl;

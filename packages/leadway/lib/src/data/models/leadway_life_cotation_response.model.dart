@@ -62,6 +62,22 @@ class LeadwayLifePremium {
           : const [],
     );
   }
+
+  LeadwayLifePremium copyWith({
+    LeadwayLifeMoneyAmount? gross,
+    LeadwayLifeMoneyAmount? net,
+    LeadwayLifeMoneyAmount? tax,
+    String? frequency,
+    List<String>? breakdown,
+  }) {
+    return LeadwayLifePremium(
+      gross: gross ?? this.gross,
+      net: net ?? this.net,
+      tax: tax ?? this.tax,
+      frequency: frequency ?? this.frequency,
+      breakdown: breakdown ?? this.breakdown,
+    );
+  }
 }
 
 /// Contenu de data dans la réponse cotation Vie.
@@ -91,6 +107,22 @@ class LeadwayLifeCotationData {
       computedAt: json['computedAt']?.toString(),
     );
   }
+
+  LeadwayLifeCotationData copyWith({
+    String? subscriptionRef,
+    String? productCode,
+    String? status,
+    LeadwayLifePremium? premium,
+    String? computedAt,
+  }) {
+    return LeadwayLifeCotationData(
+      subscriptionRef: subscriptionRef ?? this.subscriptionRef,
+      productCode: productCode ?? this.productCode,
+      status: status ?? this.status,
+      premium: premium ?? this.premium,
+      computedAt: computedAt ?? this.computedAt,
+    );
+  }
 }
 
 /// Réponse POST /api/souscription/cotation
@@ -114,6 +146,27 @@ class LeadwayLifeCotationResult {
       success: json['success'] == true,
       data: LeadwayLifeCotationData.fromJson(Map<String, dynamic>.from(data)),
       raw: json,
+    );
+  }
+
+  /// Si l'API renvoie `data.premium.gross.amount == 0`, utilise [tierInputAmount]
+  /// (montant saisi dans la requête) pour permettre de continuer le parcours.
+  LeadwayLifeCotationResult withTierInputAmountFallback(int tierInputAmount) {
+    if (tierInputAmount <= 0 || data.premium.gross.amount != 0) {
+      return this;
+    }
+
+    final currency = data.premium.gross.currency.isNotEmpty
+        ? data.premium.gross.currency
+        : 'XOF';
+    final gross = LeadwayLifeMoneyAmount(amount: tierInputAmount, currency: currency);
+
+    return LeadwayLifeCotationResult(
+      success: success,
+      data: data.copyWith(
+        premium: data.premium.copyWith(gross: gross),
+      ),
+      raw: raw,
     );
   }
 }

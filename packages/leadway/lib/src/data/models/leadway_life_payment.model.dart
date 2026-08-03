@@ -37,9 +37,19 @@ class LeadwayLifePaymentData {
     return LeadwayLifePaymentData(
       subscriptionRef: json['subscriptionRef']?.toString() ?? '',
       transactionId: json['transactionId']?.toString() ?? '',
-      redirectUrl: json['redirectUrl']?.toString() ?? '',
+      redirectUrl: _readRedirectUrl(json),
       paymentStatus: json['paymentStatus']?.toString() ?? '',
     );
+  }
+
+  static String _readRedirectUrl(Map<String, dynamic> json) {
+    for (final key in ['redirectUrl', 'redirect_url', 'paymentUrl', 'payment_url', 'waveUrl', 'url']) {
+      final value = json[key]?.toString().trim();
+      if (value != null && value.isNotEmpty) {
+        return value;
+      }
+    }
+    return '';
   }
 
   bool get isPaid {

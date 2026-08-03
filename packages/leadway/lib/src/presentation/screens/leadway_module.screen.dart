@@ -73,7 +73,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     _categorieVehicule = _vehicleType == LeadwayVehicleType.auto
         ? LeadwayVehicleCategory.particular
         : LeadwayVehicleCategory.moto;
-    _paymentOperator = LeadwayApiConfig.enablePeyaPay ? LeadwayPaymentOperator.peyapay : LeadwayPaymentOperator.orange;
+    _paymentOperator = LeadwayPaymentOperator.orange;
     _loadSubscriptions();
     _prefillFromMonPeyaAuth();
   }
@@ -220,7 +220,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
   String? _devisId;
   String? _paymentId;
   String? _paymentToken;
-  String _paymentOperator = LeadwayPaymentOperator.peyapay;
+  String _paymentOperator = LeadwayPaymentOperator.orange;
   final _paymentPhoneCtrl = TextEditingController();
   final _paymentEmailCtrl = TextEditingController();
   final _paymentOtpCtrl = TextEditingController();
@@ -458,8 +458,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
       return;
     }
 
-    final isPeyaPay = _paymentOperator == LeadwayPaymentOperator.peyapay;
-    if (!isPeyaPay && _paymentPhoneCtrl.text.trim().isEmpty) {
+    if (_paymentPhoneCtrl.text.trim().isEmpty) {
       _showToast('Veuillez saisir votre numéro de téléphone de paiement.', LeadwayToastType.error);
       return;
     }
@@ -481,7 +480,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
         quoteNo: _policyNumber!,
         amount: _premium!,
         operator: _paymentOperator,
-        phoneNo: isPeyaPay ? '' : _paymentPhoneCtrl.text.trim(),
+        phoneNo: _paymentPhoneCtrl.text.trim(),
         email: _paymentEmailCtrl.text.trim(),
         effectDate: effectDate,
         agentCode: LeadwayPaymentDefaults.agentCode,
@@ -506,11 +505,6 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
         _paymentToken = token;
         _paymentInitiated = true;
       });
-
-      if (isPeyaPay || _paymentOperator == LeadwayPaymentOperator.wave) {
-        await _confirmPayment();
-        return;
-      }
 
       setState(() => _paymentAwaitingOtp = true);
       _showToast(
@@ -542,14 +536,12 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
 
     setState(() => _loading = true);
     try {
-      final isPeyaPay = _paymentOperator == LeadwayPaymentOperator.peyapay;
-
       await _apiService.confirmPayment(
         LeadwayApiPaymentRequest(
           paymentId: _paymentId!,
           operator: _paymentOperator,
-          phoneNo: isPeyaPay ? '' : _paymentPhoneCtrl.text.trim(),
-          otp: isOrange ? _paymentOtpCtrl.text.trim() : '',
+          phoneNo: _paymentPhoneCtrl.text.trim(),
+          otp: _paymentOtpCtrl.text.trim(),
           token: _paymentToken ?? '',
         ),
       );
@@ -1761,7 +1753,6 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
           initiated: _paymentInitiated,
           awaitingOtp: _paymentAwaitingOtp,
           polling: _paymentPolling,
-          enablePeyaPay: LeadwayApiConfig.enablePeyaPay,
           onOperatorChanged: (v) => setState(() {
             _paymentOperator = v;
             _paymentInitiated = false;
@@ -1865,7 +1856,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
       _paymentEffectDate = DateTime.now();
       _paymentInitiated = false;
       _paymentAwaitingOtp = false;
-      _paymentOperator = LeadwayApiConfig.enablePeyaPay ? LeadwayPaymentOperator.peyapay : LeadwayPaymentOperator.orange;
+      _paymentOperator = LeadwayPaymentOperator.orange;
       _dureeContratEnJour = 30;
       _garantieVol = true;
       _garantieIncendie = true;
@@ -2832,7 +2823,6 @@ class _PaymentStep extends StatelessWidget {
     required this.initiated,
     required this.awaitingOtp,
     required this.polling,
-    required this.enablePeyaPay,
     required this.onOperatorChanged,
     required this.onCancelPayment,
     required this.vehicleType,
@@ -2850,14 +2840,11 @@ class _PaymentStep extends StatelessWidget {
   final bool initiated;
   final bool awaitingOtp;
   final bool polling;
-  final bool enablePeyaPay;
   final ValueChanged<String> onOperatorChanged;
   final VoidCallback onCancelPayment;
   final LeadwayVehicleType vehicleType;
 
-  bool get _isPeyaPay => operator == LeadwayPaymentOperator.peyapay;
   bool get _isOrange => operator == LeadwayPaymentOperator.orange;
-  bool get _isWave => operator == LeadwayPaymentOperator.wave;
 
   Widget _buildPhoneField() {
     return Padding(
@@ -3032,16 +3019,6 @@ class _PaymentStep extends StatelessWidget {
             _cardSection(
               title: '2. Choisissez votre opérateur',
               children: [
-                if (enablePeyaPay) ...[
-                  _PaymentMethodTile(
-                    selected: operator == LeadwayPaymentOperator.peyapay,
-                    title: 'Peya Pay',
-                    subtitle: 'Réglez directement via votre Wallet Peya Pay',
-                    icon: Icons.account_balance_wallet_outlined,
-                    onTap: () => onOperatorChanged(LeadwayPaymentOperator.peyapay),
-                  ),
-                  const SizedBox(height: 8),
-                ],
                 _PaymentMethodTile(
                   selected: operator == LeadwayPaymentOperator.orange,
                   title: 'Orange Money',
@@ -3050,15 +3027,6 @@ class _PaymentStep extends StatelessWidget {
                   onTap: () => onOperatorChanged(LeadwayPaymentOperator.orange),
                 ),
                 if (_isOrange) _buildPhoneField(),
-                const SizedBox(height: 8),
-                _PaymentMethodTile(
-                  selected: operator == LeadwayPaymentOperator.wave,
-                  title: 'Wave',
-                  subtitle: 'Requis : numéro de téléphone',
-                  icon: Icons.waves,
-                  onTap: () => onOperatorChanged(LeadwayPaymentOperator.wave),
-                ),
-                if (_isWave) _buildPhoneField(),
                 const SizedBox(height: 8),
                 _PaymentMethodTile(
                   selected: operator == LeadwayPaymentOperator.mtn,
@@ -3111,9 +3079,7 @@ class _PaymentStep extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _isPeyaPay
-                        ? 'Votre paiement Peya Pay est en cours de traitement. Veuillez patienter.'
-                        : 'Une demande de validation a été envoyée sur le numéro ${phoneCtrl.text}. Veuillez confirmer la transaction sur votre téléphone.',
+                    'Une demande de validation a été envoyée sur le numéro ${phoneCtrl.text}. Veuillez confirmer la transaction sur votre téléphone.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   ),
@@ -4644,7 +4610,7 @@ class _SubscriptionsView extends StatelessWidget {
                   _buildFeatureItem(
                     Icons.payments_outlined,
                     'Paiement 100% sécurisé',
-                    'Réglez facilement via PeyaPay ou Mobile Money.',
+                    'Réglez facilement via Orange Money.',
                     const Color(0xFF2E7D32),
                   ),
                   _buildFeatureItem(

@@ -1,65 +1,54 @@
-# Mon Peya
+# Mon Peya — Mobile
 
-N'TERI super-app monorepo — Flutter clean architecture.
+Super-app Flutter pour l'écosystème **N'TERI** en Côte d'Ivoire.
 
 ## Structure
 
 ```
-Mon Peya/
-├── app/                        # Shell application (auth, navigation, module launcher)
+mobile/
+├── app/                    # Shell principal (auth, navigation, abonnements)
 ├── packages/
-│   ├── peyapay/                # Wallet & payments
-│   ├── immo/                   # Rental, construction, collection
-│   ├── billetterie/            # Electronic ticketing
-│   └── leadway/                # Leadway Assurance
-├── melos.yaml
-└── README.md
+│   ├── peyapay/            # Wallet & paiements
+│   ├── billetterie/        # Billetterie électronique
+│   ├── immo/               # Immobilier (Mr Immo)
+│   └── leadway/            # Assurance Leadway
+└── melos.yaml              # Gestion du monorepo Flutter
 ```
 
-Each package follows clean architecture with typed file names:
+## Prérequis
 
-```
-lib/
-├── <package_name>.dart         # Public API
-└── src/
-    ├── screens/                # *.screen.dart
-    ├── types/                  # *.types.dart
-    ├── services/               # *.service.dart
-    ├── models/                 # *.model.dart
-    ├── widgets/                # *.widget.dart
-    ├── controllers/            # *.controller.dart
-    └── ...
-```
+- Flutter SDK ≥ 3.10 (Dart ^3.10.8)
+- Android Studio / Xcode pour les builds natifs
 
-Examples: `home.screen.dart`, `app_stack.types.dart`, `auth.store.dart`, `rental_api.service.dart`
-
-## Prerequisites
-
-- Flutter SDK (Dart `^3.10.8`)
-- Optional: [Melos](https://melos.invertase.dev/) for workspace management
-
-## Run
+## Installation
 
 ```bash
-cd app
+cd mobile/app
+cp .env.example .env
 flutter pub get
 flutter run
 ```
 
-Or with Melos:
+## Configuration (`.env`)
+
+| Variable | Description | Défaut |
+|----------|-------------|--------|
+| `MONPEYA_API_URL` | Backend auth/abonnements | `http://10.0.2.2:8082/api/platform` |
+| `BILLETTERIE_API_URL` | Backend ticketing | `http://10.0.2.2:8082/api/billetterie` |
+| `IMMO_API_URL` | Backend Mr Immo | `http://10.0.2.2:8082/api/immo` |
+| `PEYAPAY_API_URL` | API Peya wallet | test1 |
+| `ENCRYPT_KEY` / `QR_ENCRYPT_KEY` | Crypto QR (parité backend) | — |
+
+Sur émulateur Android, `10.0.2.2` pointe vers la machine hôte. Sur iOS simulator, utiliser `localhost`.
+
+## Monorepo (Melos)
 
 ```bash
 dart pub global activate melos
+cd mobile
 melos bootstrap
-cd app && flutter run
 ```
 
-Optional API URLs:
+## Documentation
 
-```bash
-flutter run \
-  --dart-define=IMMO_API_URL=http://YOUR_IP:8081 \
-  --dart-define=BILLETTERIE_API_URL=http://YOUR_IP:8090
-```
-
-See [app/README.md](app/README.md) for full documentation.
+- [app/README.md](app/README.md) — guide complet de la super-app

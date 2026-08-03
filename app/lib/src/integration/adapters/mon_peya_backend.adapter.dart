@@ -133,6 +133,14 @@ Future<void> _persistMonPeyaSession(MonPeyaAuthSession session) async {
     await AuthStore.setMonPeyaUserId(user.userId);
     await AuthStore.setCodeClient(user.codeClient);
   }
+
+  // Token Mon Peya unique — réutilisé par le module immo (Bearer).
+  if (session.accessToken != null && session.accessToken!.isNotEmpty) {
+    await AuthStore.setImmoAuthToken(session.accessToken!);
+    if (user?.userId != null) {
+      await AuthStore.setImmoUserId(user!.userId);
+    }
+  }
 }
 
 void _seedClientStateFromSession(MonPeyaAuthSession session) {
@@ -171,6 +179,9 @@ void _syncPeyapayWalletInBackground(String phone, String pin) {
 void _syncImmoSessionInBackground(String phone, String pin) {
   unawaited(() async {
     try {
+      final existing = await AuthStore.immoAuthToken();
+      if (existing != null && existing.isNotEmpty) return;
+
       await ImmoAuthService().loginWithPhoneAndPin(
         phone: phone,
         pin: pin,

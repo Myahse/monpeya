@@ -12,7 +12,7 @@ abstract final class ImmoApiConfig {
         'RENTAL_API_URL',
         defaultValue: String.fromEnvironment(
           'API_BASE_URL',
-          defaultValue: 'http://10.0.2.2:8081',
+          defaultValue: 'http://10.0.2.2:8082/api/immo',
         ),
       ),
     );

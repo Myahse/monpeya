@@ -1,5 +1,5 @@
-name: mon_peya
-repository: https://gitlab.com/djogana-pay/monpeya
+name: mon_peya_mobile
+repository: https://github.com/djogana/mon-peya
 
 packages:
   - app

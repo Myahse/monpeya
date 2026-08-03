@@ -6,7 +6,7 @@ import 'package:billetterie/src/shared/config/billetterie_env.registry.dart';
 class BilletterieApiConfig {
   static const _defineBaseUrl = String.fromEnvironment(
     'BILLETTERIE_API_URL',
-    defaultValue: 'http://10.0.2.2:8090',
+    defaultValue: 'http://10.0.2.2:8082/api/billetterie',
   );
 
   static const _defineTransportBaseUrl = String.fromEnvironment(
