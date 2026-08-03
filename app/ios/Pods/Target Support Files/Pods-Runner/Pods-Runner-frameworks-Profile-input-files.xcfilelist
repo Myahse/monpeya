@@ -1,0 +1,3 @@
+${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh
+${BUILT_PRODUCTS_DIR}/pdfx/pdfx.framework
+${BUILT_PRODUCTS_DIR}/share_plus/share_plus.framework
