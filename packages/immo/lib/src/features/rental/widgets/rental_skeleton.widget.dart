@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:immo/src/features/rental/theme/themes/rental.theme.dart';
+import 'package:immo/src/features/rental/widgets/rental_layout_widgets.widget.dart';
 
 /// Shared pulse animation for Mr Immo Location skeletons.
 class RentalSkeletonPulse extends StatefulWidget {
@@ -229,82 +230,90 @@ class RentalPropertyDetailSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final b = RentalTheme.of(context);
-    final top = MediaQuery.paddingOf(context).top;
+    final viewPadding = MediaQuery.viewPaddingOf(context);
+    final top = viewPadding.top;
+    final bottom = viewPadding.bottom;
     final bone = b.border;
     final soft = b.searchFill;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: Theme.of(context).brightness == Brightness.dark
-          ? SystemUiOverlayStyle.light
-          : SystemUiOverlayStyle.dark,
+      value: const SystemUiOverlayStyle(
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
       child: Scaffold(
         backgroundColor: b.bg,
-        body: RentalSkeletonPulse(
-          builder: (context, shade) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  height: 280 + top,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ColoredBox(color: shade(RentalTheme.green.withValues(alpha: 0.35))),
-                      Positioned(
-                        top: top + 8,
-                        left: 8,
-                        child: Material(
-                          color: Colors.black26,
-                          shape: const CircleBorder(),
-                          child: IconButton(
-                            onPressed: onBack,
-                            icon: const Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              color: Colors.white,
-                              size: 18,
+        body: MediaQuery(
+          data: MediaQuery.of(context).copyWith(padding: viewPadding),
+          child: RentalSkeletonPulse(
+            builder: (context, shade) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: 320 + top,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ColoredBox(
+                          color: shade(RentalTheme.green.withValues(alpha: 0.35)),
+                        ),
+                        Positioned(
+                          top: top + 8,
+                          left: 8,
+                          child: Material(
+                            color: Colors.black26,
+                            shape: const CircleBorder(),
+                            child: IconButton(
+                              onPressed: onBack,
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: shade(RentalTheme.green),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: ClipRRect(
                             borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(28),
                             ),
-                          ),
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                          alignment: Alignment.topLeft,
-                          child: _Bone(
-                            width: 140,
-                            height: 14,
-                            color: Colors.white.withValues(alpha: 0.45),
-                            radius: 6,
+                            child: ColoredBox(
+                              color: shade(RentalTheme.green),
+                              child: SizedBox(
+                                height: 100,
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                                  child: Align(
+                                    alignment: Alignment.topLeft,
+                                    child: _Bone(
+                                      width: 140,
+                                      height: 14,
+                                      color: Colors.white.withValues(alpha: 0.45),
+                                      radius: 6,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: Transform.translate(
-                    offset: const Offset(0, -40),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: b.card,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(28),
-                        ),
-                      ),
-                      padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                  Expanded(
+                    child: Transform.translate(
+                      offset: const Offset(0, -48),
+                      child: RentalWhiteSheet(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(20, 28, 20, 20 + bottom),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -386,14 +395,16 @@ class RentalPropertyDetailSkeleton extends StatelessWidget {
                             color: shade(soft),
                             radius: 16,
                           ),
-                        ],
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

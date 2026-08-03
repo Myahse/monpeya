@@ -2,6 +2,8 @@
 .env
 .env.local
 .env.*.local
+# Local compile-time overrides with secrets (unused by runtime; prefer .env)
+app/config.dart
 
 # Maven / Java
 HELP.md
