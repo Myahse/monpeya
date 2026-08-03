@@ -350,21 +350,15 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
 }
 
 class _PaywallNotice extends StatelessWidget {
-  const _PaywallNotice({
-    required this.text,
-    this.warning = false,
-  });
+  const _PaywallNotice({required this.text});
 
   final String text;
-  final bool warning;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final bg = warning
-        ? cs.tertiaryContainer.withValues(alpha: 0.55)
-        : cs.primaryContainer.withValues(alpha: 0.55);
-    final fg = warning ? cs.onTertiaryContainer : cs.onPrimaryContainer;
+    final bg = cs.primaryContainer.withValues(alpha: 0.55);
+    final fg = cs.onPrimaryContainer;
 
     return Container(
       width: double.infinity,

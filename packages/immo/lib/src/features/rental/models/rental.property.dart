@@ -69,6 +69,14 @@ class RentalProperty {
     return 'draft';
   }
 
+  bool get isAvailableForRent {
+    final s = statusLabel.toLowerCase();
+    return s.contains('libre') ||
+        s.contains('disponible') ||
+        s.contains('actif') ||
+        s.contains('available');
+  }
+
   factory RentalProperty.fromBackend(
     Map<String, dynamic> item, {
     String? apiBaseUrl,
