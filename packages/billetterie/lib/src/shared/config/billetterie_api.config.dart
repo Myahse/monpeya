@@ -1,8 +1,6 @@
 import 'package:billetterie/src/shared/config/billetterie_env.registry.dart';
 
-/// Base URLs and timeouts for Billetterie ticketing backends.
-///
-/// Transport and event may share one host today, or use distinct URLs later.
+
 class BilletterieApiConfig {
   static const _defineBaseUrl = String.fromEnvironment(
     'BILLETTERIE_API_URL',
@@ -16,6 +14,11 @@ class BilletterieApiConfig {
 
   static const _defineEventBaseUrl = String.fromEnvironment(
     'BILLETTERIE_EVENT_API_URL',
+    defaultValue: '',
+  );
+
+  static const _defineWsUrl = String.fromEnvironment(
+    'BILLETTERIE_WS_URL',
     defaultValue: '',
   );
 
@@ -52,6 +55,30 @@ class BilletterieApiConfig {
       return _stripTrailingSlash(_defineEventBaseUrl);
     }
     return baseUrl;
+  }
+
+  /// Ticketing WebSocket URL (`BILLETTERIE_WS_URL`).
+  ///
+  /// Defaults to `ws(s)://{api-host}/ws` derived from [baseUrl].
+  static String get wsUrl {
+    final runtime = BilletterieEnvRegistry.wsUrl;
+    if (runtime != null && runtime.isNotEmpty) {
+      return runtime.trim();
+    }
+    if (_defineWsUrl.trim().isNotEmpty) {
+      return _defineWsUrl.trim();
+    }
+    return _wsFromHttp(baseUrl);
+  }
+
+  static String _wsFromHttp(String httpUrl) {
+    final uri = Uri.tryParse(httpUrl);
+    if (uri == null || uri.host.isEmpty) {
+      return 'ws://10.0.2.2:8090/ws';
+    }
+    final scheme = uri.scheme == 'https' ? 'wss' : 'ws';
+    final port = uri.hasPort ? ':${uri.port}' : '';
+    return '$scheme://${uri.host}$port/ws';
   }
 
   static String _stripTrailingSlash(String url) {

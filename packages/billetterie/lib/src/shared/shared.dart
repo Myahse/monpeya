@@ -7,6 +7,7 @@ export 'package:billetterie/src/shared/models/ticketing_api.exception.dart';
 export 'package:billetterie/src/shared/models/ticketing_api_envelope.model.dart';
 export 'package:billetterie/src/shared/services/billetterie_host.payment.dart';
 export 'package:billetterie/src/shared/services/billetterie_qr.service.dart';
+export 'package:billetterie/src/shared/services/billetterie_realtime.client.dart';
 export 'package:billetterie/src/shared/services/ticketing_http.client.dart';
 export 'package:billetterie/src/shared/services/ticket_storage.service.dart';
 export 'package:billetterie/src/shared/utils/ticket_format.util.dart';

@@ -29,19 +29,29 @@ void main() {
   group('ImmoEnvRegistry', () {
     test('default baseUrl is null', () {
       expect(ImmoEnvRegistry.baseUrl, isNull);
+      expect(ImmoEnvRegistry.wsUrl, isNull);
     });
 
     test('apply and reset round-trip', () {
-      ImmoEnvRegistry.apply(baseUrl: 'http://test:8081');
+      ImmoEnvRegistry.apply(
+        baseUrl: 'http://test:8081',
+        wsUrl: 'ws://test:8081/ws/realtime',
+      );
       expect(ImmoEnvRegistry.baseUrl, 'http://test:8081');
+      expect(ImmoEnvRegistry.wsUrl, 'ws://test:8081/ws/realtime');
       ImmoEnvRegistry.reset();
       expect(ImmoEnvRegistry.baseUrl, isNull);
+      expect(ImmoEnvRegistry.wsUrl, isNull);
     });
   });
 
   group('ImmoApiConfig', () {
     test('baseUrl has a default', () {
       expect(ImmoApiConfig.baseUrl, isNotEmpty);
+    });
+
+    test('wsUrl is derived from baseUrl by default', () {
+      expect(ImmoApiConfig.wsUrl, contains('/ws/realtime'));
     });
 
     test('timeoutMs is defined', () {

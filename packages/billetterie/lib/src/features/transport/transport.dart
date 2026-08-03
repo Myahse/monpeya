@@ -10,6 +10,7 @@ export 'package:billetterie/src/features/transport/screens/ticket_generate.scree
 export 'package:billetterie/src/features/transport/screens/ticket_scan_consume.screen.dart';
 export 'package:billetterie/src/features/transport/screens/transport_conductor_upgrade.screen.dart';
 export 'package:billetterie/src/features/transport/screens/transport_documents.screen.dart';
+export 'package:billetterie/src/features/transport/screens/transport_map_explore.screen.dart';
 export 'package:billetterie/src/features/transport/screens/transport_notifications.screen.dart';
 export 'package:billetterie/src/features/transport/screens/transport_personal_info.screen.dart';
 export 'package:billetterie/src/features/transport/screens/transport_profile.screen.dart';
@@ -20,6 +21,8 @@ export 'package:billetterie/src/features/transport/services/conductor_ticket.sto
 export 'package:billetterie/src/features/transport/services/ticket_pdf.service.dart';
 export 'package:billetterie/src/features/transport/services/ticket_qr_reveal.store.dart';
 export 'package:billetterie/src/features/transport/services/transport_profile.store.dart';
+export 'package:billetterie/src/features/transport/services/transport_road_router.dart';
+export 'package:billetterie/src/features/transport/services/transport_route_graph.dart';
 export 'package:billetterie/src/features/transport/widgets/owned_transport_ticket.widget.dart';
 export 'package:billetterie/src/features/transport/widgets/transport_ticket_back.widget.dart';
 export 'package:billetterie/src/features/transport/widgets/transport_ticket_front.widget.dart';

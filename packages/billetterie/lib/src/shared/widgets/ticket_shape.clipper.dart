@@ -12,8 +12,13 @@ class TicketShapeClipper extends CustomClipper<Path> {
   final double notchRadius;
   final double dividerFraction;
 
-  @override
-  Path getClip(Size size) {
+  /// Same geometry as [getClip] — used for clip + thin outline stroke.
+  static Path buildPath({
+    required Size size,
+    required double cornerRadius,
+    required double notchRadius,
+    required double dividerFraction,
+  }) {
     final dividerY = size.height * dividerFraction;
     final path = Path();
     final r = cornerRadius;
@@ -46,9 +51,63 @@ class TicketShapeClipper extends CustomClipper<Path> {
   }
 
   @override
+  Path getClip(Size size) {
+    return buildPath(
+      size: size,
+      cornerRadius: cornerRadius,
+      notchRadius: notchRadius,
+      dividerFraction: dividerFraction,
+    );
+  }
+
+  @override
   bool shouldReclip(covariant TicketShapeClipper oldClipper) {
     return oldClipper.cornerRadius != cornerRadius ||
         oldClipper.notchRadius != notchRadius ||
         oldClipper.dividerFraction != dividerFraction;
+  }
+}
+
+/// Thin outline following [TicketShapeClipper] (light theme contrast).
+class TicketShapeBorderPainter extends CustomPainter {
+  const TicketShapeBorderPainter({
+    required this.cornerRadius,
+    required this.notchRadius,
+    required this.dividerFraction,
+    required this.color,
+    this.strokeWidth = 1.0,
+  });
+
+  final double cornerRadius;
+  final double notchRadius;
+  final double dividerFraction;
+  final Color color;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = TicketShapeClipper.buildPath(
+      size: size,
+      cornerRadius: cornerRadius,
+      notchRadius: notchRadius,
+      dividerFraction: dividerFraction,
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..isAntiAlias = true,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant TicketShapeBorderPainter oldDelegate) {
+    return oldDelegate.cornerRadius != cornerRadius ||
+        oldDelegate.notchRadius != notchRadius ||
+        oldDelegate.dividerFraction != dividerFraction ||
+        oldDelegate.color != color ||
+        oldDelegate.strokeWidth != strokeWidth;
   }
 }

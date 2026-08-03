@@ -6,16 +6,10 @@ import 'package:peyapay/peyapay.dart';
 
 import 'package:app/src/core/api/mon_peya_api.config.dart';
 
-/// Loads `app/.env` and applies values to module env registries.
-///
-/// All sensitive PeyaPay credentials live in `.env` (marchand_dart parity).
 abstract final class MonPeyaEnv {
   static bool _loaded = false;
 
-  /// When true (debug only), [AuthStore] behaves as if no account exists on device.
   static bool forceGuestMode = false;
-
-  /// When true (debug only), [ModuleAuth.ensureRegistered] and session unlock skip login.
   static bool skipForcedAuth = false;
 
   static Future<void> load() async {
@@ -30,6 +24,8 @@ abstract final class MonPeyaEnv {
     _applyDebugAuthFlags();
     if (kDebugMode) {
       debugPrint('MonPeyaEnv: MONPEYA_API_URL → ${MonPeyaApiConfig.baseUrl}');
+      debugPrint('MonPeyaEnv: IMMO_API_URL → ${ImmoApiConfig.baseUrl}');
+      debugPrint('MonPeyaEnv: IMMO_WS_URL → ${ImmoApiConfig.wsUrl}');
       if (forceGuestMode || skipForcedAuth) {
         debugPrint(
           'MonPeyaEnv: debug auth — FORCE_GUEST_MODE=$forceGuestMode, '
@@ -41,6 +37,12 @@ abstract final class MonPeyaEnv {
         debugPrint(
           'MonPeyaEnv: QR key missing or too short (${qrKey?.length ?? 0} chars). '
           'Quote ENCRYPT_KEY in .env if it contains #.',
+        );
+      }
+      if (BilletterieEnvRegistry.mapboxAccessToken == null) {
+        debugPrint(
+          'MonPeyaEnv: MAPBOX_ACCESS_TOKEN missing — transport map '
+          'falls back to straight-line routes.',
         );
       }
     }
@@ -90,13 +92,16 @@ abstract final class MonPeyaEnv {
 
     ImmoEnvRegistry.apply(
       baseUrl: _first(['IMMO_API_URL', 'RENTAL_API_URL']),
+      wsUrl: _optional('IMMO_WS_URL'),
     );
 
     BilletterieEnvRegistry.apply(
       baseUrl: _optional('BILLETTERIE_API_URL'),
       transportBaseUrl: _optional('BILLETTERIE_TRANSPORT_API_URL'),
       eventBaseUrl: _optional('BILLETTERIE_EVENT_API_URL'),
+      wsUrl: _optional('BILLETTERIE_WS_URL'),
       qrEncryptKey: qrEncryptKey ?? encryptKey,
+      mapboxAccessToken: _first(['MAPBOX_ACCESS_TOKEN', 'MAPBOX_TOKEN']),
     );
   }
 

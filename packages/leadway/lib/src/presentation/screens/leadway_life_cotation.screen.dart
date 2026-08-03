@@ -145,12 +145,19 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
       firstDate: first,
       lastDate: last,
       builder: (context, child) {
+        final brand = LeadwayBrand.of(context);
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: LeadwayBrand.primary,
+            colorScheme: ColorScheme(
+              brightness: brand.isDark ? Brightness.dark : Brightness.light,
+              primary: brand.primary,
               onPrimary: Colors.white,
-              onSurface: LeadwayBrand.textDark,
+              secondary: brand.primaryDark,
+              onSecondary: Colors.white,
+              surface: brand.card,
+              onSurface: brand.text,
+              error: brand.danger,
+              onError: Colors.white,
             ),
           ),
           child: child!,
@@ -314,8 +321,9 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+    return LeadwayTheme(
+      child: Scaffold(
+      backgroundColor: LeadwayBrand.of(context).bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -337,12 +345,12 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
                             const SizedBox(height: 4),
                             Text(
                               widget.productCode,
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600], fontFamily: 'monospace'),
+                              style: TextStyle(fontSize: 12, color: LeadwayBrand.of(context).muted, fontFamily: 'monospace'),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               'Réf. ${widget.subscriptionRef}',
-                              style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w600),
+                              style: TextStyle(fontSize: 12, color: LeadwayBrand.of(context).muted, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
@@ -416,7 +424,7 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
                             if (_additional.isEmpty)
                               Text(
                                 'Aucun assuré additionnel. Vous pouvez en ajouter (conjoint, enfant…).',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                style: TextStyle(fontSize: 12, color: LeadwayBrand.of(context).muted),
                               ),
                             for (var i = 0; i < _additional.length; i++) ...[
                               if (i > 0) const Divider(height: 28),
@@ -464,10 +472,12 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
   Widget _buildHeader() {
+    final brand = LeadwayBrand.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
       child: Row(
@@ -477,17 +487,17 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.chevron_left),
           ),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Cotation Assurance Vie',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: LeadwayBrand.textDark),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: brand.text),
                 ),
                 Text(
                   'Leadway Assurance',
-                  style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 11, color: brand.muted, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -498,23 +508,24 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
   }
 
   Widget _card({required String title, required List<Widget> children}) {
+    final brand = LeadwayBrand.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: LeadwayBrand.primary,
+              color: brand.primary,
             ),
           ),
           const SizedBox(height: 14),
@@ -531,10 +542,11 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
     TextInputType? keyboard,
     List<TextInputFormatter>? inputFormatters,
   }) {
+    final brand = LeadwayBrand.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF555555))),
+        Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: brand.muted)),
         const SizedBox(height: 6),
         TextField(
           controller: ctrl,
@@ -544,16 +556,16 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: brand.card,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+              borderSide: BorderSide(color: brand.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: LeadwayBrand.primary, width: 1.5),
+              borderSide: BorderSide(color: brand.primary, width: 1.5),
             ),
           ),
         ),
@@ -566,13 +578,14 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
     required DateTime? date,
     required VoidCallback onTap,
   }) {
+    final brand = LeadwayBrand.of(context);
     final text = date == null
         ? 'Sélectionner une date'
         : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF555555))),
+        Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: brand.muted)),
         const SizedBox(height: 6),
         InkWell(
           onTap: onTap,
@@ -582,12 +595,12 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE0E0E0)),
+              border: Border.all(color: brand.border),
             ),
             child: Row(
               children: [
-                Expanded(child: Text(text, style: TextStyle(color: date == null ? Colors.grey : LeadwayBrand.textDark))),
-                const Icon(Icons.calendar_today_outlined, size: 18, color: Colors.grey),
+                Expanded(child: Text(text, style: TextStyle(color: date == null ? brand.muted : brand.text))),
+                Icon(Icons.calendar_today_outlined, size: 18, color: brand.muted),
               ],
             ),
           ),
@@ -613,20 +626,21 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
   }
 
   Widget _tariffAmountDisplay() {
+    final brand = LeadwayBrand.of(context);
     final amount = LeadwayLifeFunerairesTariff.amountFor(_frequencyCode) ??
         (int.tryParse(_amountCtrl.text.replaceAll(RegExp(r'\s'), '')) ?? 0);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
+        color: brand.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Montant (grille Funérailles)', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          Text('Montant (grille Funérailles)', style: TextStyle(fontSize: 12, color: brand.muted)),
           const SizedBox(height: 4),
           Text(
             '${_formatAmount(amount)} FCFA',
@@ -670,19 +684,20 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
   }
 
   InputDecoration _dropdownDecoration(String label) {
+    final brand = LeadwayBrand.of(context);
     return InputDecoration(
       labelText: label,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: brand.card,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+        borderSide: BorderSide(color: brand.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: LeadwayBrand.primary, width: 1.5),
+        borderSide: BorderSide(color: brand.primary, width: 1.5),
       ),
     );
   }
@@ -834,6 +849,7 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
                       telephone: phone.isNotEmpty ? phone : widget.telephone,
                       policyNumber: widget.policyNumber,
                       premiumLabel: premiumLabel,
+                      premiumAmount: p.gross.amountRounded,
                     ),
                   ),
                 );

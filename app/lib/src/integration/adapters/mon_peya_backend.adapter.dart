@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:immo/immo.dart';
 import 'package:peyapay/peyapay.dart';
 
@@ -132,6 +133,10 @@ Future<void> _persistMonPeyaSession(MonPeyaAuthSession session) async {
   if (user != null) {
     await AuthStore.setMonPeyaUserId(user.userId);
     await AuthStore.setCodeClient(user.codeClient);
+    await AuthStore.setPeyaAccountProfile(
+      isPeyaClient: user.isPeyaClient,
+      isPeyapayMerchant: user.isPeyapayMerchant,
+    );
   }
 
   // Token Mon Peya unique — réutilisé par le module immo (Bearer).
@@ -141,6 +146,12 @@ Future<void> _persistMonPeyaSession(MonPeyaAuthSession session) async {
       await AuthStore.setImmoUserId(user!.userId);
     }
   }
+}
+
+/// Persists backend tokens + PeyaPay client preview after OTP verify.
+Future<void> monPeyaPersistAuthSession(MonPeyaAuthSession session) async {
+  await _persistMonPeyaSession(session);
+  _seedClientStateFromSession(session);
 }
 
 void _seedClientStateFromSession(MonPeyaAuthSession session) {
@@ -179,15 +190,21 @@ void _syncPeyapayWalletInBackground(String phone, String pin) {
 void _syncImmoSessionInBackground(String phone, String pin) {
   unawaited(() async {
     try {
-      final existing = await AuthStore.immoAuthToken();
-      if (existing != null && existing.isNotEmpty) return;
-
-      await ImmoAuthService().loginWithPhoneAndPin(
-        phone: phone,
-        pin: pin,
-        apiClient: ImmoApiClient(),
+      // Login, lookup, or auto-create Mr Immo rental user after Mon Peya auth.
+      final client = ImmoApiClient();
+      final result = await ImmoAuthService(client: client).ensureSession(
+        apiClient: client,
       );
-    } catch (_) {}
+      if (kDebugMode) {
+        debugPrint(
+          result.ok
+              ? '[ImmoAuth] background sync OK userId=${result.userId}'
+              : '[ImmoAuth] background sync failed: ${result.error}',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ImmoAuth] background sync error: $e');
+    }
   }());
 }
 

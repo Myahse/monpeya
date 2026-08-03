@@ -4,7 +4,6 @@ import 'package:app/src/integration/registries/billetterie_module.registry.dart'
 import 'package:app/src/integration/registries/immo_module.registry.dart';
 import 'package:app/src/integration/registries/leadway_module.registry.dart';
 
-/// Builds AppStack params for native or WebView modules.
 class ModuleNavigation {
   ModuleNavigation._();
 

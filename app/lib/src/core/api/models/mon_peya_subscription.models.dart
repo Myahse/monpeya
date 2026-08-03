@@ -104,7 +104,7 @@ class MonPeyaSubscription {
   }
 }
 
-/// Request from `/v1/subscriptions/requests/*` (déplafonnement or BUSINESS).
+/// Request from `/v1/subscriptions/requests/*` .
 @immutable
 class MonPeyaSubscriptionRequest {
   const MonPeyaSubscriptionRequest({

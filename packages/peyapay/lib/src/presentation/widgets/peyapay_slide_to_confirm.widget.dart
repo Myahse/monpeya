@@ -117,12 +117,21 @@ class _PeyapaySlideToConfirmState extends State<PeyapaySlideToConfirm>
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final trackColor = widget.background ?? (isDark ? Colors.black : const Color(0xFF111827));
-    final hintColor = widget.textColor ?? Colors.white;
-    final thumbFill = widget.foreground ?? (isDark ? Colors.black : const Color(0xFF374151));
-    final thumbBorderColor = isDark ? Colors.white.withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.35);
-    final trackBorderColor = isDark ? Colors.white.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12);
+    const brandGreen = Color(0xFF006D56);
+
+    final trackColor = widget.background ??
+        (isDark ? cs.surfaceContainerHigh : const Color(0xFFF3F4F6));
+    final hintColor = widget.textColor ??
+        (isDark ? Colors.white : const Color(0xFF374151));
+    final thumbFill = widget.foreground ?? brandGreen;
+    final thumbIconColor = Colors.white;
+    final thumbBorderColor = isDark
+        ? Colors.white.withValues(alpha: 0.2)
+        : brandGreen.withValues(alpha: 0.15);
+    final trackBorderColor =
+        isDark ? cs.outlineVariant.withValues(alpha: 0.85) : const Color(0xFFE5E7EB);
     final radius = BorderRadius.circular(PeyapaySlideToConfirm.height / 2);
     final interactive = widget.enabled && !_committed && !_done;
 
@@ -168,7 +177,7 @@ class _PeyapaySlideToConfirmState extends State<PeyapaySlideToConfirm>
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w900,
-                              color: hintColor.withValues(alpha: 0.72),
+                              color: hintColor.withValues(alpha: isDark ? 0.9 : 0.85),
                             ),
                           ),
                         ),
@@ -188,7 +197,7 @@ class _PeyapaySlideToConfirmState extends State<PeyapaySlideToConfirm>
                                 child: Icon(
                                   Icons.chevron_right_rounded,
                                   size: 18,
-                                  color: hintColor.withValues(alpha: 0.45),
+                                  color: hintColor.withValues(alpha: isDark ? 0.55 : 0.55),
                                 ),
                               ),
                             ),
@@ -220,7 +229,7 @@ class _PeyapaySlideToConfirmState extends State<PeyapaySlideToConfirm>
                             alignment: Alignment.center,
                             child: Icon(
                               _done ? Icons.check_rounded : Icons.chevron_right_rounded,
-                              color: hintColor.withValues(alpha: 0.95),
+                              color: thumbIconColor,
                               size: _done ? 22 : 24,
                             ),
                           ),

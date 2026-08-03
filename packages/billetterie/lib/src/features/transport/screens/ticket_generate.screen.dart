@@ -5,8 +5,9 @@ import 'package:billetterie/src/core/host/billetterie_host.bridge.dart';
 import 'package:billetterie/src/features/transport/constants/transport_cities.dart';
 import 'package:billetterie/src/features/transport/services/billetterie_transport_api.service.dart';
 import 'package:billetterie/src/features/transport/services/conductor_ticket.store.dart';
+import 'package:billetterie/src/shared/widgets/ticket_purchase_result.dialog.dart';
 
-/// Step-by-step (swipeable) form for a conductor to create a transport ticket.
+/// Form for a conductor to create a transport ticket.
 class TicketGenerateScreen extends StatefulWidget {
   const TicketGenerateScreen({super.key});
 
@@ -94,26 +95,51 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
     });
   }
 
-  bool _validateCurrentStep() {
+  Future<void> _notify({
+    required String title,
+    required String message,
+    BilletterieResultKind kind = BilletterieResultKind.info,
+  }) {
+    return showBilletterieResultDialog(
+      context,
+      title: title,
+      message: message,
+      kind: kind,
+    );
+  }
+
+  Future<bool> _validateCurrentStep() async {
     switch (_step) {
       case 0:
         if (!(_routeKey.currentState?.validate() ?? false)) return false;
         if (_fromCity == null || _toCity == null) {
-          _toast('Choisissez les villes de départ et d’arrivée');
+          await _notify(
+            title: 'Trajet incomplet',
+            message: 'Choisissez les villes de départ et d’arrivée.',
+          );
           return false;
         }
         if (_fromCity == _toCity) {
-          _toast('Départ et arrivée doivent être différents');
+          await _notify(
+            title: 'Trajet invalide',
+            message: 'Le départ et l’arrivée doivent être différents.',
+          );
           return false;
         }
         return true;
       case 1:
         if (_validFrom == null || _validUntil == null) {
-          _toast('Indiquez départ et arrivée');
+          await _notify(
+            title: 'Horaires manquants',
+            message: 'Indiquez les horaires de départ et d’arrivée.',
+          );
           return false;
         }
         if (!_validUntil!.isAfter(_validFrom!)) {
-          _toast('L’arrivée doit être après le départ');
+          await _notify(
+            title: 'Horaires invalides',
+            message: 'L’arrivée doit être après le départ.',
+          );
           return false;
         }
         return true;
@@ -126,21 +152,16 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
     }
   }
 
-  void _toast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
-    );
-  }
-
   Future<void> _goNext() async {
-    if (!_validateCurrentStep()) return;
+    if (!await _validateCurrentStep()) return;
     if (_step >= _stepCount - 1) {
       await _submit();
       return;
     }
-    await _pageController.nextPage(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
+    await _pageController.animateToPage(
+      _step + 1,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeInOutCubic,
     );
   }
 
@@ -149,15 +170,16 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
       Navigator.of(context).maybePop();
       return;
     }
-    await _pageController.previousPage(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
+    await _pageController.animateToPage(
+      _step - 1,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeInOutCubic,
     );
   }
 
   Future<void> _submit() async {
     if (_saving) return;
-    if (!_validateCurrentStep()) return;
+    if (!await _validateCurrentStep()) return;
 
     setState(() => _saving = true);
     try {
@@ -174,6 +196,8 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
       final ticket = await _api.generateTicket(
         codeClient: client.codeClient,
         title: '$fromCity - $toCity',
+        fromCity: fromCity,
+        toCity: toCity,
         place: place,
         validFrom: _validFrom!,
         validUntil: _validUntil!,
@@ -181,6 +205,10 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
         vehicleType: _vehicleType,
         vehicleNumber: _vehicleCtrl.text.trim(),
         driverCodeClient: driverCode,
+        driverName: _driverNameCtrl.text.trim().isEmpty
+            ? null
+            : _driverNameCtrl.text.trim(),
+        driverPhone: driverPhone.isEmpty ? null : driverPhone,
         ticketType: _vehicleType,
         quantity: 1,
       );
@@ -192,16 +220,26 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Billet ${ticket.ticketCode ?? ''} enregistré en base'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      final code = ticket.ticketCode?.trim();
+      await showBilletterieResultDialog(
+        context,
+        title: 'Billet publié',
+        message: code != null && code.isNotEmpty
+            ? 'Votre billet a été créé avec succès.\nCode : $code'
+            : 'Votre billet a été créé avec succès.',
+        kind: BilletterieResultKind.success,
+        confirmLabel: 'Terminer',
       );
+      if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      _toast('$e');
+      await showBilletterieResultDialog(
+        context,
+        title: 'Publication impossible',
+        message: '$e',
+        kind: BilletterieResultKind.error,
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -216,6 +254,7 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
   Widget build(BuildContext context) {
     final brand = BilletterieBrand.of(context);
     final isLast = _step == _stepCount - 1;
+    final fieldStyle = _FieldStyle.of(context);
 
     return Scaffold(
       backgroundColor: brand.bg,
@@ -230,34 +269,20 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-            child: _StepProgress(
-              step: _step,
-              total: _stepCount,
-              labels: _stepTitles,
-            ),
-          ),
           Expanded(
             child: PageView(
               controller: _pageController,
-              physics: const BouncingScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               onPageChanged: (i) => setState(() => _step = i),
               children: [
                 _StepScaffold(
+                  title: 'Où va le trajet ?',
+                  subtitle: 'Choisissez le départ, l’arrivée et le point d’embarquement.',
                   child: Form(
                     key: _routeKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          'Où va le trajet ?',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: brand.text,
-                              ),
-                        ),
-                        const SizedBox(height: 16),
                         _CityDropdown(
                           key: ValueKey('from-$_fromCity-$_toCity'),
                           label: 'Ville de départ',
@@ -265,7 +290,7 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
                           exclude: _toCity,
                           onChanged: (v) => setState(() => _fromCity = v),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         _CityDropdown(
                           key: ValueKey('to-$_toCity-$_fromCity'),
                           label: 'Ville d’arrivée',
@@ -273,12 +298,14 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
                           exclude: _fromCity,
                           onChanged: (v) => setState(() => _toCity = v),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         TextFormField(
                           controller: _placeCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Point d’embarquement',
-                            border: OutlineInputBorder(),
+                          style: fieldStyle.textStyle,
+                          decoration: fieldStyle.decoration(
+                            label: 'Point d’embarquement',
+                            hint: 'Gare, parking, arrêt…',
+                            prefixIcon: Icons.place_outlined,
                           ),
                         ),
                       ],
@@ -286,23 +313,17 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
                   ),
                 ),
                 _StepScaffold(
+                  title: 'Quand part-il ?',
+                  subtitle: 'Indiquez les horaires de départ et d’arrivée.',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'Quand part-il ?',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: brand.text,
-                            ),
-                      ),
-                      const SizedBox(height: 16),
                       _DateCard(
                         label: 'Départ',
                         value: _fmtWhen(_validFrom),
                         onTap: () => _pickDateTime(isFrom: true),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       _DateCard(
                         label: 'Arrivée',
                         value: _fmtWhen(_validUntil),
@@ -310,72 +331,89 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
                       ),
                       if (_validFrom != null && _validUntil != null) ...[
                         const SizedBox(height: 16),
-                        Text(
-                          'Durée : ${ConductorTicketStore.durationLabel(_validFrom, _validUntil)}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: brand.muted,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: brand.primarySoft.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.timelapse_rounded, color: brand.primaryDark, size: 20),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Durée : ${ConductorTicketStore.durationLabel(_validFrom, _validUntil)}',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: brand.text,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                               ),
+                            ],
+                          ),
                         ),
                       ],
                     ],
                   ),
                 ),
                 _StepScaffold(
+                  title: 'Quel véhicule ?',
+                  subtitle: 'Renseignez le type, la plaque et le chauffeur.',
                   child: Form(
                     key: _vehicleKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          'Quel véhicule ?',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: brand.text,
-                              ),
-                        ),
-                        const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
                           initialValue: _vehicleType,
-                          decoration: const InputDecoration(
-                            labelText: 'Type de véhicule',
-                            border: OutlineInputBorder(),
+                          isExpanded: true,
+                          style: fieldStyle.textStyle,
+                          decoration: fieldStyle.decoration(
+                            label: 'Type de véhicule',
+                            prefixIcon: Icons.directions_bus_filled_outlined,
                           ),
                           items: _vehicleTypes
                               .map(
-                                (v) =>
-                                    DropdownMenuItem(value: v, child: Text(v)),
+                                (v) => DropdownMenuItem(value: v, child: Text(v)),
                               )
                               .toList(),
                           onChanged: (v) {
                             if (v != null) setState(() => _vehicleType = v);
                           },
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         TextFormField(
                           controller: _vehicleCtrl,
+                          style: fieldStyle.textStyle,
                           validator: (v) => (v == null || v.trim().isEmpty)
                               ? 'Champ requis'
                               : null,
-                          decoration: const InputDecoration(
-                            labelText: 'Immatriculation',
-                            border: OutlineInputBorder(),
+                          decoration: fieldStyle.decoration(
+                            label: 'Immatriculation',
+                            hint: 'Ex. AB-1234-CI',
+                            prefixIcon: Icons.confirmation_number_outlined,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         TextFormField(
                           controller: _driverNameCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Nom du chauffeur',
-                            border: OutlineInputBorder(),
+                          style: fieldStyle.textStyle,
+                          decoration: fieldStyle.decoration(
+                            label: 'Nom du chauffeur',
+                            prefixIcon: Icons.person_outline_rounded,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         TextFormField(
                           controller: _driverPhoneCtrl,
                           keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(
-                            labelText: 'Téléphone chauffeur',
-                            border: OutlineInputBorder(),
+                          style: fieldStyle.textStyle,
+                          decoration: fieldStyle.decoration(
+                            label: 'Téléphone chauffeur',
+                            hint: '07 XX XX XX XX',
+                            prefixIcon: Icons.phone_outlined,
                           ),
                         ),
                       ],
@@ -383,22 +421,17 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
                   ),
                 ),
                 _StepScaffold(
+                  title: 'Prix et confirmation',
+                  subtitle: 'Fixez le montant puis vérifiez le récapitulatif.',
                   child: Form(
                     key: _priceKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          'Prix et confirmation',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: brand.text,
-                              ),
-                        ),
-                        const SizedBox(height: 16),
                         TextFormField(
                           controller: _priceCtrl,
                           keyboardType: TextInputType.number,
+                          style: fieldStyle.textStyle,
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) {
                               return 'Champ requis';
@@ -408,12 +441,13 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
                             }
                             return null;
                           },
-                          decoration: const InputDecoration(
-                            labelText: 'Prix (Fcfa)',
-                            border: OutlineInputBorder(),
+                          decoration: fieldStyle.decoration(
+                            label: 'Prix (Fcfa)',
+                            hint: 'Ex. 2500',
+                            prefixIcon: Icons.payments_outlined,
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 18),
                         _ReviewCard(
                           fromCity: _fromCity,
                           toCity: _toCity,
@@ -442,6 +476,8 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
                       child: OutlinedButton(
                         onPressed: _saving ? null : _goBack,
                         style: OutlinedButton.styleFrom(
+                          foregroundColor: brand.primaryDark,
+                          side: BorderSide(color: brand.primaryDark, width: 1.5),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
@@ -480,61 +516,144 @@ class _TicketGenerateScreenState extends State<TicketGenerateScreen> {
   }
 }
 
-class _StepScaffold extends StatelessWidget {
-  const _StepScaffold({required this.child});
+class _FieldStyle {
+  _FieldStyle({
+    required this.brand,
+    required this.textStyle,
+  });
 
-  final Widget child;
+  final BilletterieBrand brand;
+  final TextStyle textStyle;
 
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-      physics: const BouncingScrollPhysics(),
-      child: child,
+  static _FieldStyle of(BuildContext context) {
+    final brand = BilletterieBrand.of(context);
+    return _FieldStyle(
+      brand: brand,
+      textStyle: Theme.of(context).textTheme.bodyLarge!.copyWith(
+            color: brand.text,
+            fontWeight: FontWeight.w600,
+          ),
+    );
+  }
+
+  InputDecoration decoration({
+    required String label,
+    String? hint,
+    IconData? prefixIcon,
+  }) {
+    final radius = BorderRadius.circular(16);
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: brand.card,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      prefixIcon: prefixIcon == null
+          ? null
+          : Icon(prefixIcon, color: brand.primaryDark, size: 22),
+      labelStyle: TextStyle(
+        color: brand.muted,
+        fontWeight: FontWeight.w600,
+      ),
+      hintStyle: TextStyle(
+        color: brand.muted.withValues(alpha: 0.85),
+        fontWeight: FontWeight.w500,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: brand.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: brand.primaryDark, width: 1.6),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: brand.danger),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: brand.danger, width: 1.6),
+      ),
+      border: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: brand.border),
+      ),
     );
   }
 }
 
-class _StepProgress extends StatelessWidget {
-  const _StepProgress({
-    required this.step,
-    required this.total,
-    required this.labels,
+class _StepScaffold extends StatelessWidget {
+  const _StepScaffold({
+    required this.title,
+    required this.subtitle,
+    required this.child,
   });
 
-  final int step;
-  final int total;
-  final List<String> labels;
+  final String title;
+  final String subtitle;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final brand = BilletterieBrand.of(context);
-    return Column(
-      children: [
-        Row(
-          children: List.generate(total, (i) {
-            final active = i <= step;
-            return Expanded(
-              child: Container(
-                margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
-                height: 4,
-                decoration: BoxDecoration(
-                  color: active ? brand.primaryDark : brand.border,
-                  borderRadius: BorderRadius.circular(4),
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          physics: const BouncingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+                  decoration: BoxDecoration(
+                    color: brand.surface,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: brand.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: brand.text,
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        subtitle,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: brand.muted,
+                              height: 1.35,
+                            ),
+                      ),
+                      const SizedBox(height: 22),
+                      child,
+                    ],
+                  ),
                 ),
               ),
-            );
-          }),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Étape ${step + 1}/$total · ${labels[step]}',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: brand.muted,
-                fontWeight: FontWeight.w600,
-              ),
-        ),
-      ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -555,6 +674,7 @@ class _CityDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fieldStyle = _FieldStyle.of(context);
     final cities = TransportCities.all
         .where((c) => exclude == null || c != exclude)
         .toList(growable: false);
@@ -563,9 +683,10 @@ class _CityDropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: selected,
       isExpanded: true,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
+      style: fieldStyle.textStyle,
+      decoration: fieldStyle.decoration(
+        label: label,
+        prefixIcon: Icons.location_city_rounded,
       ),
       items: cities
           .map((c) => DropdownMenuItem(value: c, child: Text(c)))
@@ -592,19 +713,28 @@ class _DateCard extends StatelessWidget {
     final brand = BilletterieBrand.of(context);
     return Material(
       color: brand.card,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: brand.border),
           ),
           child: Row(
             children: [
-              Icon(Icons.schedule_rounded, color: brand.primaryDark),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: brand.primarySoft.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: Icon(Icons.schedule_rounded, color: brand.primaryDark, size: 22),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -614,20 +744,21 @@ class _DateCard extends StatelessWidget {
                       label,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                             color: brand.muted,
+                            fontWeight: FontWeight.w600,
                           ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       value,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                             color: brand.text,
                           ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: brand.muted),
+              Icon(Icons.chevron_right_rounded, color: brand.muted),
             ],
           ),
         ),
@@ -670,16 +801,25 @@ class _ReviewCard extends StatelessWidget {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: brand.primarySoft.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: brand.border),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'Récapitulatif',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: brand.text,
+                ),
+          ),
+          const SizedBox(height: 12),
           for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0) const SizedBox(height: 8),
+            if (i > 0) const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
@@ -687,6 +827,7 @@ class _ReviewCard extends StatelessWidget {
                     rows[i].$1,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: brand.muted,
+                          fontWeight: FontWeight.w600,
                         ),
                   ),
                 ),
@@ -695,7 +836,7 @@ class _ReviewCard extends StatelessWidget {
                     rows[i].$2,
                     textAlign: TextAlign.right,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                           color: brand.text,
                         ),
                   ),

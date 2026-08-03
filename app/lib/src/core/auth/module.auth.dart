@@ -9,9 +9,22 @@ import 'package:app/src/features/auth/presentation/login_pin/screens/login_pin.s
 import 'package:app/src/features/auth/presentation/phone_input/screens/phone_input.screen.dart';
 
 /// Ensures the user is registered and signed in before a transaction or payment.
+///
+/// Guest browse of modules stays open; **client / subscribed personal data**
+/// must go through [hasActiveSessionOrToken] (or [ensureRegistered] for writes).
 class ModuleAuth {
   ModuleAuth._();
 
+  /// True when the in-memory session is active (PIN / login this run).
+  ///
+  /// A leftover access token alone is **not** enough — cold start stays guest
+  /// ("Utilisateur") until the user unlocks. Use this before client name / personal data.
+  static Future<bool> hasActiveSessionOrToken() async {
+    if (kDebugMode && MonPeyaEnv.skipForcedAuth) return true;
+    return MonPeyaSession.instance.isSessionActive;
+  }
+
+  /// Interactive login / PIN when personal data or a payment needs a session.
   static Future<bool> ensureRegistered(BuildContext context) async {
     if (kDebugMode && MonPeyaEnv.skipForcedAuth) return true;
 

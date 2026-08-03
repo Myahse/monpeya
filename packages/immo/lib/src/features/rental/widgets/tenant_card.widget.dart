@@ -42,6 +42,7 @@ class RentalTenantCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final b = RentalTheme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -49,9 +50,9 @@ class RentalTenantCard extends StatelessWidget {
         height: 200,
         margin: const EdgeInsets.only(right: RentalTheme.spacingLg),
         decoration: BoxDecoration(
-          color: const Color(0xFFE1F5FF),
+          color: b.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+          border: Border.all(color: b.border, width: 0.5),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -88,14 +89,14 @@ class RentalTenantCard extends StatelessWidget {
                   Positioned(
                     top: 4,
                     right: 4,
-                    child: Icon(Icons.info_outline, size: 20, color: Colors.grey.shade600),
+                    child: Icon(Icons.info_outline, size: 20, color: b.muted),
                   ),
                 ],
               ),
             ),
             Expanded(
               child: ColoredBox(
-                color: const Color(0xFFF8F8F8),
+                color: b.searchFill,
                 child: Padding(
                   padding: const EdgeInsets.all(RentalTheme.spacingMd),
                   child: Column(
@@ -105,10 +106,10 @@ class RentalTenantCard extends StatelessWidget {
                         tenant.fullName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: RentalTheme.textPrimary,
+                          color: b.text,
                         ),
                       ),
                       if (tenant.profession != null && tenant.profession!.isNotEmpty) ...[
@@ -120,7 +121,7 @@ class RentalTenantCard extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
-                            color: RentalTheme.greenAccent,
+                            color: RentalTheme.green,
                           ),
                         ),
                       ],
@@ -130,7 +131,7 @@ class RentalTenantCard extends StatelessWidget {
                           tenant.propertyName!,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12, color: Colors.black),
+                          style: TextStyle(fontSize: 12, color: b.text),
                         ),
                       ],
                       const Spacer(),
@@ -141,7 +142,7 @@ class RentalTenantCard extends StatelessWidget {
                               '📱 ${tenant.phone}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 9, color: RentalTheme.textSecondary),
+                              style: TextStyle(fontSize: 9, color: b.muted),
                             ),
                           ),
                           if (tenant.monthlyIncome != null)
@@ -150,7 +151,7 @@ class RentalTenantCard extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
-                                color: RentalTheme.greenAccent,
+                                color: RentalTheme.green,
                               ),
                             ),
                         ],
@@ -175,7 +176,7 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: RentalTheme.greenAccent,
+      color: RentalTheme.green,
       child: Center(
         child: Text(
           initials,

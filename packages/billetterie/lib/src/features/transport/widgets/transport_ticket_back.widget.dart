@@ -42,93 +42,113 @@ class TransportTicketBack extends StatelessWidget {
         final cardHeight = height ?? cardWidth * 0.95;
         final textTheme = Theme.of(context).textTheme;
 
+        final isLight = Theme.of(context).brightness == Brightness.light;
         final card = SizedBox(
           width: cardWidth,
           height: cardHeight,
-          child: ClipPath(
-            clipper: TicketShapeClipper(
-              cornerRadius: cornerRadius,
-              notchRadius: notchRadius,
-              dividerFraction: dividerFraction,
-            ),
-            child: ColoredBox(
-              color: brand.ticketBg,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
-                child: Column(
-                  children: [
-                    // Header tap flips back to the front (QR area keeps gestures).
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: onTap,
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ClipPath(
+                clipper: TicketShapeClipper(
+                  cornerRadius: cornerRadius,
+                  notchRadius: notchRadius,
+                  dividerFraction: dividerFraction,
+                ),
+                child: ColoredBox(
+                  color: brand.ticketBg,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+                    child: Column(
+                      children: [
+                        // Header tap flips back to the front (QR area keeps gestures).
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: onTap,
+                          child: Column(
                             children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    ticket.fromCode,
+                                    style: textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: brand.ticketInk,
+                                      letterSpacing: -0.4,
+                                      height: 1,
+                                    ),
+                                  ),
+                                  Text(
+                                    ticket.toCode,
+                                    style: textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: brand.ticketInk,
+                                      letterSpacing: -0.4,
+                                      height: 1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
                               Text(
-                                ticket.fromCode,
-                                style: textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w800,
+                                ticket.durationLabel,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
                                   color: brand.ticketInk,
-                                  letterSpacing: -0.4,
-                                  height: 1,
                                 ),
                               ),
-                              Text(
-                                ticket.toCode,
-                                style: textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: brand.ticketInk,
-                                  letterSpacing: -0.4,
-                                  height: 1,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            ticket.durationLabel,
-                            style: textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: brand.ticketInk,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: Center(
-                        child: AspectRatio(
-                          aspectRatio: 1,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              QrImageView(
-                                data: ticket.resolvedQrPayload,
-                                version: QrVersions.auto,
-                                backgroundColor: Colors.white,
-                                padding: EdgeInsets.zero,
-                                eyeStyle: const QrEyeStyle(
-                                  eyeShape: QrEyeShape.square,
-                                  color: BilletterieBrand.qrInk,
-                                ),
-                                dataModuleStyle: const QrDataModuleStyle(
-                                  dataModuleShape: QrDataModuleShape.square,
-                                  color: BilletterieBrand.qrInk,
-                                ),
-                              ),
-                              if (qrOverlay != null) qrOverlay!,
                             ],
                           ),
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: Center(
+                            child: AspectRatio(
+                              aspectRatio: 1,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  QrImageView(
+                                    data: ticket.resolvedQrPayload,
+                                    version: QrVersions.auto,
+                                    backgroundColor: Colors.white,
+                                    padding: EdgeInsets.zero,
+                                    eyeStyle: const QrEyeStyle(
+                                      eyeShape: QrEyeShape.square,
+                                      color: BilletterieBrand.qrInk,
+                                    ),
+                                    dataModuleStyle: const QrDataModuleStyle(
+                                      dataModuleShape:
+                                          QrDataModuleShape.square,
+                                      color: BilletterieBrand.qrInk,
+                                    ),
+                                  ),
+                                  if (qrOverlay != null) qrOverlay!,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              if (isLight)
+                IgnorePointer(
+                  child: CustomPaint(
+                    painter: TicketShapeBorderPainter(
+                      cornerRadius: cornerRadius,
+                      notchRadius: notchRadius,
+                      dividerFraction: dividerFraction,
+                      color: brand.border,
+                      strokeWidth: 1.0,
+                    ),
+                  ),
+                ),
+            ],
           ),
         );
 

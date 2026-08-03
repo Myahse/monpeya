@@ -58,8 +58,9 @@ class _LeadwayPdfViewerScreenState extends State<LeadwayPdfViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+    return LeadwayTheme(
+      child: Scaffold(
+      backgroundColor: LeadwayBrand.of(context).bg,
       appBar: AppBar(
         backgroundColor: LeadwayBrand.primary,
         foregroundColor: Colors.white,
@@ -100,6 +101,7 @@ class _LeadwayPdfViewerScreenState extends State<LeadwayPdfViewerScreen> {
                   const Center(child: CircularProgressIndicator(color: LeadwayBrand.primary)),
               ],
             ),
+      ),
     );
   }
 }

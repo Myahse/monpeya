@@ -14,4 +14,6 @@ class PrefsKeys {
   static const monPeyaRefreshToken = 'monPeyaRefreshToken';
   static const monPeyaUserId = 'monPeyaUserId';
   static const codeClient = 'codeClient';
+  static const isPeyaClient = 'isPeyaClient';
+  static const isPeyapayMerchant = 'isPeyapayMerchant';
 }

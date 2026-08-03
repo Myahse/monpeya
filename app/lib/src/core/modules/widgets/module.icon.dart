@@ -24,6 +24,10 @@ String? moduleIconAsset({String? moduleKey, String? iconKey}) {
     'immo/collection' ||
     'mr-immo-collection' =>
       'packages/immo/assets/logo/immo/collection.png',
+    'leadway' ||
+    'leadway-assurance' ||
+    'leadway/assurance' =>
+      'packages/leadway/assets/logo/leadway.png',
     _ => _iconKeyAsset(iconKey),
   };
 }
@@ -34,6 +38,7 @@ String? _iconKeyAsset(String? iconKey) {
     'immo-rental' => 'packages/immo/assets/logo/immo/rental.png',
     'immo-construction' => 'packages/immo/assets/logo/immo/construction.png',
     'immo-collection' => 'packages/immo/assets/logo/immo/collection.png',
+    'leadway' => 'packages/leadway/assets/logo/leadway.png',
     _ => null,
   };
 }
@@ -43,12 +48,17 @@ bool isImmoBrandedModuleIcon({String? moduleKey, String? iconKey}) {
   return asset != null && asset.contains('/immo/');
 }
 
+bool isLeadwayBrandedModuleIcon({String? moduleKey, String? iconKey}) {
+  final asset = moduleIconAsset(moduleKey: moduleKey, iconKey: iconKey);
+  return asset != null && asset.contains('/leadway/');
+}
+
 
 IconData moduleIconData(String iconKey) {
   return switch (iconKey.toLowerCase()) {
     'home' || 'real_estate' || 'rental' || 'immo-rental' => Icons.home_work_outlined,
     'construction' || 'build' || 'immo-construction' => Icons.construction_outlined,
-    'shield' || 'insurance' => Icons.shield_outlined,
+    'shield' || 'insurance' || 'leadway' => Icons.shield_outlined,
     'school' || 'education' => Icons.school_outlined,
     'cart' || 'marketplace' || 'shop' => Icons.shopping_bag_outlined,
     'ticket' ||
@@ -103,7 +113,8 @@ class ModuleIcon extends StatelessWidget {
         color: color ?? Theme.of(context).colorScheme.onSurface,
       );
 
-      if (!isImmoBrandedModuleIcon(moduleKey: moduleKey, iconKey: iconKey)) {
+      if (!isImmoBrandedModuleIcon(moduleKey: moduleKey, iconKey: iconKey) &&
+          !isLeadwayBrandedModuleIcon(moduleKey: moduleKey, iconKey: iconKey)) {
         return Image.asset(
           asset,
           width: size,
@@ -113,14 +124,18 @@ class ModuleIcon extends StatelessWidget {
         );
       }
 
-    
+      final scale =
+          isLeadwayBrandedModuleIcon(moduleKey: moduleKey, iconKey: iconKey)
+              ? 1.18
+              : 1.38;
+
       return ClipRRect(
         borderRadius: BorderRadius.circular(size * 0.28),
         child: SizedBox(
           width: size,
           height: size,
           child: Transform.scale(
-            scale: 1.38,
+            scale: scale,
             child: Image.asset(
               asset,
               fit: BoxFit.contain,

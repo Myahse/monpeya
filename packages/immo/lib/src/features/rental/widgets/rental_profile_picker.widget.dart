@@ -10,23 +10,24 @@ class RentalProfilePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final b = RentalTheme.of(context);
     return Padding(
       padding: const EdgeInsets.all(RentalTheme.spacingLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Comment utilisez-vous Mr Immo ?',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: RentalTheme.textPrimary,
+              color: b.text,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Vous pourrez changer ce choix plus tard dans Compte.',
-            style: TextStyle(fontSize: 14, color: RentalTheme.textSecondary, height: 1.4),
+            style: TextStyle(fontSize: 14, color: b.muted, height: 1.4),
           ),
           const SizedBox(height: RentalTheme.spacingLg),
           _RoleCard(
@@ -63,8 +64,9 @@ class _RoleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final b = RentalTheme.of(context);
     return Material(
-      color: Colors.white,
+      color: b.card,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -73,7 +75,7 @@ class _RoleCard extends StatelessWidget {
           padding: const EdgeInsets.all(RentalTheme.spacingMd),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: RentalTheme.borderLight),
+            border: Border.all(color: b.border),
           ),
           child: Row(
             children: [
@@ -81,11 +83,11 @@ class _RoleCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: RentalTheme.greenMid.withValues(alpha: 0.12),
+                  color: RentalTheme.green.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 alignment: Alignment.center,
-                child: Icon(icon, color: RentalTheme.greenMid),
+                child: Icon(icon, color: RentalTheme.green),
               ),
               const SizedBox(width: RentalTheme.spacingMd),
               Expanded(
@@ -94,21 +96,21 @@ class _RoleCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: RentalTheme.textPrimary,
+                        color: b.text,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(fontSize: 13, color: RentalTheme.textSecondary, height: 1.3),
+                      style: TextStyle(fontSize: 13, color: b.muted, height: 1.3),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: RentalTheme.textSecondary),
+              Icon(Icons.chevron_right, color: b.muted),
             ],
           ),
         ),

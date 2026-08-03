@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import 'package:immo/src/core/constants/immo.brand.dart';
 import 'package:immo/src/features/rental/auth/scopes/rental_session.scope.dart';
 import 'package:immo/src/features/rental/models/rental.tenant.dart';
+import 'package:immo/src/features/rental/theme/themes/rental.theme.dart';
 
 String _resolvePhotoUrl(String photo, String apiBase) {
   if (photo.startsWith('http')) {
@@ -67,16 +68,18 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final b = RentalTheme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: b.bg,
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: widget.onBack),
         title: const Text('Locataire'),
-        backgroundColor: ImmoBrand.rentalPrimary,
+        backgroundColor: RentalTheme.green,
         foregroundColor: Colors.white,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
       ),
       body: _error != null
-          ? Center(child: Text(_error!))
+          ? Center(child: Text(_error!, style: TextStyle(color: b.text)))
           : _tenant == null
               ? const SizedBox.shrink()
               : _buildContent(_tenant!),
@@ -84,6 +87,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
   }
 
   Widget _buildContent(RentalTenant tenant) {
+    final b = RentalTheme.of(context);
     final photo = tenant.photoUrl;
     final apiBase = RentalSessionScope.of(context).api.client.baseUrl;
 
@@ -93,7 +97,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
         Center(
           child: CircleAvatar(
             radius: 48,
-            backgroundColor: ImmoBrand.rentalPrimary.withValues(alpha: 0.15),
+            backgroundColor: RentalTheme.green.withValues(alpha: 0.15),
             backgroundImage: photo != null && photo.isNotEmpty
                 ? NetworkImage(_resolvePhotoUrl(photo, apiBase))
                 : null,
@@ -103,7 +107,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
-                      color: ImmoBrand.rentalPrimary,
+                      color: RentalTheme.green,
                     ),
                   )
                 : null,
@@ -113,13 +117,13 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
         Text(
           tenant.fullName,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: b.text),
         ),
         const SizedBox(height: 4),
         Text(
           tenant.status.toUpperCase(),
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey.shade600, letterSpacing: 1),
+          style: TextStyle(color: b.muted, letterSpacing: 1),
         ),
         const SizedBox(height: 24),
         _infoTile(Icons.email_outlined, 'Email', tenant.email),
@@ -139,12 +143,18 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
   }
 
   Widget _infoTile(IconData icon, String label, String value) {
+    final b = RentalTheme.of(context);
     return Card(
+      color: b.card,
       margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: b.border),
+      ),
       child: ListTile(
-        leading: Icon(icon, color: ImmoBrand.rentalPrimary),
-        title: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-        subtitle: Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        leading: Icon(icon, color: RentalTheme.green),
+        title: Text(label, style: TextStyle(fontSize: 12, color: b.muted)),
+        subtitle: Text(value, style: TextStyle(fontWeight: FontWeight.w600, color: b.text)),
       ),
     );
   }

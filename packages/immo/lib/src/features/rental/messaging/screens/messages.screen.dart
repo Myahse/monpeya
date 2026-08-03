@@ -100,10 +100,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _listView() {
+    final b = RentalTheme.of(context);
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: ColoredBox(
-        color: RentalTheme.surface,
+        color: b.bg,
         child: Column(
           children: [
             RentalGradientPageHeader(
@@ -126,7 +127,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               ),
             ),
             ColoredBox(
-              color: Colors.white,
+              color: b.card,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   RentalTheme.spacingLg,
@@ -136,61 +137,69 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 ),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: RentalTheme.searchBg,
+                    color: b.searchFill,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: TextField(
                     controller: _search,
                     onChanged: (v) => setState(() => _searchQuery = v),
-                    decoration: const InputDecoration(
+                    style: TextStyle(color: b.text),
+                    decoration: InputDecoration(
                       hintText: 'Rechercher une conversation…',
-                      hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
-                      prefixIcon: Icon(Icons.search, color: Color(0xFF9CA3AF), size: 20),
+                      hintStyle: TextStyle(color: b.muted),
+                      prefixIcon: Icon(Icons.search, color: b.muted, size: 20),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
               ),
             ),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: _loadConversations,
-                color: RentalTheme.greenDark,
-                child: _filteredConversations.isEmpty
-                    ? ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
-                          SizedBox(height: 80),
-                          Center(child: Text('💬', style: TextStyle(fontSize: 64))),
-                          SizedBox(height: RentalTheme.spacingMd),
-                          Center(
-                            child: Text(
-                              'Aucune conversation',
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              child: ColoredBox(
+                color: b.card,
+                child: RefreshIndicator(
+                  onRefresh: _loadConversations,
+                  color: RentalTheme.green,
+                  child: _filteredConversations.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            const SizedBox(height: 80),
+                            const Center(child: Text('💬', style: TextStyle(fontSize: 64))),
+                            const SizedBox(height: RentalTheme.spacingMd),
+                            Center(
+                              child: Text(
+                                'Aucune conversation',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  color: b.text,
+                                ),
+                              ),
                             ),
-                          ),
-                          SizedBox(height: RentalTheme.spacingSm),
-                          Center(
-                            child: Text(
-                              'Appuyez sur + pour démarrer',
-                              style: TextStyle(color: RentalTheme.textSecondary),
+                            const SizedBox(height: RentalTheme.spacingSm),
+                            Center(
+                              child: Text(
+                                'Appuyez sur + pour démarrer',
+                                style: TextStyle(color: b.muted),
+                              ),
                             ),
-                          ),
-                        ],
-                      )
-                    : ListView.builder(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.only(bottom: RentalTheme.scrollBottomPad),
-                        itemCount: _filteredConversations.length,
-                        itemBuilder: (context, i) {
-                          final c = _filteredConversations[i];
-                          return _ConversationTile(
-                            conversation: c,
-                            onTap: () => _openChat(c),
-                          );
-                        },
-                      ),
+                          ],
+                        )
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.only(bottom: RentalTheme.scrollBottomPad),
+                          itemCount: _filteredConversations.length,
+                          itemBuilder: (context, i) {
+                            final c = _filteredConversations[i];
+                            return _ConversationTile(
+                              conversation: c,
+                              onTap: () => _openChat(c),
+                            );
+                          },
+                        ),
+                ),
               ),
             ),
           ],
@@ -200,13 +209,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _chatView() {
+    final b = RentalTheme.of(context);
     final conv = _selected!;
     final userId = RentalSessionScope.of(context).userId;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF9FAFB),
+        backgroundColor: b.bg,
         body: Column(
           children: [
             Container(
@@ -233,7 +243,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     children: [
                       CircleAvatar(
                         radius: 22,
-                        backgroundColor: RentalTheme.greenDark,
+                        backgroundColor: RentalTheme.green,
                         child: Text(
                           conv.userName.isNotEmpty ? conv.userName[0].toUpperCase() : '?',
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
@@ -295,14 +305,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.75),
                       decoration: BoxDecoration(
-                        color: mine ? RentalTheme.greenDark : Colors.white,
+                        color: mine ? RentalTheme.green : b.card,
                         borderRadius: BorderRadius.circular(16),
-                        border: mine ? null : Border.all(color: const Color(0xFFE5E7EB)),
+                        border: mine ? null : Border.all(color: b.border),
                       ),
                       child: Text(
                         m.content,
                         style: TextStyle(
-                          color: mine ? Colors.white : RentalTheme.textPrimary,
+                          color: mine ? Colors.white : b.text,
                           fontSize: 15,
                         ),
                       ),
@@ -317,15 +327,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 child: Row(
                   children: [
                     Material(
-                      color: RentalTheme.searchBg,
+                      color: b.searchFill,
                       shape: const CircleBorder(),
                       child: InkWell(
                         onTap: () {},
                         customBorder: const CircleBorder(),
-                        child: const SizedBox(
+                        child: SizedBox(
                           width: 40,
                           height: 40,
-                          child: Icon(Icons.attach_file, color: RentalTheme.textSecondary),
+                          child: Icon(Icons.attach_file, color: b.muted),
                         ),
                       ),
                     ),
@@ -333,25 +343,27 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     Expanded(
                       child: TextField(
                         controller: _input,
+                        style: TextStyle(color: b.text),
                         decoration: InputDecoration(
                           hintText: 'Écrire un message…',
+                          hintStyle: TextStyle(color: b.muted),
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: b.card,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(24),
-                            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                            borderSide: BorderSide(color: b.border),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(24),
-                            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                            borderSide: BorderSide(color: b.border),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Material(
-                      color: RentalTheme.greenDark,
+                      color: RentalTheme.green,
                       shape: const CircleBorder(),
                       child: InkWell(
                         onTap: _send,
@@ -385,6 +397,7 @@ class _ConversationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final b = RentalTheme.of(context);
     final initials = conversation.userName
         .split(' ')
         .where((p) => p.isNotEmpty)
@@ -394,7 +407,7 @@ class _ConversationTile extends StatelessWidget {
         .toUpperCase();
 
     return Material(
-      color: Colors.white,
+      color: b.card,
       child: InkWell(
         onTap: onTap,
         child: Container(
@@ -402,8 +415,8 @@ class _ConversationTile extends StatelessWidget {
             horizontal: RentalTheme.spacingLg,
             vertical: RentalTheme.spacingMd,
           ),
-          decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: b.border)),
           ),
           child: Row(
             children: [
@@ -411,7 +424,7 @@ class _ConversationTile extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 28,
-                    backgroundColor: RentalTheme.greenDark,
+                    backgroundColor: RentalTheme.green,
                     child: Text(
                       initials.isNotEmpty ? initials : '?',
                       style: const TextStyle(
@@ -448,10 +461,10 @@ class _ConversationTile extends StatelessWidget {
                             conversation.userName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: RentalTheme.textPrimary,
+                              color: b.text,
                             ),
                           ),
                         ),
@@ -467,9 +480,9 @@ class _ConversationTile extends StatelessWidget {
                                 : 'Aucun message',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: RentalTheme.textSecondary,
+                              color: b.muted,
                             ),
                           ),
                         ),
@@ -479,7 +492,7 @@ class _ConversationTile extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                             constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                             decoration: BoxDecoration(
-                              color: RentalTheme.greenDark,
+                              color: RentalTheme.green,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             alignment: Alignment.center,

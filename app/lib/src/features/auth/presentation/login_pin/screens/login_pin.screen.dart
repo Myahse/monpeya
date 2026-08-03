@@ -246,7 +246,7 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     final showBiometric = _biometricAvailable && phoneNumber != null;
 
     return PopScope(
-      canPop: false,
+      canPop: widget.embeddedInModule,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _handleBack();
       },

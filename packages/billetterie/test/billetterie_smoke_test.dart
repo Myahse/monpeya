@@ -23,6 +23,7 @@ void main() {
     test('BilletterieBrand is defined', () {
       expect(BilletterieBrand.light.primary.toARGB32(), 0xFF38BDF8);
       expect(BilletterieBrand.dark.text.toARGB32(), 0xFFF1F5F9);
+      expect(BilletterieBrand.eventLight.primaryDark.toARGB32(), 0xFF7C3AED);
     });
   });
 

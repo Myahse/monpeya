@@ -30,6 +30,7 @@ class PeyapayPartyCardsStack extends StatelessWidget {
     required this.ink,
     required this.muted,
     this.cardBg = Colors.white,
+    this.cardBorderColor,
     this.cutoutBg = const Color(0xFFEBEBEB),
     this.accent = const Color(0xFF006D56),
     this.arrowBg = Colors.white,
@@ -46,6 +47,7 @@ class PeyapayPartyCardsStack extends StatelessWidget {
   final Color ink;
   final Color muted;
   final Color cardBg;
+  final Color? cardBorderColor;
   /// Kept for API compatibility; notches are clipped so the parent bg shows through.
   final Color cutoutBg;
   final Color accent;
@@ -135,6 +137,7 @@ class PeyapayPartyCardsStack extends StatelessWidget {
                   _MiniPartyCard(
                     side: _MiniPartyCardSide.left,
                     cardBg: cardBg,
+                    cardBorderColor: cardBorderColor,
                     ink: ink,
                     muted: muted,
                     title: left.title,
@@ -152,6 +155,7 @@ class PeyapayPartyCardsStack extends StatelessWidget {
                   _MiniPartyCard(
                     side: _MiniPartyCardSide.right,
                     cardBg: cardBg,
+                    cardBorderColor: cardBorderColor,
                     ink: ink,
                     muted: muted,
                     title: right.title,
@@ -277,6 +281,7 @@ class _MiniPartyCard extends StatelessWidget {
   const _MiniPartyCard({
     required this.side,
     required this.cardBg,
+    this.cardBorderColor,
     required this.ink,
     required this.muted,
     required this.title,
@@ -290,6 +295,7 @@ class _MiniPartyCard extends StatelessWidget {
 
   final _MiniPartyCardSide side;
   final Color cardBg;
+  final Color? cardBorderColor;
   final Color ink;
   final Color muted;
   final String title;
@@ -332,8 +338,13 @@ class _MiniPartyCard extends StatelessWidget {
         notchY: PeyapayPartyCardsStack._notchY,
         notchFraction: PeyapayPartyCardsStack._notchFraction,
       ),
-      child: ColoredBox(
-        color: cardBg,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: cardBg,
+          border: cardBorderColor == null
+              ? null
+              : Border.all(color: cardBorderColor!, width: 1),
+        ),
         child: Stack(
           clipBehavior: Clip.none,
           children: [

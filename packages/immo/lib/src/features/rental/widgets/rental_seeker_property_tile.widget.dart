@@ -16,6 +16,7 @@ class RentalSeekerPropertyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final b = RentalTheme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         RentalTheme.spacingLg,
@@ -24,7 +25,7 @@ class RentalSeekerPropertyTile extends StatelessWidget {
         RentalTheme.spacingMd,
       ),
       child: Material(
-        color: Colors.white,
+        color: b.card,
         borderRadius: BorderRadius.circular(16),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -47,23 +48,23 @@ class RentalSeekerPropertyTile extends StatelessWidget {
                         property.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: RentalTheme.textPrimary,
+                          color: b.text,
                         ),
                       ),
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          const Icon(Icons.place_outlined, size: 14, color: RentalTheme.textSecondary),
+                          Icon(Icons.place_outlined, size: 14, color: b.muted),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               _locationLine(property),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12, color: RentalTheme.textSecondary),
+                              style: TextStyle(fontSize: 12, color: b.muted),
                             ),
                           ),
                         ],
@@ -72,7 +73,7 @@ class RentalSeekerPropertyTile extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           property.propertyType,
-                          style: const TextStyle(fontSize: 12, color: RentalTheme.textSecondary),
+                          style: TextStyle(fontSize: 12, color: b.muted),
                         ),
                       ],
                       const SizedBox(height: 8),
@@ -83,14 +84,14 @@ class RentalSeekerPropertyTile extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
-                              color: RentalTheme.greenMid,
+                              color: RentalTheme.green,
                             ),
                           ),
                           if (property.surface > 0) ...[
                             const SizedBox(width: 8),
                             Text(
                               '${property.surface.toStringAsFixed(0)} m²',
-                              style: const TextStyle(fontSize: 12, color: RentalTheme.textSecondary),
+                              style: TextStyle(fontSize: 12, color: b.muted),
                             ),
                           ],
                         ],
@@ -123,11 +124,12 @@ class _Thumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final b = RentalTheme.of(context);
     if (url == null || url!.isEmpty) {
-      return const ColoredBox(
-        color: Color(0xFFF5F5F5),
-        child: Center(
-          child: Icon(Icons.home_work_outlined, color: RentalTheme.greenMid, size: 36),
+      return ColoredBox(
+        color: b.searchFill,
+        child: const Center(
+          child: Icon(Icons.home_work_outlined, color: RentalTheme.green, size: 36),
         ),
       );
     }
@@ -135,9 +137,9 @@ class _Thumb extends StatelessWidget {
     return Image.network(
       url!,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => const ColoredBox(
-        color: Color(0xFFF5F5F5),
-        child: Center(child: Icon(Icons.broken_image_outlined, color: RentalTheme.greenMid)),
+      errorBuilder: (_, __, ___) => ColoredBox(
+        color: b.searchFill,
+        child: const Center(child: Icon(Icons.broken_image_outlined, color: RentalTheme.green)),
       ),
     );
   }

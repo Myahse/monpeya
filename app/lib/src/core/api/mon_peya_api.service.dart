@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:peyapay/peyapay.dart';
@@ -8,8 +10,8 @@ import 'package:app/src/core/api/models/mon_peya_subscription.models.dart';
 import 'package:app/src/core/api/models/mon_peya_wallet.models.dart';
 import 'package:app/src/core/api/mon_peya_api.config.dart';
 import 'package:app/src/core/api/mon_peya_api.exception.dart';
+import 'package:app/src/core/api/mon_peya_error.messages.dart';
 
-/// HTTP client for the Monpeya backend (`POST /v1/*`, `{ data }` envelope).
 class MonPeyaApiService {
   MonPeyaApiService({http.Client? client}) : _client = client ?? http.Client();
 
@@ -360,22 +362,65 @@ class MonPeyaApiService {
     required String errorMessage,
     bool allowUnauthorized = false,
   }) async {
-    final response = await _client
-        .post(
-          _uri(path),
-          headers: const {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: jsonEncode({'data': data}),
-        )
-        .timeout(MonPeyaApiConfig.apiTimeout);
+    try {
+      final response = await _client
+          .post(
+            _uri(path),
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'data': data}),
+          )
+          .timeout(MonPeyaApiConfig.apiTimeout);
 
-    return _parseEnvelope(
-      response,
-      errorMessage: errorMessage,
-      allowUnauthorized: allowUnauthorized,
-    );
+      return _parseEnvelope(
+        response,
+        errorMessage: errorMessage,
+        allowUnauthorized: allowUnauthorized,
+      );
+    } on MonPeyaApiException {
+      rethrow;
+    } catch (e) {
+      throw _toNetworkException(e, errorMessage);
+    }
+  }
+
+  MonPeyaApiException _toNetworkException(Object error, String errorMessage) {
+    final base = MonPeyaApiConfig.baseUrl;
+
+    if (error is TimeoutException) {
+      return MonPeyaApiException(
+        message:
+            'Le serveur Mon Peya ne répond pas ($base). '
+            'Vérifiez que le backend est démarré.',
+      );
+    }
+
+    final isNetwork = error is SocketException ||
+        error is http.ClientException ||
+        error is IOException;
+    if (isNetwork || _looksLikeNetworkError(error)) {
+      return MonPeyaApiException(
+        message:
+            'Impossible de joindre le serveur Mon Peya ($base). '
+            'Vérifiez que le téléphone et le PC sont sur le même Wi‑Fi, '
+            'que l’adresse IP du PC est correcte dans app/.env, '
+            'et que le backend écoute sur le port 8081.',
+      );
+    }
+
+    return MonPeyaApiException(message: '$errorMessage (connexion impossible)');
+  }
+
+  bool _looksLikeNetworkError(Object error) {
+    final msg = error.toString().toLowerCase();
+    return msg.contains('socketexception') ||
+        msg.contains('no route to host') ||
+        msg.contains('connection refused') ||
+        msg.contains('failed host lookup') ||
+        msg.contains('network is unreachable') ||
+        msg.contains('connection timed out');
   }
 
   _MonPeyaEnvelope _parseEnvelope(
@@ -384,19 +429,34 @@ class MonPeyaApiService {
     bool allowUnauthorized = false,
   }) {
     final decoded = _decodeBody(response, errorMessage);
+    final apiError = decoded is Map<String, dynamic>
+        ? _readApiError(decoded)
+        : null;
 
     if (response.statusCode == 401 && allowUnauthorized) {
       throw MonPeyaApiException(
-        message: errorMessage,
+        message: apiError?.message ?? errorMessage,
         statusCode: 401,
-        apiCode: '901',
+        apiCode: apiError?.code ?? '901',
+      );
+    }
+
+    if (response.statusCode >= 500) {
+      throw MonPeyaApiException(
+        message: MonPeyaErrorMessages.serverUnavailable,
+        statusCode: response.statusCode,
+        apiCode: apiError?.code,
       );
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw MonPeyaApiException(
-        message: errorMessage,
+        message: _friendlyApiMessage(
+          apiError?.message ?? errorMessage,
+          fallback: errorMessage,
+        ),
         statusCode: response.statusCode,
+        apiCode: apiError?.code,
       );
     }
 
@@ -404,16 +464,13 @@ class MonPeyaApiService {
       throw MonPeyaApiException(message: '$errorMessage (format inattendu)');
     }
 
-    final hasError = decoded['hasError'] == true;
-    final status = decoded['status'];
-    final code = status is Map ? status['code']?.toString() : null;
-    final message = status is Map ? status['message']?.toString() : null;
-
-    if (hasError || (code != null && code != '800')) {
+    if (apiError != null &&
+        (decoded['hasError'] == true ||
+            (apiError.code != null && apiError.code != '800'))) {
       throw MonPeyaApiException(
-        message: (message != null && message.isNotEmpty) ? message : errorMessage,
+        message: _friendlyApiMessage(apiError.message, fallback: errorMessage),
         statusCode: response.statusCode,
-        apiCode: code,
+        apiCode: apiError.code,
       );
     }
 
@@ -427,10 +484,44 @@ class MonPeyaApiService {
     }
 
     return _MonPeyaEnvelope(
-      code: code,
+      code: apiError?.code,
       item: itemRaw is Map ? Map<String, dynamic>.from(itemRaw) : null,
       items: items,
     );
+  }
+
+  _ApiStatusError? _readApiError(Map<String, dynamic> decoded) {
+    final hasError = decoded['hasError'] == true;
+    final status = decoded['status'];
+    if (status is! Map) return null;
+    final code = status['code']?.toString();
+    final message = status['message']?.toString();
+    if (!hasError && code == '800') return null;
+    if ((message == null || message.isEmpty) && code == null) return null;
+    return _ApiStatusError(code: code, message: message);
+  }
+
+  String _friendlyApiMessage(String? raw, {required String fallback}) {
+    final msg = raw?.trim();
+    if (msg == null || msg.isEmpty) return fallback;
+    final lower = msg.toLowerCase();
+    if (lower.contains('internal server error') ||
+        lower.contains('bad gateway') ||
+        lower.contains('service unavailable') ||
+        lower.contains('gateway timeout')) {
+      return MonPeyaErrorMessages.serverUnavailable;
+    }
+    if (lower.contains('token est expir') ||
+        lower.contains('token expired') ||
+        lower.contains('veuillez vous reconnecter')) {
+      return 'Le service PeyaPay du backend Mon Peya a un token expiré. '
+          'Redémarrez le backend ou mettez à jour les identifiants PeyaPay côté serveur.';
+    }
+    if (lower.contains('verifcodepin') && lower.contains('401')) {
+      return 'Vérification PIN PeyaPay refusée (token serveur expiré). '
+          'Contactez l’admin backend Mon Peya.';
+    }
+    return MonPeyaErrorMessages.sanitizeRaw(msg, fallback: fallback);
   }
 
   dynamic _decodeBody(http.Response response, String errorMessage) {
@@ -479,4 +570,11 @@ class _MonPeyaEnvelope {
   final String? code;
   final Map<String, dynamic>? item;
   final List<Map<String, dynamic>> items;
+}
+
+class _ApiStatusError {
+  const _ApiStatusError({this.code, this.message});
+
+  final String? code;
+  final String? message;
 }

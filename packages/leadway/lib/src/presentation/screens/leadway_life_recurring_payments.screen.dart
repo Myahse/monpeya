@@ -174,8 +174,9 @@ class _LeadwayLifeRecurringPaymentsScreenState extends State<LeadwayLifeRecurrin
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+    return LeadwayTheme(
+      child: Scaffold(
+      backgroundColor: LeadwayBrand.of(context).bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -191,7 +192,7 @@ class _LeadwayLifeRecurringPaymentsScreenState extends State<LeadwayLifeRecurrin
                   alignment: Alignment.centerLeft,
                   child: Text(
                     '$_totalItems paiement${_totalItems > 1 ? 's' : ''} récurrent${_totalItems > 1 ? 's' : ''}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 12, color: LeadwayBrand.of(context).muted, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -199,26 +200,28 @@ class _LeadwayLifeRecurringPaymentsScreenState extends State<LeadwayLifeRecurrin
           ],
         ),
       ),
+    ),
     );
   }
 
   Widget _header() {
+    final brand = LeadwayBrand.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
       child: Row(
         children: [
           IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.chevron_left)),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Paiements récurrents',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: LeadwayBrand.textDark),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: brand.text),
                 ),
                 Text(
                   'Leadway Assurance Vie',
-                  style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 11, color: brand.muted, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -234,12 +237,13 @@ class _LeadwayLifeRecurringPaymentsScreenState extends State<LeadwayLifeRecurrin
   }
 
   Widget _filtersCard() {
+    final brand = LeadwayBrand.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         children: [
@@ -249,7 +253,7 @@ class _LeadwayLifeRecurringPaymentsScreenState extends State<LeadwayLifeRecurrin
             decoration: InputDecoration(
               labelText: 'Statut',
               filled: true,
-              fillColor: const Color(0xFFFAFAFA),
+              fillColor: brand.card,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
@@ -271,7 +275,7 @@ class _LeadwayLifeRecurringPaymentsScreenState extends State<LeadwayLifeRecurrin
               decoration: InputDecoration(
                 labelText: 'N° de police',
                 filled: true,
-                fillColor: const Color(0xFFFAFAFA),
+                fillColor: brand.card,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
@@ -282,7 +286,7 @@ class _LeadwayLifeRecurringPaymentsScreenState extends State<LeadwayLifeRecurrin
               decoration: InputDecoration(
                 labelText: 'Code produit',
                 filled: true,
-                fillColor: const Color(0xFFFAFAFA),
+                fillColor: brand.card,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
@@ -359,12 +363,13 @@ class _LeadwayLifeRecurringPaymentsScreenState extends State<LeadwayLifeRecurrin
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
-        child: Text(text, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600], height: 1.4)),
+        child: Text(text, textAlign: TextAlign.center, style: TextStyle(color: LeadwayBrand.of(context).muted, height: 1.4)),
       ),
     );
   }
 
   Widget _paymentCard(LeadwayLifeRecurringPaymentItem item) {
+    final brand = LeadwayBrand.of(context);
     final statusLabel = LeadwayLifeRecurringPaymentStatus.fromCode(item.status)?.label ?? item.status;
     final freq = LeadwayLifePaymentFrequency.fromCode(item.frequency)?.label ?? item.frequency;
 
@@ -372,9 +377,9 @@ class _LeadwayLifeRecurringPaymentsScreenState extends State<LeadwayLifeRecurrin
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,7 +389,7 @@ class _LeadwayLifeRecurringPaymentsScreenState extends State<LeadwayLifeRecurrin
               Expanded(
                 child: Text(
                   item.productCode,
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: LeadwayBrand.textDark),
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: brand.text),
                 ),
               ),
               Container(
@@ -401,8 +406,8 @@ class _LeadwayLifeRecurringPaymentsScreenState extends State<LeadwayLifeRecurrin
             ],
           ),
           const SizedBox(height: 8),
-          Text('Police ${item.policyNumber}', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-          Text('${item.paymentMethod} · $freq', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+          Text('Police ${item.policyNumber}', style: TextStyle(fontSize: 12, color: brand.muted)),
+          Text('${item.paymentMethod} · $freq', style: TextStyle(fontSize: 12, color: brand.muted)),
           const SizedBox(height: 8),
           Text(
             '${item.amount.round()} ${item.currency}',
@@ -410,10 +415,10 @@ class _LeadwayLifeRecurringPaymentsScreenState extends State<LeadwayLifeRecurrin
           ),
           if (item.nextPaymentDate != null && item.nextPaymentDate!.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text('Prochain : ${item.nextPaymentDate}', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+            Text('Prochain : ${item.nextPaymentDate}', style: TextStyle(fontSize: 11, color: brand.muted)),
           ],
           if (item.lastPaymentDate != null && item.lastPaymentDate!.isNotEmpty)
-            Text('Dernier : ${item.lastPaymentDate}', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+            Text('Dernier : ${item.lastPaymentDate}', style: TextStyle(fontSize: 11, color: brand.muted)),
         ],
       ),
     );

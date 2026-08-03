@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:billetterie/src/core/constants/billetterie.brand.dart';
@@ -9,16 +11,19 @@ import 'package:billetterie/src/features/transport/screens/business_home.view.da
 import 'package:billetterie/src/features/transport/screens/ticket_details.screen.dart';
 import 'package:billetterie/src/features/transport/screens/ticket_generate.screen.dart';
 import 'package:billetterie/src/features/transport/screens/ticket_scan_consume.screen.dart';
+import 'package:billetterie/src/features/transport/screens/transport_map_explore.screen.dart';
 import 'package:billetterie/src/features/transport/services/billetterie_transport_api.service.dart';
 import 'package:billetterie/src/features/transport/services/conductor_ticket.store.dart';
 import 'package:billetterie/src/features/transport/services/ticket_pdf.service.dart';
 import 'package:billetterie/src/features/transport/services/transport_profile.store.dart';
 import 'package:billetterie/src/features/transport/widgets/owned_transport_ticket.widget.dart';
 import 'package:billetterie/src/features/transport/screens/transport_profile.screen.dart';
+import 'package:billetterie/src/shared/services/billetterie_realtime.client.dart';
 import 'package:billetterie/src/shared/widgets/billetterie_bottom_nav.widget.dart';
 import 'package:billetterie/src/shared/widgets/billetterie_skeleton.widget.dart';
+import 'package:billetterie/src/shared/widgets/ticket_purchase_result.dialog.dart';
 
-/// Entry point for **Billetterie Transport** inside Mon Peya.
+/// Entry point for **Billetterie Transport** 
 class BilletterieTransportModuleScreen extends StatefulWidget {
   const BilletterieTransportModuleScreen({super.key});
 
@@ -28,13 +33,18 @@ class BilletterieTransportModuleScreen extends StatefulWidget {
 }
 
 class _BilletterieTransportModuleScreenState
-    extends State<BilletterieTransportModuleScreen> {
+    extends State<BilletterieTransportModuleScreen>
+    with SingleTickerProviderStateMixin {
   final _api = BilletterieTransportApiService();
   final _profileStore = TransportProfileStore();
   final _conductorStore = ConductorTicketStore();
   final _ticketsSearchController = TextEditingController();
+  final _realtime = BilletterieRealtimeClient();
+  StreamSubscription<BilletterieRealtimeEvent>? _realtimeSub;
+  Timer? _realtimeDebounce;
 
   BilletterieTab _tab = BilletterieTab.home;
+  final Set<BilletterieTab> _visitedTabs = {BilletterieTab.home};
   String _ticketsQuery = '';
   TransportProfileState _profile = const TransportProfileState();
 
@@ -54,53 +64,136 @@ class _BilletterieTransportModuleScreenState
   bool _loadingCatalog = true;
   bool _loadingOwned = false;
   bool _loadingBusiness = false;
+  bool _catalogLoaded = false;
+  bool _ownedLoaded = false;
+  bool _businessLoaded = false;
+  bool _isGuest = true;
+  bool _merchantOnly = false;
   String? _catalogError;
   String? _ownedError;
   String? _businessError;
 
+  late final AnimationController _navEnter;
+  late final Animation<double> _navFade;
+  late final Animation<Offset> _navSlide;
+
   bool get _isBusiness =>
-      _profile.isConductorMode && _profile.canUseAsConductor;
+      _merchantOnly ||
+      (_profile.isConductorMode && _profile.canUseAsConductor);
 
   @override
   void initState() {
     super.initState();
+    _navEnter = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    final curve = CurvedAnimation(
+      parent: _navEnter,
+      curve: const Interval(0.62, 1.0, curve: Curves.easeOutCubic),
+    );
+    _navFade = curve;
+    _navSlide = Tween<Offset>(
+      begin: const Offset(0, 0.35),
+      end: Offset.zero,
+    ).animate(curve);
     TransportProfileStore.revision.addListener(_onProfileRevision);
+    BilletterieHostBridge.sessionChanges?.addListener(_onHostSessionChanged);
     _bootstrap();
+    _startRealtime();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _navEnter.forward();
+    });
   }
 
   @override
   void dispose() {
     TransportProfileStore.revision.removeListener(_onProfileRevision);
+    BilletterieHostBridge.sessionChanges?.removeListener(_onHostSessionChanged);
+    _realtimeDebounce?.cancel();
+    _realtimeSub?.cancel();
+    _realtime.dispose();
     _ticketsSearchController.dispose();
+    _navEnter.dispose();
     super.dispose();
+  }
+
+  void _startRealtime() {
+    _realtimeSub?.cancel();
+    _realtimeSub = _realtime.events.listen(_onRealtimeEvent);
+    _realtime.start();
+  }
+
+  void _onRealtimeEvent(BilletterieRealtimeEvent event) {
+    if (!event.touchesTransport) return;
+    _realtimeDebounce?.cancel();
+    _realtimeDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      if (_isBusiness) {
+        _loadBusiness(silent: true);
+      } else {
+        _loadCatalog(silent: true);
+        if (_ownedLoaded || _tab == BilletterieTab.tickets) {
+          _loadOwned(silent: true);
+        }
+      }
+    });
   }
 
   void _onProfileRevision() {
     _bootstrap();
   }
 
+  void _onHostSessionChanged() {
+    _refreshGuestFlag();
+    if (_isBusiness) {
+      _loadBusiness(silent: _businessLoaded);
+    } else {
+      _loadCatalog(silent: _catalogLoaded);
+      if (_tab == BilletterieTab.tickets || _ownedLoaded) {
+        _loadOwned(silent: _ownedLoaded);
+      }
+    }
+  }
+
+  Future<void> _refreshGuestFlag() async {
+    final guest = await BilletterieHostBridge.isGuest();
+    if (!mounted) return;
+    setState(() => _isGuest = guest);
+  }
+
   Future<void> _bootstrap() async {
+    await _refreshGuestFlag();
+    final merchantOnly = await BilletterieHostBridge.isMerchantOnly();
     final profile = await _profileStore.load();
     if (!mounted) return;
     final wasBusiness = _isBusiness;
-    setState(() => _profile = profile);
-    final nowBusiness =
-        profile.isConductorMode && profile.canUseAsConductor;
+    setState(() {
+      _merchantOnly = merchantOnly;
+      _profile = profile;
+    });
+    final nowBusiness = merchantOnly ||
+        (profile.isConductorMode && profile.canUseAsConductor);
     if (wasBusiness != nowBusiness) {
       setState(() => _tab = BilletterieTab.home);
     }
     if (nowBusiness) {
-      await _loadBusiness();
+      await _loadBusiness(silent: _businessLoaded);
     } else {
-      await _loadCatalog();
+      await _loadCatalog(silent: _catalogLoaded);
     }
   }
 
-  Future<void> _loadCatalog() async {
-    setState(() {
-      _loadingCatalog = true;
-      _catalogError = null;
-    });
+  Future<void> _loadCatalog({bool silent = false}) async {
+    final blocking = !silent && !_catalogLoaded && _catalog.isEmpty;
+    if (blocking) {
+      setState(() {
+        _loadingCatalog = true;
+        _catalogError = null;
+      });
+    } else if (_catalogError != null) {
+      setState(() => _catalogError = null);
+    }
     try {
       List<BilletterieTransportTicket> apiTickets = const [];
       try {
@@ -113,24 +206,40 @@ class _BilletterieTransportModuleScreenState
       if (!mounted) return;
       setState(() {
         _catalog = merged;
+        _catalogLoaded = true;
         _loadingCatalog = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _catalogError = '$e';
+        if (_catalog.isEmpty) _catalogError = '$e';
+        _catalogLoaded = true;
         _loadingCatalog = false;
       });
     }
   }
 
-  Future<void> _loadOwned() async {
-    setState(() {
-      _loadingOwned = true;
-      _ownedError = null;
-    });
+  Future<void> _loadOwned({bool silent = false}) async {
+    final blocking = !silent && !_ownedLoaded && _owned.isEmpty;
+    if (blocking) {
+      setState(() {
+        _loadingOwned = true;
+        _ownedError = null;
+      });
+    } else if (_ownedError != null) {
+      setState(() => _ownedError = null);
+    }
     try {
-      final client = await BilletterieHostBridge.requireClient();
+      final client = await BilletterieHostBridge.resolveClientOrNull();
+      if (client == null) {
+        if (!mounted) return;
+        setState(() {
+          _owned = const [];
+          _ownedLoaded = true;
+          _loadingOwned = false;
+        });
+        return;
+      }
       List<BilletterieTransportTicket> apiOwned = const [];
       try {
         apiOwned = await _api.getMyTickets(client.codeClient);
@@ -141,12 +250,14 @@ class _BilletterieTransportModuleScreenState
       if (!mounted) return;
       setState(() {
         _owned = merged;
+        _ownedLoaded = true;
         _loadingOwned = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _ownedError = '$e';
+        if (_owned.isEmpty) _ownedError = '$e';
+        _ownedLoaded = true;
         _loadingOwned = false;
       });
     }
@@ -167,13 +278,36 @@ class _BilletterieTransportModuleScreenState
     return out;
   }
 
-  Future<void> _loadBusiness() async {
-    setState(() {
-      _loadingBusiness = true;
-      _businessError = null;
-    });
+  Future<void> _loadBusiness({bool silent = false}) async {
+    final blocking = !silent && !_businessLoaded && _generated.isEmpty && _sales.isEmpty;
+    if (blocking) {
+      setState(() {
+        _loadingBusiness = true;
+        _businessError = null;
+      });
+    } else if (_businessError != null) {
+      setState(() => _businessError = null);
+    }
     try {
-      final client = await BilletterieHostBridge.requireClient();
+      final client = await BilletterieHostBridge.resolveClientOrNull();
+      if (client == null) {
+        if (!mounted) return;
+        setState(() {
+          _generated = const [];
+          _sales = const [];
+          _earnings = const ConductorEarningsSummary(
+            generatedCount: 0,
+            forSaleCount: 0,
+            soldCount: 0,
+            consumedCount: 0,
+            totalEarned: 0,
+            currency: 'Fcfa',
+          );
+          _businessLoaded = true;
+          _loadingBusiness = false;
+        });
+        return;
+      }
       List<BilletterieTransportTicket> generated = const [];
       List<BilletterieTransportTicket> sales = const [];
 
@@ -206,12 +340,14 @@ class _BilletterieTransportModuleScreenState
         _generated = generated;
         _sales = sales;
         _earnings = summary;
+        _businessLoaded = true;
         _loadingBusiness = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _businessError = '$e';
+        if (_generated.isEmpty && _sales.isEmpty) _businessError = '$e';
+        _businessLoaded = true;
         _loadingBusiness = false;
       });
     }
@@ -235,17 +371,29 @@ class _BilletterieTransportModuleScreenState
       _openScanner();
       return;
     }
-    setState(() => _tab = tab);
+    setState(() {
+      _tab = tab;
+      _visitedTabs.add(tab);
+    });
+    // First visit only — later updates come from WebSocket / pull-to-refresh.
     if (tab == BilletterieTab.tickets) {
-      _loadOwned();
-    } else if (tab == BilletterieTab.home) {
-      if (_isBusiness) {
+      if (!_catalogLoaded) _loadCatalog();
+      if (!_ownedLoaded) _loadOwned();
+    } else if (tab == BilletterieTab.home || tab == BilletterieTab.map) {
+      if (_isBusiness && !_businessLoaded) {
         _loadBusiness();
-      } else {
+      } else if (!_isBusiness && !_catalogLoaded) {
         _loadCatalog();
       }
     }
   }
+
+  static const _tabOrder = <BilletterieTab>[
+    BilletterieTab.home,
+    BilletterieTab.map,
+    BilletterieTab.tickets,
+    BilletterieTab.profile,
+  ];
 
   Future<void> _openScanner() async {
     await Navigator.of(context).push<void>(
@@ -253,7 +401,7 @@ class _BilletterieTransportModuleScreenState
         builder: (_) => const TicketScanConsumeScreen(),
       ),
     );
-    if (_isBusiness && mounted) await _loadBusiness();
+    if (_isBusiness && mounted) await _loadBusiness(silent: true);
   }
 
   Future<void> _openGenerate() async {
@@ -262,7 +410,7 @@ class _BilletterieTransportModuleScreenState
         builder: (_) => const TicketGenerateScreen(),
       ),
     );
-    if (ok == true && mounted) await _loadBusiness();
+    if (ok == true && mounted) await _loadBusiness(silent: true);
   }
 
   Future<void> _openBusinessTicket(BilletterieTransportTicket ticket) async {
@@ -276,49 +424,79 @@ class _BilletterieTransportModuleScreenState
     );
   }
 
+  List<BilletterieTransportTicket> get _mapTickets {
+    if (_isBusiness) {
+      return _mergeTickets(localFirst: _generated, then: _sales);
+    }
+    return _catalog;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final brand = BilletterieBrand.of(context);
+    final isMap = _tab == BilletterieTab.map;
+    final mapChromeLight = Theme.of(context).brightness == Brightness.light;
+    final tabIndex = _tabOrder.indexOf(_tab).clamp(0, _tabOrder.length - 1);
 
     return Scaffold(
-      backgroundColor: BilletterieBrand.of(context).navBar,
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: BilletterieBottomNav.barHeight + bottomInset,
+      backgroundColor: isMap
+          ? (mapChromeLight ? brand.bg : Colors.black)
+          : brand.bg,
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Full-bleed under the frosted nav so maps can blur through.
+          Positioned.fill(
+            child: ClipRect(
+              child: IndexedStack(
+                index: tabIndex,
+                sizing: StackFit.expand,
+                children: [
+                  for (final tab in _tabOrder)
+                    _visitedTabs.contains(tab)
+                        ? KeyedSubtree(
+                            key: ValueKey('transport-$tab'),
+                            child: tab == BilletterieTab.map
+                                ? _buildTabPage(tab)
+                                : SafeArea(
+                                    bottom: false,
+                                    child: _buildTabPage(tab),
+                                  ),
+                          )
+                        : const SizedBox.shrink(),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: FadeTransition(
+              opacity: _navFade,
+              child: SlideTransition(
+                position: _navSlide,
+                child: BilletterieBottomNav(
+                  current: _tab,
+                  onChanged: _onTabChanged,
+                  businessMode: _isBusiness,
                 ),
-                child: _buildTabBody(),
               ),
             ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: BilletterieBottomNav(
-                current: _tab,
-                onChanged: _onTabChanged,
-                businessMode: _isBusiness,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTabBody() {
-    switch (_tab) {
+  Widget _buildTabPage(BilletterieTab tab) {
+    switch (tab) {
       case BilletterieTab.home:
         if (_isBusiness) {
-          if (_loadingBusiness) {
+          if (_loadingBusiness && !_businessLoaded) {
             return const BilletterieHomeSkeleton();
           }
-          if (_businessError != null) {
+          if (_businessError != null && !_businessLoaded) {
             return _ErrorPane(
               message: _businessError!,
               onRetry: _loadBusiness,
@@ -328,36 +506,76 @@ class _BilletterieTransportModuleScreenState
             summary: _earnings,
             generated: _generated,
             sales: _sales,
-            onRefresh: _loadBusiness,
+            onRefresh: () => _loadBusiness(silent: true),
             onGenerate: _openGenerate,
             onOpenTicket: _openBusinessTicket,
           );
         }
-        if (_loadingCatalog) {
+        if (_loadingCatalog && !_catalogLoaded) {
           return const BilletterieHomeSkeleton();
         }
-        if (_catalogError != null) {
+        if (_catalogError != null && !_catalogLoaded) {
           return _ErrorPane(
             message: _catalogError!,
             onRetry: _loadCatalog,
           );
         }
         return BilletterieHomeView(tickets: _catalog);
+      case BilletterieTab.map:
+        final mapBrand = BilletterieBrand.of(context);
+        final isLight = Theme.of(context).brightness == Brightness.light;
+        final loadingBg = isLight ? mapBrand.bg : Colors.black;
+        final loadingFg = isLight ? mapBrand.primaryDark : Colors.white70;
+        if (_isBusiness) {
+          if (_loadingBusiness && !_businessLoaded) {
+            return ColoredBox(
+              color: loadingBg,
+              child: Center(
+                child: CircularProgressIndicator(color: loadingFg),
+              ),
+            );
+          }
+        } else if (_loadingCatalog && !_catalogLoaded) {
+          return ColoredBox(
+            color: loadingBg,
+            child: Center(
+              child: CircularProgressIndicator(color: loadingFg),
+            ),
+          );
+        }
+        return TransportMapExploreScreen(
+          tickets: _mapTickets,
+          onRefresh: _isBusiness
+              ? () => _loadBusiness(silent: true)
+              : () => _loadCatalog(silent: true),
+        );
       case BilletterieTab.tickets:
-        if (_loadingOwned) {
+        if (_loadingOwned && !_ownedLoaded && !_isGuest) {
           return const BilletterieTicketsSkeleton();
         }
-        if (_ownedError != null) {
+        if (_loadingCatalog && !_catalogLoaded && _isGuest) {
+          return const BilletterieHomeSkeleton();
+        }
+        if (_ownedError != null && !_ownedLoaded && !_isGuest) {
           return _ErrorPane(
             message: _ownedError!,
             onRetry: _loadOwned,
+          );
+        }
+        if (_isGuest && _owned.isEmpty) {
+          if (_loadingCatalog && !_catalogLoaded) {
+            return const BilletterieHomeSkeleton();
+          }
+          return BilletterieHomeView(
+            tickets: _catalog,
+            guestMode: true,
           );
         }
         return _MyTicketsView(
           searchController: _ticketsSearchController,
           onQueryChanged: (value) => setState(() => _ticketsQuery = value),
           tickets: _filteredOwned,
-          onRefresh: _loadOwned,
+          onRefresh: () => _loadOwned(silent: true),
         );
       case BilletterieTab.profile:
         return const TransportProfileScreen();
@@ -466,11 +684,11 @@ class _MyTicketsViewState extends State<_MyTicketsView> {
       await TicketPdfService().exportAndShare(ticket);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Échec de l’export PDF : $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        await showBilletterieResultDialog(
+          context,
+          title: 'Export impossible',
+          message: 'Impossible d’exporter le PDF.\n$e',
+          kind: BilletterieResultKind.error,
         );
       }
     } finally {

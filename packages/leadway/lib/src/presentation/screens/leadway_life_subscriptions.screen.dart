@@ -148,8 +148,9 @@ class _LeadwayLifeSubscriptionsScreenState extends State<LeadwayLifeSubscription
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+    return LeadwayTheme(
+      child: Scaffold(
+      backgroundColor: LeadwayBrand.of(context).bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -165,7 +166,7 @@ class _LeadwayLifeSubscriptionsScreenState extends State<LeadwayLifeSubscription
                   alignment: Alignment.centerLeft,
                   child: Text(
                     '$_totalItems souscription${_totalItems > 1 ? 's' : ''}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 12, color: LeadwayBrand.of(context).muted, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -173,26 +174,28 @@ class _LeadwayLifeSubscriptionsScreenState extends State<LeadwayLifeSubscription
           ],
         ),
       ),
+    ),
     );
   }
 
   Widget _header() {
+    final brand = LeadwayBrand.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
       child: Row(
         children: [
           IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.chevron_left)),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Mes souscriptions Vie',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: LeadwayBrand.textDark),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: brand.text),
                 ),
                 Text(
                   'Leadway Assurance',
-                  style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 11, color: brand.muted, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -208,12 +211,13 @@ class _LeadwayLifeSubscriptionsScreenState extends State<LeadwayLifeSubscription
   }
 
   Widget _filtersCard() {
+    final brand = LeadwayBrand.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: brand.border),
       ),
       child: DropdownButtonFormField<LeadwayLifeSubscriptionStatus?>(
         // ignore: deprecated_member_use
@@ -221,7 +225,7 @@ class _LeadwayLifeSubscriptionsScreenState extends State<LeadwayLifeSubscription
         decoration: InputDecoration(
           labelText: 'Statut',
           filled: true,
-          fillColor: const Color(0xFFFAFAFA),
+          fillColor: brand.card,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         ),
@@ -274,17 +278,18 @@ class _LeadwayLifeSubscriptionsScreenState extends State<LeadwayLifeSubscription
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
-        child: Text(text, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600], height: 1.4)),
+        child: Text(text, textAlign: TextAlign.center, style: TextStyle(color: LeadwayBrand.of(context).muted, height: 1.4)),
       ),
     );
   }
 
   Widget _subscriptionCard(LeadwayLifeSubscriptionItem item) {
+    final brand = LeadwayBrand.of(context);
     final premium = item.premium.gross;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: Colors.white,
+        color: brand.card,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
@@ -301,7 +306,7 @@ class _LeadwayLifeSubscriptionsScreenState extends State<LeadwayLifeSubscription
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFEEEEEE)),
+              border: Border.all(color: brand.border),
             ),
             child: IntrinsicHeight(
               child: Row(
@@ -324,10 +329,10 @@ class _LeadwayLifeSubscriptionsScreenState extends State<LeadwayLifeSubscription
                               Expanded(
                                 child: Text(
                                   item.productCode,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 14,
-                                    color: LeadwayBrand.textDark,
+                                    color: brand.text,
                                   ),
                                 ),
                               ),
@@ -337,12 +342,12 @@ class _LeadwayLifeSubscriptionsScreenState extends State<LeadwayLifeSubscription
                           const SizedBox(height: 8),
                           Text(
                             'Réf. ${item.subscriptionRef}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                            style: TextStyle(fontSize: 12, color: brand.muted),
                           ),
                           if (item.policyNumber.isNotEmpty)
                             Text(
                               'Police ${item.policyNumber}',
-                              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                              style: TextStyle(fontSize: 12, color: brand.muted),
                             ),
                           const SizedBox(height: 8),
                           Text(
@@ -357,9 +362,9 @@ class _LeadwayLifeSubscriptionsScreenState extends State<LeadwayLifeSubscription
                       ),
                     ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.only(right: 12),
-                    child: Icon(Icons.chevron_right, color: Colors.grey),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Icon(Icons.chevron_right, color: LeadwayBrand.of(context).muted),
                   ),
                 ],
               ),

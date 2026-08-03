@@ -271,8 +271,9 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = CreationTheme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.bg,
       body: PageView(
         controller: _page,
         physics: const NeverScrollableScrollPhysics(),
@@ -290,6 +291,7 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
   }
 
   Widget _stepType() {
+    final theme = CreationTheme.of(context);
     return CreationStepShell(
       onSaveAndExit: _saveAndExit,
       onBack: _back,
@@ -316,13 +318,23 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
             child: InputDecorator(
               decoration: InputDecoration(
                 labelText: 'Type de bien *',
+                labelStyle: TextStyle(color: theme.textSecondary),
                 hintText: 'Sélectionnez un type',
+                filled: true,
+                fillColor: theme.card,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                suffixIcon: Icon(_showTypeMenu ? Icons.expand_less : Icons.expand_more),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.borderInput),
+                ),
+                suffixIcon: Icon(
+                  _showTypeMenu ? Icons.expand_less : Icons.expand_more,
+                  color: theme.textSecondary,
+                ),
               ),
               child: Text(
                 _draft.propertyType == 'building' ? 'Immeuble' : 'Maison',
-                style: const TextStyle(fontSize: 16),
+                style: TextStyle(fontSize: 16, color: theme.textPrimary),
               ),
             ),
           ),
@@ -343,9 +355,9 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
             ),
           ],
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Cette information ne peut pas être modifiée après publication.',
-            style: TextStyle(fontSize: 12, color: CreationTheme.textMuted),
+            style: TextStyle(fontSize: 12, color: theme.textMuted),
           ),
         ],
       ),
@@ -353,6 +365,7 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
   }
 
   Widget _stepLocation() {
+    final theme = CreationTheme.of(context);
     return CreationStepShell(
       onSaveAndExit: _saveAndExit,
       onBack: _back,
@@ -366,24 +379,31 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
             mandatoryHint: true,
           ),
           const SizedBox(height: CreationTheme.spacingMd),
-          const Text(
+          Text(
             'Indiquez l\'adresse et la surface du bien',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: theme.textPrimary,
+            ),
           ),
           const SizedBox(height: 12),
           Container(
             height: 180,
             decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E9),
+              color: theme.greenTint,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             alignment: Alignment.center,
-            child: const Column(
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.map_outlined, size: 48, color: CreationTheme.listingGreen),
-                SizedBox(height: 8),
-                Text('Carte — saisissez l\'adresse ci-dessous', style: TextStyle(color: CreationTheme.textSecondary)),
+                const Icon(Icons.map_outlined, size: 48, color: CreationTheme.listingGreen),
+                const SizedBox(height: 8),
+                Text(
+                  'Carte — saisissez l\'adresse ci-dessous',
+                  style: TextStyle(color: theme.textSecondary),
+                ),
               ],
             ),
           ),
@@ -398,9 +418,12 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            tileColor: CreationTheme.surfaceMuted,
+            tileColor: theme.surfaceMuted,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            title: const Text('Afficher l\'emplacement exact sur l\'annonce'),
+            title: Text(
+              'Afficher l\'emplacement exact sur l\'annonce',
+              style: TextStyle(color: theme.textPrimary),
+            ),
             value: _draft.displayExactLocation,
             activeThumbColor: CreationTheme.listingGreen,
             onChanged: (v) => setState(() => _draft.displayExactLocation = v),
@@ -411,6 +434,7 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
   }
 
   Widget _stepAmenities() {
+    final theme = CreationTheme.of(context);
     return CreationStepShell(
       onSaveAndExit: _saveAndExit,
       onBack: _back,
@@ -424,9 +448,19 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
           ),
           const SizedBox(height: CreationTheme.spacingLg),
           for (final section in _amenitySections) ...[
-            Text(section.$1, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(
+              section.$1,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: theme.textPrimary,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text(section.$2, style: const TextStyle(fontSize: 14, color: CreationTheme.textSecondary)),
+            Text(
+              section.$2,
+              style: TextStyle(fontSize: 14, color: theme.textSecondary),
+            ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -443,14 +477,18 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
   }
 
   Widget _amenityCard(_Amenity a) {
+    final theme = CreationTheme.of(context);
     final selected = _draft.amenities.contains(a.id);
     return SizedBox(
       width: (MediaQuery.sizeOf(context).width - 56) / 2,
       child: Material(
-        color: selected ? CreationTheme.surfaceMuted : Colors.white,
+        color: selected ? theme.surfaceMuted : theme.card,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: selected ? CreationTheme.textPrimary : CreationTheme.border, width: selected ? 1.5 : 1),
+          side: BorderSide(
+            color: selected ? theme.textPrimary : theme.border,
+            width: selected ? 1.5 : 1,
+          ),
         ),
         child: InkWell(
           onTap: () => setState(() {
@@ -473,6 +511,7 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
                     style: TextStyle(
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                       fontSize: 14,
+                      color: theme.textPrimary,
                     ),
                   ),
                 ),
@@ -485,6 +524,7 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
   }
 
   Widget _stepPhotos() {
+    final theme = CreationTheme.of(context);
     return CreationStepShell(
       onSaveAndExit: _saveAndExit,
       onBack: _back,
@@ -504,14 +544,14 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
             'Sélectionnez au moins 5 photos *',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _draft.photoPaths.length >= 5 ? CreationTheme.listingGreen : CreationTheme.textSecondary,
+              color: _draft.photoPaths.length >= 5 ? CreationTheme.listingGreen : theme.textSecondary,
             ),
           ),
           if (_draft.photoPaths.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(
               'Photos sélectionnées (${_draft.photoPaths.length}/99)',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(fontWeight: FontWeight.w600, color: theme.textPrimary),
             ),
             const SizedBox(height: 8),
             GridView.builder(
@@ -553,6 +593,7 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
   }
 
   Widget _stepPhotoOrder() {
+    final theme = CreationTheme.of(context);
     return CreationStepShell(
       onSaveAndExit: _saveAndExit,
       onBack: _back,
@@ -640,7 +681,7 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
             '${_draft.photoPaths.length} photos • ${_draft.photoPaths.length < 5 ? 'Au moins 5 requises' : 'OK'}',
             style: TextStyle(
               fontSize: 13,
-              color: _draft.photoPaths.length < 5 ? Colors.red : CreationTheme.textSecondary,
+              color: _draft.photoPaths.length < 5 ? theme.error : theme.textSecondary,
             ),
           ),
         ],
@@ -679,6 +720,7 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
   }
 
   Widget _stepPrice() {
+    final theme = CreationTheme.of(context);
     final amount = int.tryParse(_priceCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
     final formatted = amount.toString().replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -736,23 +778,30 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
                     children: [
                       Text(
                         formatted,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 48,
                           fontWeight: FontWeight.w700,
-                          color: CreationTheme.textPrimary,
+                          color: theme.textPrimary,
                           decoration: TextDecoration.underline,
                           decorationColor: CreationTheme.listingGreen,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Text(
+                      Text(
                         'Fcfa',
-                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                          color: theme.textPrimary,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  const Text('Appuyez sur le prix pour modifier', style: TextStyle(color: CreationTheme.textSecondary)),
+                  Text(
+                    'Appuyez sur le prix pour modifier',
+                    style: TextStyle(color: theme.textSecondary),
+                  ),
                 ],
               ),
             ),
@@ -763,25 +812,28 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('Voir le détail', style: TextStyle(fontWeight: FontWeight.w600)),
-                Icon(_priceExpanded ? Icons.expand_less : Icons.expand_more),
+                Text(
+                  'Voir le détail',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: theme.textPrimary),
+                ),
+                Icon(_priceExpanded ? Icons.expand_less : Icons.expand_more, color: theme.textPrimary),
               ],
             ),
           ),
           if (_priceExpanded) ...[
             const SizedBox(height: 16),
-            _priceRow('Loyer de base', amount),
-            _priceRow('Caution (1 mois)', amount),
-            _priceRow('Frais plateforme (5 %)', (amount * 0.05).round()),
-            const Divider(),
-            _priceRow('Revenu net estimé', (amount * 0.95).round(), bold: true),
+            _priceRow('Loyer de base', amount, theme: theme),
+            _priceRow('Caution (1 mois)', amount, theme: theme),
+            _priceRow('Frais plateforme (5 %)', (amount * 0.05).round(), theme: theme),
+            Divider(color: theme.border),
+            _priceRow('Revenu net estimé', (amount * 0.95).round(), bold: true, theme: theme),
           ],
         ],
       ),
     );
   }
 
-  Widget _priceRow(String label, int value, {bool bold = false}) {
+  Widget _priceRow(String label, int value, {bool bold = false, required CreationPalette theme}) {
     final s = value.toString().replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (m) => '${m[1]} ',
@@ -790,8 +842,22 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: TextStyle(fontWeight: bold ? FontWeight.w700 : FontWeight.w400))),
-          Text('$s Fcfa', style: TextStyle(fontWeight: bold ? FontWeight.w700 : FontWeight.w500)),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+                color: theme.textPrimary,
+              ),
+            ),
+          ),
+          Text(
+            '$s Fcfa',
+            style: TextStyle(
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+              color: theme.textPrimary,
+            ),
+          ),
         ],
       ),
     );

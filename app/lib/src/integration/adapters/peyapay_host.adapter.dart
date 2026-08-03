@@ -40,7 +40,7 @@ class MonPeyaPeyapayHostAdapter implements PeyapayHostAuth {
   }
 
   @override
-  Future<bool> isSessionActive() async => MonPeyaSession.instance.isSessionActive;
+  Future<bool> isSessionActive() => ModuleAuth.hasActiveSessionOrToken();
 
   @override
   Future<bool> hasAccount() => AuthStore.hasAccount();
@@ -61,6 +61,10 @@ void activateMonPeyaSession() {
 
 void endMonPeyaSession() {
   MonPeyaSession.instance.endSession();
+  final api = PeyapayHostBridge.api;
+  api?.setClientState(null);
+  api?.setWalletBalance(null);
+  api?.setBearerToken(null);
 }
 
 PeyapayApiService _requirePeyapayApi() {
@@ -156,6 +160,22 @@ Future<PeyapayClientState> authenticatePeyapaySession({
   PinAuthLogger.success(
     'Profil chargé${state.nomClient != null ? ' — ${state.nomClient}' : ''}',
   );
+
+  PeyapayGsmSearchResult? gsmSearch;
+  try {
+    gsmSearch = await api.searchGsm(phone: phone, ensureToken: false);
+  } catch (_) {}
+
+  final profile = PeyapayAccountProfile.resolve(
+    sessionState: state,
+    gsmSearch: gsmSearch,
+  );
+  if (profile.hasClientWallet || profile.hasMerchantWallet) {
+    await AuthStore.setPeyaAccountProfile(
+      isPeyaClient: profile.hasClientWallet,
+      isPeyapayMerchant: profile.hasMerchantWallet,
+    );
+  }
 
   try {
     PinAuthLogger.step('API /wClients/solde');

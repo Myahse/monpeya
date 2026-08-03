@@ -1,12 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:leadway/leadway.dart';
-import 'package:leadway/src/data/models/leadway_quote_request.model.dart';
-import 'package:leadway/src/data/models/leadway_quote_values.model.dart';
-import 'package:leadway/src/data/models/leadway_quote_response.model.dart';
-import 'package:leadway/src/data/models/leadway_api_payment_init_request.model.dart';
-import 'package:leadway/src/data/models/leadway_premium_request.model.dart';
-import 'package:leadway/src/data/models/leadway_api_payment_check_request.model.dart';
 
 void main() {
   group('Leadway barrel exports', () {
@@ -16,7 +11,7 @@ void main() {
     });
 
     test('LeadwayBrand constants', () {
-      expect(LeadwayBrand.primary.value, 0xFFE66B27);
+      expect(LeadwayBrand.primary, const Color(0xFF006D56));
       expect(LeadwayBrand.onPrimary, isNotNull);
     });
 

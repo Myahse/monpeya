@@ -104,14 +104,16 @@ class ImmoOverlayScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bg = Theme.of(context).scaffoldBackgroundColor;
     return Scaffold(
+      backgroundColor: bg,
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack),
         title: Text(title),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
       ),
-      body: body,
+      body: ColoredBox(color: bg, child: body),
     );
   }
 }

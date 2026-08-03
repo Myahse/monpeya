@@ -54,6 +54,10 @@ class _PeyapayPaymentReviewScreenState extends State<PeyapayPaymentReviewScreen>
     final ink = isDark ? cs.onSurface : const Color(0xFF111827);
     final muted = isDark ? cs.onSurfaceVariant : const Color(0xFF6B7280);
     final border = isDark ? cs.outlineVariant : const Color(0xFFE5E7EB);
+    final cardBg = isDark ? cs.surfaceContainerHigh : Colors.white;
+    final cardBorder = isDark ? border : null;
+    final arrowBg = isDark ? cs.surfaceContainerHigh : Colors.white;
+    final arrowBorder = isDark ? border : const Color(0xFFDDDDDD);
 
     const green = Color(0xFF006D56);
 
@@ -104,8 +108,11 @@ class _PeyapayPaymentReviewScreenState extends State<PeyapayPaymentReviewScreen>
                         ),
                         ink: ink,
                         muted: muted,
-                        cardBg: bg,
+                        cardBg: cardBg,
+                        cardBorderColor: cardBorder,
                         cutoutBg: bg,
+                        arrowBg: arrowBg,
+                        arrowBorderColor: arrowBorder,
                       ),
                       const SizedBox(height: 16),
                       Container(

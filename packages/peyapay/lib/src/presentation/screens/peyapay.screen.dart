@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:peyapay/src/core/host/peyapay_host.bridge.dart';
@@ -5,6 +7,7 @@ import 'package:peyapay/src/data/models/transaction.item.dart';
 import 'package:peyapay/src/data/services/peyapay_api.service.dart';
 import 'package:peyapay/src/core/utils/formatters.util.dart';
 import 'package:peyapay/src/core/utils/screen_insets.util.dart';
+import 'package:peyapay/src/presentation/controllers/peyapay_home_reveal.controller.dart';
 import 'package:peyapay/src/presentation/widgets/action_button.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_home_skeleton.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_slide_panel.widget.dart';
@@ -13,13 +16,21 @@ import 'package:peyapay/src/presentation/screens/peyapay_payment_services.screen
 import 'package:peyapay/src/presentation/screens/peyapay_source_of_funds.screen.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_transaction_detail.screen.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_transactions.screen.dart';
+import 'package:peyapay/src/presentation/screens/peyapay_prepaid_card.screen.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_qr_code.screen.dart';
 import 'package:peyapay/src/presentation/screens/peyapay_transfer_contacts.screen.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_nav_bar_icon.widget.dart';
 import 'package:peyapay/src/presentation/widgets/peyapay_transaction_list_tile.widget.dart';
 
 class PeyapayScreen extends StatefulWidget {
-  const PeyapayScreen({super.key});
+  const PeyapayScreen({
+    super.key,
+    this.revealController,
+  });
+
+  /// Optional host hook so the tab shell can reverse the actions card
+  /// before switching away.
+  final PeyapayHomeRevealController? revealController;
 
   @override
   State<PeyapayScreen> createState() => _PeyapayScreenState();
@@ -49,20 +60,71 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
 
   static const _homeTransactionsPreviewCount = 3;
 
+  late final AnimationController _actionsDropController;
+  late final Animation<double> _actionsDropFactor;
+
+  /// Tall actions sheet that sits behind the balance card and drops down.
+  static const _actionsCardHeight = 220.0;
+  static const _balanceCardApproxHeight = 118.0;
+  /// How much of the grey card peeks under the green card when closed.
+  static const _actionsClosedPeek = 14.0;
+  /// Extra drop past flush-under-balance when fully open.
+  static const _actionsOpenDrop = 56.0;
+
   /// Show skeleton when we have nothing meaningful to display yet.
   bool get _shouldShowSkeleton => _bootstrapping && (_balance == null || !_ready);
 
   @override
   void initState() {
     super.initState();
+    _actionsDropController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 480),
+      reverseDuration: const Duration(milliseconds: 320),
+    );
+    _actionsDropFactor = CurvedAnimation(
+      parent: _actionsDropController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    _bindRevealController(widget.revealController);
     PeyapayHostBridge.sessionChanges?.addListener(_onSessionChanged);
     _loadProfile();
   }
 
   @override
+  void didUpdateWidget(covariant PeyapayScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.revealController != widget.revealController) {
+      _unbindRevealController(oldWidget.revealController);
+      _bindRevealController(widget.revealController);
+    }
+  }
+
+  @override
   void dispose() {
+    _unbindRevealController(widget.revealController);
     PeyapayHostBridge.sessionChanges?.removeListener(_onSessionChanged);
+    _actionsDropController.dispose();
     super.dispose();
+  }
+
+  void _bindRevealController(PeyapayHomeRevealController? controller) {
+    controller?.attach(exit: _playActionsExit, enter: _playActionsEnter);
+  }
+
+  void _unbindRevealController(PeyapayHomeRevealController? controller) {
+    controller?.detach(exit: _playActionsExit, enter: _playActionsEnter);
+  }
+
+  void _playActionsEnter() {
+    if (!mounted) return;
+    _actionsDropController.forward();
+  }
+
+  Future<void> _playActionsExit() async {
+    if (!mounted) return;
+    await _actionsDropController.reverse();
   }
 
   void _onSessionChanged() {
@@ -232,9 +294,11 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
     final iconBgGrey = isDark ? cs.surfaceContainerHighest : const Color(0xFFF3F4F6);
 
     final w = MediaQuery.of(context).size.width;
-    const actionsPaddingH = 40.0; // left+right = 20+20
+    const actionsMarginH = 40.0; // left+right card margin
+    const actionsPadH = 24.0; // left+right card padding
     const gap = 8.0;
-    final actionWidth = ((w - actionsPaddingH - (gap * 3)) / 4).clamp(0.0, 220.0);
+    final actionWidth =
+        ((w - actionsMarginH - actionsPadH - (gap * 3)) / 4).clamp(0.0, 220.0);
     final previewTransactions = _transactions.take(_homeTransactionsPreviewCount).toList(growable: false);
 
     return Scaffold(
@@ -254,152 +318,252 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
                       titleWidget: _shouldShowSkeleton ? const PeyapayNameSkeleton() : null,
                       onPressProfile: () => PeyapayHostBridge.openNamedRoute(PeyapayHostRoutes.settings),
                     ),
-                    Container(
-                      margin: const EdgeInsets.only(top: 6, left: 20, right: 20),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      decoration: BoxDecoration(
-                        color: balanceGreen,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    AnimatedBuilder(
+                      animation: _actionsDropFactor,
+                      builder: (context, _) {
+                        final t = _actionsDropFactor.value;
+                        // Tucked high behind the green card when closed; drops down when open.
+                        final closedY = -(
+                          _actionsCardHeight -
+                          _balanceCardApproxHeight -
+                          _actionsClosedPeek
+                        );
+                        final openY = _actionsOpenDrop;
+                        final sheetY = closedY + (openY - closedY) * t;
+                        final stackHeight = math.max(
+                          _balanceCardApproxHeight,
+                          sheetY + _actionsCardHeight,
+                        );
+
+                        return SizedBox(
+                          height: stackHeight + 16,
+                          child: Stack(
+                            clipBehavior: Clip.hardEdge,
                             children: [
-                              const PeyaPayNavBarIcon(
-                                size: 28,
-                                width: 76,
+                              // Actions card — behind, taller, buttons pinned to bottom.
+                              Positioned(
+                                left: 20,
+                                right: 20,
+                                top: sheetY,
+                                height: _actionsCardHeight,
+                                child: Container(
+                                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? cs.surfaceContainerHighest
+                                        : const Color(0xFFF3F4F6),
+                                    borderRadius: BorderRadius.circular(22),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      const Spacer(),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          ActionButton(
+                                            width: actionWidth,
+                                            bg: const Color.fromRGBO(26, 158, 9, 0.18),
+                                            icon: Icons.arrow_upward_rounded,
+                                            iconSize: 28,
+                                            iconColor: const Color(0xFF1A9E09),
+                                            label: 'Transfert',
+                                            textColor: ink,
+                                            onTap: () => Navigator.of(
+                                              context,
+                                              rootNavigator: true,
+                                            ).push(
+                                              MaterialPageRoute<void>(
+                                                builder: (_) =>
+                                                    const PeyapayTransferContactsScreen(),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: gap),
+                                          ActionButton(
+                                            width: actionWidth,
+                                            bg: const Color.fromRGBO(
+                                              53,
+                                              167,
+                                              224,
+                                              0.22,
+                                            ),
+                                            icon: Icons.credit_card_outlined,
+                                            iconSize: 28,
+                                            iconColor: const Color(0xFF35A7E0),
+                                            label: 'Paiement',
+                                            textColor: ink,
+                                            onTap: openPaymentsServices,
+                                          ),
+                                          const SizedBox(width: gap),
+                                          ActionButton(
+                                            width: actionWidth,
+                                            bg: const Color.fromRGBO(
+                                              255,
+                                              102,
+                                              0,
+                                              0.22,
+                                            ),
+                                            icon: Icons.credit_card,
+                                            iconSize: 28,
+                                            iconColor: const Color(0xFFFF6600),
+                                            label: 'Carte prépayée',
+                                            textColor: ink,
+                                            onTap: openPrepaidCard,
+                                          ),
+                                          const SizedBox(width: gap),
+                                          ActionButton(
+                                            width: actionWidth,
+                                            bg: ink,
+                                            icon: Icons.add,
+                                            iconSize: 24,
+                                            iconColor: Colors.white,
+                                            label: 'Banques et assurances',
+                                            textColor: ink,
+                                            onTap: openSourceOfFunds,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                              Row(
-                                children: [
-                                  GestureDetector(
-                                    onTap: () => Navigator.of(context, rootNavigator: true).push(
-                                      MaterialPageRoute<void>(builder: (_) => const PeyapayQrCodeScreen()),
-                                    ),
-                                    child: Container(
-                                      width: 36,
-                                      height: 36,
-                                      decoration: BoxDecoration(
-                                        color: const Color.fromRGBO(255, 255, 255, 0.12),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: const Icon(
-                                        Icons.qr_code_2_rounded,
-                                        size: 18,
-                                        color: Colors.white,
-                                      ),
-                                    ),
+                              // Balance card — in front.
+                              Positioned(
+                                left: 20,
+                                right: 20,
+                                top: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
                                   ),
-                                  const SizedBox(width: 8),
-                                  GestureDetector(
-                                    onTap: _shouldShowSkeleton ? null : _toggleBalanceVisibility,
-                                    child: Container(
-                                      width: 36,
-                                      height: 36,
-                                      decoration: BoxDecoration(
-                                        color: const Color.fromRGBO(255, 255, 255, 0.12),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Icon(
-                                        _showBalance ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                        size: 18,
-                                        color: Colors.white,
-                                      ),
-                                    ),
+                                  decoration: BoxDecoration(
+                                    color: balanceGreen,
+                                    borderRadius: BorderRadius.circular(22),
                                   ),
-                                ],
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const PeyaPayNavBarIcon(
+                                            size: 28,
+                                            width: 76,
+                                          ),
+                                          Row(
+                                            children: [
+                                              GestureDetector(
+                                                onTap: () => Navigator.of(
+                                                  context,
+                                                  rootNavigator: true,
+                                                ).push(
+                                                  MaterialPageRoute<void>(
+                                                    builder: (_) =>
+                                                        const PeyapayQrCodeScreen(),
+                                                  ),
+                                                ),
+                                                child: Container(
+                                                  width: 36,
+                                                  height: 36,
+                                                  decoration: BoxDecoration(
+                                                    color: const Color.fromRGBO(
+                                                      255,
+                                                      255,
+                                                      255,
+                                                      0.12,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(12),
+                                                  ),
+                                                  alignment: Alignment.center,
+                                                  child: const Icon(
+                                                    Icons.qr_code_2_rounded,
+                                                    size: 18,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              GestureDetector(
+                                                onTap: _shouldShowSkeleton
+                                                    ? null
+                                                    : _toggleBalanceVisibility,
+                                                child: Container(
+                                                  width: 36,
+                                                  height: 36,
+                                                  decoration: BoxDecoration(
+                                                    color: const Color.fromRGBO(
+                                                      255,
+                                                      255,
+                                                      255,
+                                                      0.12,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(12),
+                                                  ),
+                                                  alignment: Alignment.center,
+                                                  child: Icon(
+                                                    _showBalance
+                                                        ? Icons
+                                                            .visibility_off_outlined
+                                                        : Icons
+                                                            .visibility_outlined,
+                                                    size: 18,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      if (_shouldShowSkeleton)
+                                        const PeyapayBalanceSkeleton()
+                                      else ...[
+                                        const Text(
+                                          'Solde actuel',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color.fromRGBO(
+                                              255,
+                                              255,
+                                              255,
+                                              0.92,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        GestureDetector(
+                                          onTap: _toggleBalanceVisibility,
+                                          child: Text(
+                                            _showBalance && _balance != null
+                                                ? '${formatFrMoneySigned(_balance!)} XOF'
+                                                : '*****',
+                                            style: const TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.w900,
+                                              color: Colors.white,
+                                              letterSpacing: 0.3,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
-                          if (_shouldShowSkeleton)
-                            const PeyapayBalanceSkeleton()
-                          else ...[
-                            const Text(
-                              'Solde actuel',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: Color.fromRGBO(255, 255, 255, 0.92),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            GestureDetector(
-                              onTap: _toggleBalanceVisibility,
-                              child: Text(
-                                _showBalance && _balance != null
-                                    ? '${formatFrMoneySigned(_balance!)} XOF'
-                                    : '*****',
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8, left: 20, right: 20, bottom: 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          ActionButton(
-                            width: actionWidth,
-                            bg: const Color.fromRGBO(26, 158, 9, 0.18),
-                            icon: Icons.arrow_upward_rounded,
-                            iconSize: 28,
-                            iconColor: const Color(0xFF1A9E09),
-                            label: 'Transfert',
-                            textColor: ink,
-                            onTap: () => Navigator.of(context, rootNavigator: true).push(
-                              MaterialPageRoute<void>(builder: (_) => const PeyapayTransferContactsScreen()),
-                            ),
-                          ),
-                          const SizedBox(width: gap),
-                          ActionButton(
-                            width: actionWidth,
-                            bg: const Color.fromRGBO(53, 167, 224, 0.22),
-                            icon: Icons.credit_card_outlined,
-                            iconSize: 28,
-                            iconColor: const Color(0xFF35A7E0),
-                            label: 'Paiement',
-                            textColor: ink,
-                            onTap: openPaymentsServices,
-                          ),
-                          const SizedBox(width: gap),
-                          ActionButton(
-                            width: actionWidth,
-                            bg: const Color.fromRGBO(255, 102, 0, 0.22),
-                            icon: Icons.credit_card,
-                            iconSize: 28,
-                            iconColor: const Color(0xFFFF6600),
-                            label: 'Carte prépayée',
-                            textColor: ink,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(builder: (_) => const _Placeholder(title: 'PrepaidCard')),
-                            ),
-                          ),
-                          const SizedBox(width: gap),
-                          ActionButton(
-                            width: actionWidth,
-                            bg: ink,
-                            icon: Icons.add,
-                            iconSize: 24,
-                            iconColor: Colors.white,
-                            label: 'Banques et assurances',
-                            textColor: ink,
-                            onTap: openSourceOfFunds,
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -505,6 +669,11 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
                   },
                 ),
               ),
+            if (showPrepaidCard)
+              PeyapaySlidePanel(
+                animation: prepaidCardSlideController,
+                child: PeyapayPrepaidCardScreen(onClose: closePrepaidCard),
+              ),
             if (_showLoginRequiredModal)
               _AuthModal(
                 onYes: () => setState(() => _showLoginRequiredModal = false),
@@ -589,19 +758,6 @@ class _AuthModal extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _Placeholder extends StatelessWidget {
-  const _Placeholder({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: const SafeArea(child: Center(child: Text('TODO'))),
     );
   }
 }
