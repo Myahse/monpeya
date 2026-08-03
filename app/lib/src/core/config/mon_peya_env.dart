@@ -51,14 +51,16 @@ abstract final class MonPeyaEnv {
     try {
       await dotenv.load(fileName: '.env');
       return true;
-    } catch (_) {
-      if (!kDebugMode) return false;
-      try {
-        await dotenv.load(fileName: '.env.example');
+    } catch (_) {}
+
+    try {
+      await dotenv.load(fileName: '.env.example');
+      if (kDebugMode) {
         debugPrint('MonPeyaEnv: using .env.example — copy to .env for secrets');
-        return true;
-      } catch (_) {}
-    }
+      }
+      return true;
+    } catch (_) {}
+
     return false;
   }
 
