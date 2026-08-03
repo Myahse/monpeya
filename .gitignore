@@ -2,7 +2,7 @@
 .env
 .env.local
 .env.*.local
-# Local compile-time overrides with secrets (unused by runtime; prefer .env)
+# Legacy root config stub (unused)
 app/config.dart
 
 # Maven / Java
