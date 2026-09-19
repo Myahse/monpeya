@@ -1,5 +1,6 @@
 import 'package:billetterie/billetterie.dart';
 import 'package:flutter/foundation.dart';
+import 'package:grenier/grenier.dart';
 import 'package:immo/immo.dart';
 import 'package:peyapay/peyapay.dart';
 
@@ -80,6 +81,11 @@ abstract final class MonPeyaEnv {
       wsUrl: _nonEmpty(AppConfig.billetterieWsUrl),
       qrEncryptKey: qrEncryptKey,
       mapboxAccessToken: _nonEmpty(AppConfig.mapboxAccessToken),
+    );
+
+    GrenierEnvRegistry.apply(
+      baseUrl: _nonEmpty(AppConfig.grenierApiUrl),
+      wsUrl: _nonEmpty(AppConfig.grenierWsUrl),
     );
   }
 

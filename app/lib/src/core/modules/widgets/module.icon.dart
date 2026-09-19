@@ -28,6 +28,10 @@ String? moduleIconAsset({String? moduleKey, String? iconKey}) {
     'leadway-assurance' ||
     'leadway/assurance' =>
       'packages/leadway/assets/logo/leadway.png',
+    'grenier' ||
+    'mon-grenier' ||
+    'mon_grenier' =>
+      null,
     _ => _iconKeyAsset(iconKey),
   };
 }
@@ -73,6 +77,7 @@ IconData moduleIconData(String iconKey) {
     'collection' || 'bookmark' || 'immo-collection' => Icons.collections_bookmark_outlined,
     'wallet' || 'payment' => Icons.account_balance_wallet_outlined,
     'apartment' => Icons.apartment_outlined,
+    'grenier' || 'mon-grenier' || 'mon_grenier' => Icons.storefront_outlined,
     _ => Icons.widgets_outlined,
   };
 }

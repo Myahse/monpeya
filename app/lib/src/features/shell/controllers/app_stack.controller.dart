@@ -5,6 +5,7 @@ import 'package:billetterie/billetterie.dart';
 import 'package:app/src/core/modules/app.module.dart';
 import 'package:app/src/core/modules/navigation/module.navigation.dart';
 import 'package:app/src/integration/registries/billetterie_module.registry.dart';
+import 'package:app/src/integration/registries/grenier_module.registry.dart';
 import 'package:app/src/integration/registries/immo_module.registry.dart';
 import 'package:app/src/integration/registries/leadway_module.registry.dart';
 import 'package:app/src/features/shell/types/app_stack.types.dart';
@@ -88,7 +89,8 @@ class AppStackController extends ValueNotifier<AppStackState> {
   void openModule(AppModule module) {
     final nativeRoute = ImmoModuleRegistry.stackRouteFor(module) ??
         BilletterieModuleRegistry.stackRouteFor(module) ??
-        LeadwayModuleRegistry.stackRouteFor(module);
+        LeadwayModuleRegistry.stackRouteFor(module) ??
+        GrenierModuleRegistry.stackRouteFor(module);
     final routeName = nativeRoute ?? AppStackRoute.webModule;
     final params = ModuleNavigation.openModuleParams(module);
     final item = AppStackItem(

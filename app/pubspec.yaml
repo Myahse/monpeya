@@ -30,6 +30,8 @@ dependencies:
     path: ../packages/billetterie
   leadway:
     path: ../packages/leadway
+  grenier:
+    path: ../packages/grenier
   peyapay:
     path: ../packages/peyapay
   local_auth: ^2.3.0

@@ -1,6 +1,7 @@
 import 'package:app/src/core/modules/app.module.dart';
 import 'package:app/src/core/modules/resolvers/module_url.resolver.dart';
 import 'package:app/src/integration/registries/billetterie_module.registry.dart';
+import 'package:app/src/integration/registries/grenier_module.registry.dart';
 import 'package:app/src/integration/registries/immo_module.registry.dart';
 import 'package:app/src/integration/registries/leadway_module.registry.dart';
 
@@ -15,6 +16,9 @@ class ModuleNavigation {
       return nativeModuleParams(module);
     }
     if (LeadwayModuleRegistry.isNativeLeadway(module)) {
+      return nativeModuleParams(module);
+    }
+    if (GrenierModuleRegistry.isNativeGrenier(module)) {
       return nativeModuleParams(module);
     }
     return webModuleParams(module);

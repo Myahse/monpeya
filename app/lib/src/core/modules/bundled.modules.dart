@@ -74,5 +74,15 @@ class BundledModules {
       source: ModuleSource.bundled,
       sortOrder: 6,
     ),
+    AppModule(
+      id: 8,
+      moduleKey: 'mon-grenier',
+      name: 'Mon Grenier',
+      icon: 'grenier',
+      url: 'native:grenier',
+      type: ModuleLaunchType.native,
+      source: ModuleSource.bundled,
+      sortOrder: 7,
+    ),
   ];
 }

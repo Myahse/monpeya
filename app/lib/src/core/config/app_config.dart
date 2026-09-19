@@ -11,6 +11,8 @@ abstract final class AppConfig {
   static const billetterieTransportApiUrl = '';
   static const billetterieEventApiUrl = '';
   static const billetterieWsUrl = 'ws://10.0.2.2:8090/ws';
+  static const grenierApiUrl = 'http://10.0.2.2:8083';
+  static const grenierWsUrl = 'ws://10.0.2.2:8083/ws/realtime';
 
   // ── PeyaPay ───────────────────────────────────────────────────────────────
   static const peyaPayApiUrl = 'https://test1-pey-peya.djogana-pay.com';

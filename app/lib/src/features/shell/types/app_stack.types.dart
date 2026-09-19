@@ -10,6 +10,7 @@ class AppStackRoute {
   static const mrImmoRental = 'MrImmoRental';
   static const mrImmoConstruction = 'MrImmoConstruction';
   static const mrImmoCollection = 'MrImmoCollection';
+  static const monGrenier = 'MonGrenier';
   static const serviceModule = 'ServiceModule';
   static const webModule = 'WebModule';
 

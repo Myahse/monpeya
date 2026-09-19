@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:app/src/core/system/system_ui.config.dart';import 'package:app/src/integration/adapters/billetterie_host.adapter.dart';
+import 'package:app/src/integration/adapters/grenier_host.adapter.dart';
 import 'package:app/src/integration/adapters/immo_host.adapter.dart';
 import 'package:app/src/integration/adapters/leadway_host.adapter.dart';
 import 'package:app/src/integration/adapters/mon_peya_backend.adapter.dart';
@@ -14,6 +15,7 @@ void _registerModuleHosts() {
   MonPeyaImmoHostAdapter.register();
   MonPeyaBilletterieHostAdapter.register();
   MonPeyaLeadwayHostAdapter.register();
+  MonPeyaGrenierHostAdapter.register();
 }
 
 class MonPeyaSuperApp extends StatefulWidget {
