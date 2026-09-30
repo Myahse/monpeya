@@ -107,6 +107,7 @@ class BilletterieEventBottomNav extends StatelessWidget {
                     ),
                   ),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       for (final item in items)
                         Expanded(
@@ -155,36 +156,46 @@ class _EventNavItem extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       splashColor: brand.primaryDark.withValues(alpha: 0.08),
       highlightColor: Colors.transparent,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            child: Icon(
-              selected ? selectedIcon : icon,
-              key: ValueKey<bool>(selected),
-              size: 20,
-              color: color,
+      child: SizedBox(
+        width: double.infinity,
+        height: double.infinity,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              height: 20,
+              width: double.infinity,
+              child: Center(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  child: Icon(
+                    selected ? selectedIcon : icon,
+                    key: ValueKey<bool>(selected),
+                    size: 20,
+                    color: color,
+                  ),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            style: TextStyle(
-              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-              color: color,
-              fontSize: 11,
-              height: 1.0,
+            const SizedBox(height: 2),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              style: TextStyle(
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                color: color,
+                fontSize: 11,
+                height: 1.0,
+              ),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
             ),
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

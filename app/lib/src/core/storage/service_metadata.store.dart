@@ -7,6 +7,7 @@ import 'package:app/src/core/storage/constants/prefs.keys.dart';
 /// Noms de services connus (clés racine du JSON métadonnées).
 abstract class ServiceMetaNames {
   static const leadway = 'leadway';
+  static const sim = 'sim';
   static const immo = 'immo';
   static const peyapay = 'peyapay';
   static const billetterie = 'billetterie';

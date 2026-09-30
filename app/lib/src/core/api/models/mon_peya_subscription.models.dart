@@ -140,6 +140,8 @@ class MonPeyaSubscriptionRequest {
   bool get isOpen =>
       status == 'WAITING_FOR_APPROVAL' || status == 'ON_REVIEW';
 
+  bool get isApproved => status == 'APPROVED';
+
   bool get isDeplafonnement => requestType == 'DEPLAFONNEMENT';
 
   factory MonPeyaSubscriptionRequest.fromJson(Map<String, dynamic> json) {

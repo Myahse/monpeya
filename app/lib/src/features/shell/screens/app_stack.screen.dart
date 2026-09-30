@@ -7,6 +7,7 @@ import 'package:app/src/features/shell/widgets/mon_peya_module_gate.widget.dart'
 import 'package:app/src/features/shell/widgets/main_tabs.shell.dart';
 import 'package:app/src/features/shell/services/screens/billetterie.screen.dart';
 import 'package:app/src/features/shell/services/screens/leadway_assurance.screen.dart';
+import 'package:app/src/features/shell/services/screens/sim_assurance.screen.dart';
 import 'package:app/src/features/shell/services/screens/grenier.screen.dart';
 import 'package:app/src/features/shell/services/mr_immo.screens.dart';
 import 'package:app/src/features/shell/services/screens/service_module.screen.dart';
@@ -64,6 +65,7 @@ class _AppStackScreenState extends State<AppStackScreen> {
       AppStackRoute.billetterieEvent =>
         const MonPeyaModuleGate(child: BilletterieEventModuleScreen()),
       AppStackRoute.leadwayAssurance => const MonPeyaModuleGate(child: LeadwayModuleScreen()),
+      AppStackRoute.simAssurance => const MonPeyaModuleGate(child: SimModuleScreen()),
       AppStackRoute.mrImmoRental => const MonPeyaModuleGate(child: MrImmoRentalScreen()),
       AppStackRoute.mrImmoConstruction => const MonPeyaModuleGate(child: MrImmoConstructionScreen()),
       AppStackRoute.mrImmoCollection => const MonPeyaModuleGate(child: MrImmoCollectionScreen()),

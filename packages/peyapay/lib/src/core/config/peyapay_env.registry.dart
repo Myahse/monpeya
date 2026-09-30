@@ -12,6 +12,9 @@ class PeyapayEnvRegistry {
   static String? qrEncryptKey;
   static String? tokenEndpoint;
 
+  /// Mon Peya backend base URL (no trailing slash) — used for `/v1/carte/*`.
+  static String? monPeyaApiUrl;
+
   static void apply({
     String? apiUrl,
     String? cryptoUrl,
@@ -22,6 +25,7 @@ class PeyapayEnvRegistry {
     String? encryptKey,
     String? qrEncryptKey,
     String? tokenEndpoint,
+    String? monPeyaApiUrl,
   }) {
     if (apiUrl != null && apiUrl.isNotEmpty) PeyapayEnvRegistry.apiUrl = apiUrl;
     if (cryptoUrl != null && cryptoUrl.isNotEmpty) PeyapayEnvRegistry.cryptoUrl = cryptoUrl;
@@ -33,6 +37,9 @@ class PeyapayEnvRegistry {
     if (qrEncryptKey != null && qrEncryptKey.isNotEmpty) PeyapayEnvRegistry.qrEncryptKey = qrEncryptKey;
     if (tokenEndpoint != null && tokenEndpoint.isNotEmpty) {
       PeyapayEnvRegistry.tokenEndpoint = tokenEndpoint;
+    }
+    if (monPeyaApiUrl != null && monPeyaApiUrl.isNotEmpty) {
+      PeyapayEnvRegistry.monPeyaApiUrl = monPeyaApiUrl;
     }
   }
 
@@ -46,5 +53,6 @@ class PeyapayEnvRegistry {
     encryptKey = null;
     qrEncryptKey = null;
     tokenEndpoint = null;
+    monPeyaApiUrl = null;
   }
 }

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import 'package:peyapay/src/data/services/peyapay_api.service.dart';
+import 'package:peyapay/src/data/services/peyapay_carte_api.service.dart';
 
 typedef PeyapayHostAssetLoader = Future<Uint8List?> Function(String assetPath);
 
@@ -24,7 +25,11 @@ abstract class PeyapayHostAuth {
 
   Future<String?> getPhone();
 
+  /// PeyaPay client JWT for wallet API calls (not Mon Peya backend token).
   Future<String?> authToken();
+
+  /// Mon Peya backend session token for `/v1/carte/*` and other Monpeya APIs.
+  Future<String?> monPeyaAccessToken();
 }
 
 typedef PeyapayHostRouteOpener = Future<void> Function(String routeName);
@@ -50,6 +55,9 @@ class PeyapayHostBridge {
 
   /// Shared PeyaPay wallet API client (auth, balance, transfers, …).
   static PeyapayApiService? api;
+
+  /// Mon Peya backend proxy for physical card order (`/v1/carte/*`).
+  static PeyapayCarteApiService? carteApi;
 
   /// Optional hook for balance/UI refresh after wallet mutations.
   static VoidCallback? onSessionChanged;

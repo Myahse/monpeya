@@ -13,6 +13,7 @@ import 'package:immo/src/features/rental/theme/themes/rental.theme.dart';
 import 'package:immo/src/features/rental/utils/rental_maps.util.dart';
 import 'package:immo/src/features/rental/widgets/rental_layout_widgets.widget.dart';
 import 'package:immo/src/features/rental/widgets/rental_skeleton.widget.dart';
+import 'package:immo/src/shared/config/map_tiles.config.dart';
 
 /// Property detail — mockup layout (hero, provider card, CTAs, map).
 class PropertyDetailScreen extends StatefulWidget {
@@ -1041,8 +1042,7 @@ class _MiniMap extends StatelessWidget {
               ),
               children: [
                 TileLayer(
-                  urlTemplate:
-                      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                  urlTemplate: MapTilesConfig.tileUrl(light: true),
                   subdomains: const ['a', 'b', 'c', 'd'],
                   userAgentPackageName: 'com.monpeya.immo',
                   retinaMode: RetinaMode.isHighDensity(context),

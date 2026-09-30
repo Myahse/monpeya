@@ -7,6 +7,7 @@ class AppStackRoute {
   static const billetterie = billetterieTransport;
 
   static const leadwayAssurance = 'LeadwayAssurance';
+  static const simAssurance = 'SimAssurance';
   static const mrImmoRental = 'MrImmoRental';
   static const mrImmoConstruction = 'MrImmoConstruction';
   static const mrImmoCollection = 'MrImmoCollection';

@@ -45,6 +45,16 @@ class BundledModules {
       sortOrder: 3,
     ),
     AppModule(
+      id: 9,
+      moduleKey: 'sim-assurance',
+      name: 'SIM Assurances',
+      icon: 'sim',
+      url: 'native:sim',
+      type: ModuleLaunchType.native,
+      source: ModuleSource.bundled,
+      sortOrder: 4,
+    ),
+    AppModule(
       id: 6,
       moduleKey: 'leadway-assurance',
       name: 'Leadway Moto',
@@ -52,7 +62,7 @@ class BundledModules {
       url: 'native:leadway',
       type: ModuleLaunchType.native,
       source: ModuleSource.bundled,
-      sortOrder: 4,
+      sortOrder: 5,
     ),
     AppModule(
       id: 5,

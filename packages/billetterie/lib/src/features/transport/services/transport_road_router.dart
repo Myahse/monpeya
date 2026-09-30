@@ -31,7 +31,7 @@ class TransportRoadRoute {
 
 /// Road-following router via [Mapbox Directions API](https://docs.mapbox.com/api/navigation/directions/).
 ///
-/// Requires `MAPBOX_ACCESS_TOKEN` in `app/.env` (see BilletterieEnvRegistry).
+/// Requires `mapboxAccessToken` in `AppConfig` (see BilletterieEnvRegistry).
 /// Falls back to a densified straight segment if the token is missing or the
 /// network call fails.
 abstract final class TransportRoadRouter {

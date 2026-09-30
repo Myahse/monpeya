@@ -15,13 +15,16 @@ class PeyaPayNavBarIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      PeyaPayAssets.bank(PeyaPayAssets.brandLogo),
-      package: PeyaPayAssets.package,
-      width: width ?? size,
-      height: size,
-      fit: BoxFit.contain,
-      filterQuality: FilterQuality.medium,
+    return Center(
+      child: Image.asset(
+        PeyaPayAssets.bank(PeyaPayAssets.brandLogo),
+        package: PeyaPayAssets.package,
+        width: width ?? size,
+        height: size,
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+        filterQuality: FilterQuality.medium,
+      ),
     );
   }
 }

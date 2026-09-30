@@ -14,6 +14,7 @@ import 'package:billetterie/src/features/transport/screens/ticket_details.screen
 import 'package:billetterie/src/features/transport/services/transport_road_router.dart';
 import 'package:billetterie/src/features/transport/services/transport_route_graph.dart';
 import 'package:billetterie/src/shared/services/billetterie_location.service.dart';
+import 'package:billetterie/src/shared/config/map_tiles.config.dart';
 import 'package:billetterie/src/shared/widgets/billetterie_bottom_nav.widget.dart';
 import 'package:billetterie/src/shared/widgets/billetterie_location_modal.widget.dart';
 import 'package:billetterie/src/shared/widgets/billetterie_user_sonar_marker.widget.dart';
@@ -110,8 +111,7 @@ class _MapChrome {
         accent: accent,
         scaffold: brand.bg,
         mapBg: const Color(0xFFF1F5F9),
-        tileUrl:
-            'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        tileUrl: MapTilesConfig.tileUrl(light: true),
         panel: Colors.white.withValues(alpha: 0.88),
         panelBorder: brand.border,
         fg: brand.text,
@@ -138,7 +138,7 @@ class _MapChrome {
       accent: accent,
       scaffold: Colors.black,
       mapBg: const Color(0xFF0B0B0D),
-      tileUrl: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      tileUrl: MapTilesConfig.tileUrl(light: false),
       panel: Colors.black.withValues(alpha: 0.45),
       panelBorder: Colors.white12,
       fg: Colors.white,

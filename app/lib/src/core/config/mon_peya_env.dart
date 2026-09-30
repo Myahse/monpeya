@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:grenier/grenier.dart';
 import 'package:immo/immo.dart';
 import 'package:peyapay/peyapay.dart';
+import 'package:sim/sim.dart';
 
 import 'package:app/src/core/api/mon_peya_api.config.dart';
 import 'package:app/src/core/config/app_config.dart';
@@ -25,6 +26,10 @@ abstract final class MonPeyaEnv {
       debugPrint('MonPeyaEnv: MONPEYA_API_URL → ${MonPeyaApiConfig.baseUrl}');
       debugPrint('MonPeyaEnv: IMMO_API_URL → ${ImmoApiConfig.baseUrl}');
       debugPrint('MonPeyaEnv: IMMO_WS_URL → ${ImmoApiConfig.wsUrl}');
+      debugPrint('MonPeyaEnv: SIM_API_URL → ${SimApiConfig.baseUrl}');
+      debugPrint(
+        'MonPeyaEnv: SIM_API_KEY → ${SimApiConfig.isConfigured ? "configured" : "missing"}',
+      );
       if (forceGuestMode || skipForcedAuth) {
         debugPrint(
           'MonPeyaEnv: debug auth — FORCE_GUEST_MODE=$forceGuestMode, '
@@ -67,11 +72,13 @@ abstract final class MonPeyaEnv {
       encryptKey: encryptKey,
       qrEncryptKey: qrEncryptKey,
       tokenEndpoint: _nonEmpty(AppConfig.tokenEndpoint),
+      monPeyaApiUrl: _nonEmpty(AppConfig.monPeyaApiUrl),
     );
 
     ImmoEnvRegistry.apply(
       baseUrl: _nonEmpty(AppConfig.immoApiUrl),
       wsUrl: _nonEmpty(AppConfig.immoWsUrl),
+      mapboxAccessToken: _nonEmpty(AppConfig.mapboxAccessToken),
     );
 
     BilletterieEnvRegistry.apply(
@@ -86,6 +93,12 @@ abstract final class MonPeyaEnv {
     GrenierEnvRegistry.apply(
       baseUrl: _nonEmpty(AppConfig.grenierApiUrl),
       wsUrl: _nonEmpty(AppConfig.grenierWsUrl),
+    );
+
+    SimEnvRegistry.apply(
+      baseUrl: _nonEmpty(AppConfig.simApiBaseUrl),
+      apiKey: _nonEmpty(AppConfig.simApiKey),
+      webhookSecret: _nonEmpty(AppConfig.simWebhookSecret),
     );
   }
 

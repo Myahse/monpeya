@@ -93,8 +93,17 @@ Future<bool> ensureDeplafonneOrAsk(
   if (ask != true || !context.mounted) return false;
 
   try {
-    await monPeyaRequestDeplafonnement();
+    final req = await monPeyaRequestDeplafonnement();
     if (!context.mounted) return false;
+    if (req.isApproved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Compte déplafonné — vous pouvez vous abonner.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return true;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(

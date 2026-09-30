@@ -62,7 +62,7 @@ IconData moduleIconData(String iconKey) {
   return switch (iconKey.toLowerCase()) {
     'home' || 'real_estate' || 'rental' || 'immo-rental' => Icons.home_work_outlined,
     'construction' || 'build' || 'immo-construction' => Icons.construction_outlined,
-    'shield' || 'insurance' || 'leadway' => Icons.shield_outlined,
+    'shield' || 'insurance' || 'leadway' || 'sim' || 'sim-assurance' => Icons.shield_outlined,
     'school' || 'education' => Icons.school_outlined,
     'cart' || 'marketplace' || 'shop' => Icons.shopping_bag_outlined,
     'ticket' ||

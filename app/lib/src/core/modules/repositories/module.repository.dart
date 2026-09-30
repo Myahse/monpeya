@@ -7,9 +7,13 @@ class ModuleRepository {
 
   static const shellTabModuleKeys = {'peyapay'};
 
-  static List<AppModule> get modules => ModuleVisibility.filterVisible(
-        List<AppModule>.from(BundledModules.catalog),
-      ).where((m) => !shellTabModuleKeys.contains(m.moduleKey)).toList();
+  static List<AppModule> get modules {
+    final list = ModuleVisibility.filterVisible(
+      List<AppModule>.from(BundledModules.catalog),
+    ).where((m) => !shellTabModuleKeys.contains(m.moduleKey)).toList();
+    list.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    return list;
+  }
 
   static List<AppModule> get mockModules => modules;
 

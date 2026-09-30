@@ -8,6 +8,7 @@ import 'package:app/src/integration/registries/billetterie_module.registry.dart'
 import 'package:app/src/integration/registries/grenier_module.registry.dart';
 import 'package:app/src/integration/registries/immo_module.registry.dart';
 import 'package:app/src/integration/registries/leadway_module.registry.dart';
+import 'package:app/src/integration/registries/sim_module.registry.dart';
 import 'package:app/src/features/shell/types/app_stack.types.dart';
 
 class AppStackController extends ValueNotifier<AppStackState> {
@@ -90,6 +91,7 @@ class AppStackController extends ValueNotifier<AppStackState> {
     final nativeRoute = ImmoModuleRegistry.stackRouteFor(module) ??
         BilletterieModuleRegistry.stackRouteFor(module) ??
         LeadwayModuleRegistry.stackRouteFor(module) ??
+        SimModuleRegistry.stackRouteFor(module) ??
         GrenierModuleRegistry.stackRouteFor(module);
     final routeName = nativeRoute ?? AppStackRoute.webModule;
     final params = ModuleNavigation.openModuleParams(module);

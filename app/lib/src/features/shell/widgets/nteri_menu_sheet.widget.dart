@@ -119,12 +119,12 @@ class _NteriMenuPanelState extends State<NteriMenuPanel> {
                         )
                       else
                         GridView.count(
-                          crossAxisCount: 3,
+                          crossAxisCount: 4,
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          mainAxisSpacing: 4,
-                          crossAxisSpacing: 4,
-                          childAspectRatio: 0.78,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                          childAspectRatio: 1,
                           children: [
                             for (final module in modules)
                               _ModuleMenuTile(
@@ -231,22 +231,24 @@ class _ModuleMenuTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final immoBranded = isImmoBrandedModuleIcon(
-      moduleKey: module.moduleKey,
-      iconKey: module.icon,
-    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final iconSize = immoBranded
-            ? (constraints.maxHeight * 0.42).clamp(22.0, 32.0)
-            : (constraints.maxHeight * 0.36).clamp(20.0, 28.0);
+        final tileSide = constraints.maxWidth;
+        final hasLogo = moduleIconAsset(
+              moduleKey: module.moduleKey,
+              iconKey: module.icon,
+            ) !=
+            null;
+        final iconSize = hasLogo
+            ? (tileSide - 8).clamp(28.0, 40.0)
+            : (tileSide * 0.52).clamp(22.0, 30.0);
 
         return VerticalServiceTile(
-          width: constraints.maxWidth,
-          height: constraints.maxHeight,
+          width: tileSide,
           label: label,
           selected: selected,
+          showLabel: false,
           onTap: onTap,
           icon: ModuleIcon.forModule(
             module,

@@ -11,6 +11,7 @@ import 'package:immo/src/core/constants/immo.brand.dart';
 import 'package:immo/src/features/rental/auth/scopes/rental_session.scope.dart';
 import 'package:immo/src/features/rental/models/rental.property.dart';
 import 'package:immo/src/features/rental/navigation/rental_bottom.navigation.dart';
+import 'package:immo/src/shared/config/map_tiles.config.dart';
 import 'package:immo/src/features/rental/services/rental_data.cache.dart';
 import 'package:immo/src/features/rental/services/rental_location.service.dart';
 import 'package:immo/src/features/rental/widgets/rental_location_modal.widget.dart';
@@ -66,8 +67,7 @@ class _MapChrome {
         accent: accent,
         scaffold: brand.bg,
         mapBg: const Color(0xFFF1F5F9),
-        tileUrl:
-            'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        tileUrl: MapTilesConfig.tileUrl(light: true),
         panel: Colors.white.withValues(alpha: 0.88),
         panelBorder: brand.border,
         fg: brand.text,
@@ -92,7 +92,7 @@ class _MapChrome {
       accent: accent,
       scaffold: Colors.black,
       mapBg: const Color(0xFF0B0B0D),
-      tileUrl: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      tileUrl: MapTilesConfig.tileUrl(light: false),
       panel: Colors.black.withValues(alpha: 0.45),
       panelBorder: Colors.white12,
       fg: Colors.white,

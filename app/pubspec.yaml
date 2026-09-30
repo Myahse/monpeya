@@ -30,6 +30,8 @@ dependencies:
     path: ../packages/billetterie
   leadway:
     path: ../packages/leadway
+  sim:
+    path: ../packages/sim
   grenier:
     path: ../packages/grenier
   peyapay:

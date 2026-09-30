@@ -37,12 +37,17 @@ class _ConstructionMainNavigationState extends State<ConstructionMainNavigation>
       body: _buildBody(),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab.index,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         indicatorColor: ImmoBrand.constructionPrimary.withValues(alpha: 0.18),
         onDestinationSelected: (i) =>
             setState(() => _tab = ConstructionTab.values[i]),
         destinations: [
           for (final t in ConstructionTab.values)
-            NavigationDestination(icon: Icon(t.icon), label: t.label),
+            NavigationDestination(
+              icon: Icon(t.icon, size: 22),
+              selectedIcon: Icon(t.icon, size: 22),
+              label: t.label,
+            ),
         ],
       ),
       floatingActionButton: _tab == ConstructionTab.home

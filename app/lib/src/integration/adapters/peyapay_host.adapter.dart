@@ -17,6 +17,7 @@ class MonPeyaPeyapayHostAdapter implements PeyapayHostAuth {
 
   static void register() {
     PeyapayHostBridge.api = PeyapayApiService();
+    PeyapayHostBridge.carteApi = PeyapayCarteApiService();
     PeyapayHostBridge.auth = const MonPeyaPeyapayHostAdapter();
     PeyapayHostBridge.sessionChanges = MonPeyaSession.instance;
     PeyapayHostBridge.openRoute = (routeName) async {
@@ -51,6 +52,9 @@ class MonPeyaPeyapayHostAdapter implements PeyapayHostAuth {
   /// PeyaPay client JWT for wallet API calls (not Mon Peya backend token).
   @override
   Future<String?> authToken() => AuthStore.authToken();
+
+  @override
+  Future<String?> monPeyaAccessToken() => AuthStore.monPeyaAccessToken();
 }
 
 void notifyMonPeyaSessionChanged() => MonPeyaSession.instance.notifySessionChanged();

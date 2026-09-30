@@ -30,18 +30,22 @@ void main() {
     test('default baseUrl is null', () {
       expect(ImmoEnvRegistry.baseUrl, isNull);
       expect(ImmoEnvRegistry.wsUrl, isNull);
+      expect(ImmoEnvRegistry.mapboxAccessToken, isNull);
     });
 
     test('apply and reset round-trip', () {
       ImmoEnvRegistry.apply(
         baseUrl: 'http://test:8081',
         wsUrl: 'ws://test:8081/ws/realtime',
+        mapboxAccessToken: 'pk.test',
       );
       expect(ImmoEnvRegistry.baseUrl, 'http://test:8081');
       expect(ImmoEnvRegistry.wsUrl, 'ws://test:8081/ws/realtime');
+      expect(ImmoEnvRegistry.mapboxAccessToken, 'pk.test');
       ImmoEnvRegistry.reset();
       expect(ImmoEnvRegistry.baseUrl, isNull);
       expect(ImmoEnvRegistry.wsUrl, isNull);
+      expect(ImmoEnvRegistry.mapboxAccessToken, isNull);
     });
   });
 

@@ -142,6 +142,21 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
     final moduleCode =
         plan?.moduleCodes.length == 1 ? plan!.moduleCodes.first : null;
 
+    if (moduleCode == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Choisissez un service ci-dessous pour vous abonner '
+            '(Billetterie, Immo, Leadway…).',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      await _openServicesSheet();
+      return;
+    }
+
     setState(() => _subscribing = true);
     try {
       final sub = await monPeyaSubscribe(

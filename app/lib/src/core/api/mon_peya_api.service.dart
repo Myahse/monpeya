@@ -393,7 +393,8 @@ class MonPeyaApiService {
       return MonPeyaApiException(
         message:
             'Le serveur Mon Peya ne répond pas ($base). '
-            'Vérifiez que le backend est démarré.',
+            'Le backend est peut‑être démarré mais bloqué (ex. /v1/auth/lookup). '
+            'Vérifiez les logs du serveur sur le port 8081.',
       );
     }
 
@@ -405,7 +406,8 @@ class MonPeyaApiService {
         message:
             'Impossible de joindre le serveur Mon Peya ($base). '
             'Vérifiez que le téléphone et le PC sont sur le même Wi‑Fi, '
-            'que l’adresse IP du PC est correcte dans app/.env, '
+            'que `devLanHost` dans app/lib/src/core/config/app_config.dart '
+            'correspond à l’IP du PC (ipconfig), '
             'et que le backend écoute sur le port 8081.',
       );
     }

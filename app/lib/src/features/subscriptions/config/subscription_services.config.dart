@@ -71,6 +71,14 @@ abstract final class SubscriptionServices {
     iconKey: 'leadway',
   );
 
+  static const sim = SubscriptionServiceEntry(
+    moduleCode: 'sim',
+    moduleKey: 'sim-assurance',
+    title: 'SIM Assurances',
+    subtitle: 'RelaxMoto, RelaxAuto, Accidents',
+    iconKey: 'sim',
+  );
+
   static const catalog = [
     billetterieTransport,
     billetterieEvent,
@@ -78,6 +86,7 @@ abstract final class SubscriptionServices {
     immoConstruction,
     immoCollection,
     leadway,
+    sim,
   ];
 
   static String moduleLabel(String moduleCode) {
@@ -85,6 +94,7 @@ abstract final class SubscriptionServices {
       'billetterie' => 'Billetterie',
       'immo' => 'Mr Immo',
       'leadway' => 'Leadway',
+      'sim' => 'SIM Assurances',
       _ => moduleCode,
     };
   }

@@ -5,6 +5,7 @@ import 'package:app/src/core/system/system_ui.config.dart';import 'package:app/s
 import 'package:app/src/integration/adapters/grenier_host.adapter.dart';
 import 'package:app/src/integration/adapters/immo_host.adapter.dart';
 import 'package:app/src/integration/adapters/leadway_host.adapter.dart';
+import 'package:app/src/integration/adapters/sim_host.adapter.dart';
 import 'package:app/src/integration/adapters/mon_peya_backend.adapter.dart';
 import 'package:app/src/integration/adapters/peyapay_host.adapter.dart';
 import 'package:app/src/core/routing/routes.dart';
@@ -16,6 +17,7 @@ void _registerModuleHosts() {
   MonPeyaBilletterieHostAdapter.register();
   MonPeyaLeadwayHostAdapter.register();
   MonPeyaGrenierHostAdapter.register();
+  MonPeyaSimHostAdapter.register();
 }
 
 class MonPeyaSuperApp extends StatefulWidget {

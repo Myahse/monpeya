@@ -39,7 +39,8 @@ class EventRadialDateTimePickerState extends State<EventRadialDateTimePicker>
   static const _timeGap = 0.36;
   static const _dateRadiusFactor = 0.47;
   static const _timeRadiusFactor = 0.29;
-  static const _sensitivity = 1.55;
+  static const _sensitivity = 1.85;
+  static const _minDragRadius = 22.0;
 
   static const _spring = SpringDescription(
     mass: 0.8,
@@ -318,21 +319,39 @@ class EventRadialDateTimePickerState extends State<EventRadialDateTimePicker>
 
     final center = _ringCenter(size);
     final d = (details.localPosition - center).distance;
-    final split = size.shortestSide *
-        ((_dateRadiusFactor + _timeRadiusFactor) / 2);
-    _draggingDate = d >= split;
+    final dateR = size.shortestSide * _dateRadiusFactor;
+    final timeR = size.shortestSide * _timeRadiusFactor;
+    // Match visual rings so outer drags date, inner drags time.
+    if (d >= dateR - 18) {
+      _draggingDate = true;
+    } else if (d <= timeR + 26) {
+      _draggingDate = false;
+    } else {
+      _draggingDate = d > (dateR + timeR) / 2;
+    }
     _lastPos = details.localPosition;
     _lastAngularVel = 0;
   }
 
+  double _angleDeltaFromCenter(Offset prev, Offset curr) {
+    if (prev.distance < _minDragRadius && curr.distance < _minDragRadius) {
+      return 0;
+    }
+    final aPrev = math.atan2(prev.dy, prev.dx);
+    final aCurr = math.atan2(curr.dy, curr.dx);
+    return -_wrapAngle(aCurr - aPrev);
+  }
+
   void _onPanUpdate(DragUpdateDetails details, Size size) {
     final center = _ringCenter(size);
-    final prev = (_lastPos ?? details.localPosition) - center;
+    final prevGlobal = _lastPos ?? details.localPosition;
+    final prev = prevGlobal - center;
     final curr = details.localPosition - center;
     _lastPos = details.localPosition;
-    if (prev.distanceSquared < 16 || curr.distanceSquared < 16) return;
 
-    final a = -_wrapAngle(curr.direction - prev.direction);
+    final a = _angleDeltaFromCenter(prev, curr);
+    if (a.abs() < 0.0005) return;
+
     _lastAngularVel = a * 60;
 
     if (_draggingDate) {
@@ -347,7 +366,7 @@ class EventRadialDateTimePickerState extends State<EventRadialDateTimePicker>
     _lastPos = null;
     _dragging = false;
     final linear = details.velocity.pixelsPerSecond;
-    final boost = linear.distance > 60 ? 1.15 : 0.65;
+    final boost = linear.distance > 60 ? 1.25 : 0.85;
     final itemVel =
         (_lastAngularVel / (_draggingDate ? _dateGap : _timeGap)) *
             _sensitivity *
@@ -527,8 +546,8 @@ class EventRadialDateTimePickerState extends State<EventRadialDateTimePicker>
                       ),
                       child: const SizedBox.expand(),
                     ),
-                    ..._buildTimeLabels(size, chrome),
-                    ..._buildDateCards(size, chrome),
+                    IgnorePointer(child: Stack(children: _buildTimeLabels(size, chrome))),
+                    IgnorePointer(child: Stack(children: _buildDateCards(size, chrome))),
                   ],
                 ),
               );

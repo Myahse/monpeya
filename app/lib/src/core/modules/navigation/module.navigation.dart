@@ -4,6 +4,7 @@ import 'package:app/src/integration/registries/billetterie_module.registry.dart'
 import 'package:app/src/integration/registries/grenier_module.registry.dart';
 import 'package:app/src/integration/registries/immo_module.registry.dart';
 import 'package:app/src/integration/registries/leadway_module.registry.dart';
+import 'package:app/src/integration/registries/sim_module.registry.dart';
 
 class ModuleNavigation {
   ModuleNavigation._();
@@ -16,6 +17,9 @@ class ModuleNavigation {
       return nativeModuleParams(module);
     }
     if (LeadwayModuleRegistry.isNativeLeadway(module)) {
+      return nativeModuleParams(module);
+    }
+    if (SimModuleRegistry.isNativeSim(module)) {
       return nativeModuleParams(module);
     }
     if (GrenierModuleRegistry.isNativeGrenier(module)) {
