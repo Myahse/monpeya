@@ -241,9 +241,9 @@ class _EventDateTimeRangeSheetState extends State<EventDateTimeRangeSheet> {
                           maxHeight: MediaQuery.sizeOf(context).width * 1.35,
                           alignment: Alignment.topCenter,
                           child: Transform.translate(
-                            offset: const Offset(0, 56),
+                            offset: const Offset(0, 38),
                             child: Transform.scale(
-                              scale: 1.14,
+                              scale: 1.06,
                               alignment: Alignment.topCenter,
                               child: EventRadialDateTimePicker(
                                 key: ValueKey(_field),

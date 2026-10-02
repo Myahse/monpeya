@@ -39,6 +39,8 @@ class EventRadialDateTimePickerState extends State<EventRadialDateTimePicker>
   static const _timeGap = 0.36;
   static const _dateRadiusFactor = 0.47;
   static const _timeRadiusFactor = 0.29;
+  /// Extra vertical space so the inner time ring is not clipped in the sheet.
+  static const _dialHeightFactor = 1.20;
   static const _sensitivity = 1.85;
   static const _minDragRadius = 22.0;
 
@@ -320,7 +322,7 @@ class EventRadialDateTimePickerState extends State<EventRadialDateTimePicker>
     final center = _ringCenter(size);
     final d = (details.localPosition - center).distance;
     final dateR = size.shortestSide * _dateRadiusFactor;
-    final timeR = size.shortestSide * _timeRadiusFactor;
+    final timeR = _timeRadius(size);
     // Match visual rings so outer drags date, inner drags time.
     if (d >= dateR - 18) {
       _draggingDate = true;
@@ -507,16 +509,19 @@ class EventRadialDateTimePickerState extends State<EventRadialDateTimePicker>
             color: brand.primaryDark,
           ),
         ),
-        const SizedBox(height: 64),
-        AspectRatio(
-          aspectRatio: 1,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final size = Size(constraints.maxWidth, constraints.maxHeight);
-              final ring = _ringCenter(size);
-              final dateR = size.shortestSide * _dateRadiusFactor;
-              final timeR = size.shortestSide * _timeRadiusFactor;
-              return GestureDetector(
+        const SizedBox(height: 28),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final w = constraints.maxWidth;
+            final h = w * _dialHeightFactor;
+            final size = Size(w, h);
+            final ring = _ringCenter(size);
+            final dateR = size.shortestSide * _dateRadiusFactor;
+            final timeR = _timeRadius(size);
+            return SizedBox(
+              width: w,
+              height: h,
+              child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onPanStart: (d) => _onPanStart(d, size),
                 onPanUpdate: (d) => _onPanUpdate(d, size),
@@ -539,29 +544,31 @@ class EventRadialDateTimePickerState extends State<EventRadialDateTimePicker>
                       ),
                     ),
                     CustomPaint(
+                      size: size,
                       painter: _TimeHighlightPainter(
                         accent: chrome.wheelAccent,
                         center: ring,
                         radius: timeR,
                       ),
-                      child: const SizedBox.expand(),
                     ),
                     IgnorePointer(child: Stack(children: _buildTimeLabels(size, chrome))),
                     IgnorePointer(child: Stack(children: _buildDateCards(size, chrome))),
                   ],
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ],
     );
   }
 
   Offset _ringCenter(Size size) {
-    // Keep hub / apply control a bit higher in the dial.
-    return Offset(size.width / 2, size.height * 0.44);
+    // Center the rings in the taller dial so the inner time wheel clears the bottom.
+    return Offset(size.width / 2, size.height * 0.49);
   }
+
+  double _timeRadius(Size size) => size.width * _timeRadiusFactor;
 
   List<Widget> _buildDateCards(Size size, EventUiChrome chrome) {
     final center = _ringCenter(size);
@@ -605,7 +612,7 @@ class EventRadialDateTimePickerState extends State<EventRadialDateTimePicker>
 
   List<Widget> _buildTimeLabels(Size size, EventUiChrome chrome) {
     final center = _ringCenter(size);
-    final radius = size.shortestSide * _timeRadiusFactor;
+    final radius = _timeRadius(size);
     final value = _timeCtrl.value;
     final widgets = <Widget>[];
 
