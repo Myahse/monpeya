@@ -1,18 +1,21 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
-import 'package:immo/src/core/constants/immo.brand.dart';
-import 'package:immo/src/shared/widgets/immo_screen_stub.widget.dart';
+import 'package:immo/src/shared/auth/scopes/immo_module_session.scope.dart';
+import 'package:immo/src/shared/widgets/immo_layout.widget.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const ImmoScreenStub(
-      appName: 'Mr Immo Construction',
-      screenPath: 'screens/supplier/AccountScreen',
-      primaryColor: ImmoBrand.constructionPrimary,
+    final session = ImmoModuleSessionScope.of(context);
+    final name = (session.displayName ?? '').trim();
+    return ImmoAccountView(
+      moduleLabel: 'Mr Immo Construction',
+      name: name.isEmpty ? 'Invité' : name,
+      phone: session.phone,
+      roleLabel: 'Fournisseur',
+      guest: session.guestMode,
     );
   }
 }
-

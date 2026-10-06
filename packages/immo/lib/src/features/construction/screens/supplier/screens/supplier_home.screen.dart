@@ -1,28 +1,57 @@
 import 'package:flutter/material.dart';
 
-import 'package:immo/src/shared/auth/scopes/immo_module_session.scope.dart';
+import 'package:immo/src/features/construction/navigation/construction.tab.dart';
 import 'package:immo/src/features/construction/widgets/construction_home_layout.widget.dart';
+import 'package:immo/src/shared/widgets/immo_layout.widget.dart';
 
 class SupplierHomeScreen extends StatelessWidget {
-  const SupplierHomeScreen({super.key});
+  const SupplierHomeScreen({
+    super.key,
+    required this.onRoleChanged,
+    required this.onOpenTab,
+  });
+
+  final ValueChanged<ConstructionRole> onRoleChanged;
+  final ValueChanged<ConstructionTab> onOpenTab;
 
   @override
   Widget build(BuildContext context) {
-    final phone = ImmoModuleSessionScope.of(context).phone ?? '';
     return ConstructionHomeLayout(
-      userName: phone,
-      roleLabel: 'Supplier Dashboard',
+      role: ConstructionRole.supplier,
+      onRoleChanged: onRoleChanged,
       stats: const [
-        ConstructionStat(label: 'Active Orders', value: '0', color: Color(0xFFFF9401)),
-        ConstructionStat(label: 'Pending Deliveries', value: '0', color: Color(0xFF10B981)),
-        ConstructionStat(label: 'This Month', value: '0 CFA', color: Color(0xFF3B82F6)),
+        ImmoStat(label: 'Commandes actives', value: '0', icon: Icons.inventory_2_outlined),
+        ImmoStat(label: 'Livraisons en attente', value: '0', icon: Icons.local_shipping_outlined),
+        ImmoStat(label: 'Ce mois', value: '0 F', icon: Icons.trending_up_rounded),
       ],
-      quickActions: const [
-        ConstructionQuickAction(title: 'New Order', emoji: '📦', description: 'Create a new order'),
-        ConstructionQuickAction(title: 'Deliveries', emoji: '🚚', description: 'Manage deliveries'),
-        ConstructionQuickAction(title: 'Inventory', emoji: '📊', description: 'Check inventory'),
-        ConstructionQuickAction(title: 'Payments', emoji: '💰', description: 'View payments'),
+      actions: [
+        ImmoAction(
+          title: 'Commandes',
+          subtitle: 'Suivre les commandes reçues',
+          icon: Icons.inventory_2_rounded,
+          onTap: () => onOpenTab(ConstructionTab.work),
+        ),
+        ImmoAction(
+          title: 'Livraisons',
+          subtitle: 'Planifier et confirmer',
+          icon: Icons.local_shipping_rounded,
+          onTap: () => onOpenTab(ConstructionTab.work),
+        ),
+        ImmoAction(
+          title: 'Paiements',
+          subtitle: 'Encaissements Peya Pay',
+          icon: Icons.account_balance_wallet_rounded,
+          onTap: () => onOpenTab(ConstructionTab.payments),
+        ),
+        ImmoAction(
+          title: 'Messages',
+          subtitle: 'Échanger avec les chantiers',
+          icon: Icons.chat_bubble_rounded,
+          onTap: () => onOpenTab(ConstructionTab.messages),
+        ),
       ],
+      emptyTitle: 'Aucune activité pour le moment',
+      emptyMessage: 'Vos nouvelles commandes et livraisons apparaîtront ici.',
     );
   }
 }

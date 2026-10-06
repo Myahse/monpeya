@@ -32,7 +32,7 @@ enum RentalTab {
       role.isBusiness ? businessTabs : clientTabs;
 
   String get label => switch (this) {
-        RentalTab.home => 'Home',
+        RentalTab.home => 'Accueil',
         RentalTab.search => 'Recherche',
         RentalTab.favorites => 'Favoris',
         RentalTab.tenants => 'Locataires',

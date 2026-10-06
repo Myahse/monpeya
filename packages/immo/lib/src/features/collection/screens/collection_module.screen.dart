@@ -37,7 +37,10 @@ class _MrImmoCollectionScreenState extends State<MrImmoCollectionScreen> {
       child: const ImmoModuleShell(
         primaryColor: ImmoBrand.collectionPrimary,
         moduleLabel: 'Mr Immo Collection',
-        child: CollectionNavigator(),
+        child: ImmoRentalTheme(
+          accent: ImmoBrand.collectionPrimary,
+          child: CollectionNavigator(),
+        ),
       ),
     );
   }

@@ -178,8 +178,27 @@ class ImmoRentalPalette {
     danger: Color(0xFFF87171),
   );
 
-  static ImmoRentalPalette of(BuildContext context) =>
-      _isDark(context) ? dark : light;
+  static ImmoRentalPalette of(BuildContext context) {
+    final base = _isDark(context) ? dark : light;
+    final accent = ImmoAccentScope.maybeOf(context);
+    return accent == null ? base : base.withAccent(accent);
+  }
+
+  /// Same surfaces and text, with [accent] as primary + header colour.
+  /// Lets Construction / Collection reuse the Location layout.
+  ImmoRentalPalette withAccent(Color accent) => ImmoRentalPalette(
+        isDark: isDark,
+        primary: accent,
+        primaryDark: accent,
+        bg: bg,
+        card: card,
+        text: text,
+        muted: muted,
+        border: border,
+        searchFill: searchFill,
+        header: accent,
+        danger: danger,
+      );
 
   static bool _isDark(BuildContext context) {
     final platform = MediaQuery.maybePlatformBrightnessOf(context);
@@ -188,17 +207,41 @@ class ImmoRentalPalette {
   }
 }
 
-/// Wraps Location routes with a theme that follows device brightness.
+/// Overrides the module accent (header, primary) for everything below it.
+class ImmoAccentScope extends InheritedWidget {
+  const ImmoAccentScope({
+    super.key,
+    required this.accent,
+    required super.child,
+  });
+
+  final Color accent;
+
+  static Color? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ImmoAccentScope>()?.accent;
+
+  @override
+  bool updateShouldNotify(ImmoAccentScope oldWidget) =>
+      accent != oldWidget.accent;
+}
+
+/// Wraps Mr Immo routes with a theme that follows device brightness.
+/// Pass [accent] for Construction / Collection; Location keeps its green.
 class ImmoRentalTheme extends StatelessWidget {
-  const ImmoRentalTheme({super.key, required this.child});
+  const ImmoRentalTheme({super.key, required this.child, this.accent});
 
   final Widget child;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: ImmoBrand.rentalModuleTheme(context),
-      child: child,
+    final themed = Builder(
+      builder: (context) => Theme(
+        data: ImmoBrand.rentalModuleTheme(context),
+        child: child,
+      ),
     );
+    if (accent == null) return themed;
+    return ImmoAccentScope(accent: accent!, child: themed);
   }
 }

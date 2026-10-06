@@ -1,55 +1,59 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
-import 'package:immo/src/core/constants/immo.brand.dart';
-import 'package:immo/src/shared/widgets/immo_screen_stub.widget.dart';
+import 'package:immo/src/features/collection/models/property.model.dart';
+import 'package:immo/src/features/collection/services/property.service.dart';
+import 'package:immo/src/shared/widgets/immo_layout.widget.dart';
 
-class PropertiesScreen extends StatelessWidget {
-  const PropertiesScreen({
-    super.key,
-    required this.onBack,
-    this.onSelectProperty,
-    this.onViewPayments,
-  });
+class PropertiesScreen extends StatefulWidget {
+  const PropertiesScreen({super.key, this.onSelectProperty});
 
-  final VoidCallback onBack;
   final ValueChanged<String>? onSelectProperty;
-  final void Function(String propertyId, String contractId)? onViewPayments;
+
+  @override
+  State<PropertiesScreen> createState() => _PropertiesScreenState();
+}
+
+class _PropertiesScreenState extends State<PropertiesScreen> {
+  late final Future<List<CollectionProperty>> _properties =
+      CollectionPropertyService().fetchProperties();
 
   @override
   Widget build(BuildContext context) {
-    return ImmoOverlayScreen(
-      title: 'Biens',
-      primaryColor: ImmoBrand.collectionPrimary,
-      onBack: onBack,
-      body: ImmoScreenStub(
-        appName: 'Mr Immo Collection',
-        screenPath: 'screens/PropertiesScreen',
-        primaryColor: ImmoBrand.collectionPrimary,
-        features: const [
-          'Liste immeubles / lots',
-          'Fiche locataire',
-        ],
-        footer: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return FutureBuilder(
+      future: _properties,
+      builder: (context, snap) {
+        final list = snap.data ?? const <CollectionProperty>[];
+        return ImmoTabPage(
+          title: 'Biens',
+          subtitle: 'Immeubles, lots et locataires',
           children: [
-            if (onSelectProperty != null)
-              FilledButton(
-                onPressed: () => onSelectProperty!('demo-property-1'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: ImmoBrand.collectionPrimary,
+            if (snap.connectionState != ConnectionState.done)
+              const Center(child: Padding(
+                padding: EdgeInsets.all(32),
+                child: CircularProgressIndicator(),
+              ))
+            else if (list.isEmpty)
+              const ImmoEmptyState(
+                icon: Icons.apartment_rounded,
+                title: 'Aucun bien en gestion',
+                message: 'Ajoutez vos immeubles et lots pour suivre loyers et locataires.',
+              )
+            else
+              for (final p in list)
+                ImmoListTile(
+                  icon: Icons.apartment_rounded,
+                  title: p.name,
+                  subtitle: [
+                    if (p.address != null) p.address!,
+                    if (p.unitCount != null) '${p.unitCount} lots',
+                  ].join(' · '),
+                  onTap: widget.onSelectProperty == null
+                      ? null
+                      : () => widget.onSelectProperty!(p.id),
                 ),
-                child: const Text('Sélectionner bien (démo)'),
-              ),
-            if (onViewPayments != null) ...[
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () => onViewPayments!('demo-property-1', 'demo-contract-1'),
-                child: const Text('Voir paiements (démo)'),
-              ),
-            ],
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

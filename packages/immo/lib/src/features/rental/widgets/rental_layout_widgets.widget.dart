@@ -119,7 +119,7 @@ class RentalHomeHeader extends StatelessWidget {
   const RentalHomeHeader({
     super.key,
     required this.userName,
-    this.eyebrow = 'Mr Immo location',
+    this.eyebrow = 'Mr Immo Location',
     this.tagline = 'Bienvenue sur Mr Immo',
   });
 
@@ -130,7 +130,7 @@ class RentalHomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
-    final name = userName.trim().isEmpty ? 'Guest' : userName.trim();
+    final name = userName.trim();
     final b = ImmoBrand.rentalOf(context);
 
     return Container(
@@ -156,7 +156,7 @@ class RentalHomeHeader extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Welcome, $name',
+            name.isEmpty ? 'Bonjour 👋' : 'Bonjour, $name',
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
@@ -226,7 +226,7 @@ class RentalHomeNotificationCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Get instant notifications from promising candidates, relevant insight, no spam',
+                  'Activez les notifications pour être alerté des nouveaux biens et des messages — sans spam.',
                   style: TextStyle(
                     fontSize: 13,
                     height: 1.35,
@@ -247,7 +247,7 @@ class RentalHomeNotificationCard extends StatelessWidget {
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: const Text(
-                        'Allow',
+                        'Activer',
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                       ),
                     ),
@@ -260,7 +260,7 @@ class RentalHomeNotificationCard extends StatelessWidget {
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: const Text(
-                        'Not now',
+                        'Plus tard',
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                       ),
                     ),

@@ -1,28 +1,57 @@
 import 'package:flutter/material.dart';
 
-import 'package:immo/src/shared/auth/scopes/immo_module_session.scope.dart';
+import 'package:immo/src/features/construction/navigation/construction.tab.dart';
 import 'package:immo/src/features/construction/widgets/construction_home_layout.widget.dart';
+import 'package:immo/src/shared/widgets/immo_layout.widget.dart';
 
 class ChefSiteHomeScreen extends StatelessWidget {
-  const ChefSiteHomeScreen({super.key});
+  const ChefSiteHomeScreen({
+    super.key,
+    required this.onRoleChanged,
+    required this.onOpenTab,
+  });
+
+  final ValueChanged<ConstructionRole> onRoleChanged;
+  final ValueChanged<ConstructionTab> onOpenTab;
 
   @override
   Widget build(BuildContext context) {
-    final phone = ImmoModuleSessionScope.of(context).phone ?? '';
     return ConstructionHomeLayout(
-      userName: phone,
-      roleLabel: 'Site Manager Dashboard',
+      role: ConstructionRole.chefSite,
+      onRoleChanged: onRoleChanged,
       stats: const [
-        ConstructionStat(label: 'Active Sites', value: '0', color: Color(0xFFFF9401)),
-        ConstructionStat(label: 'Pending Requests', value: '0', color: Color(0xFF10B981)),
-        ConstructionStat(label: 'Team Members', value: '0', color: Color(0xFF3B82F6)),
+        ImmoStat(label: 'Chantiers actifs', value: '0', icon: Icons.foundation_rounded),
+        ImmoStat(label: 'Demandes en cours', value: '0', icon: Icons.assignment_outlined),
+        ImmoStat(label: 'Équipe', value: '0', icon: Icons.groups_outlined),
       ],
-      quickActions: const [
-        ConstructionQuickAction(title: 'Sites', emoji: '🏗️', description: 'Manage construction sites'),
-        ConstructionQuickAction(title: 'Team', emoji: '👥', description: 'View team members'),
-        ConstructionQuickAction(title: 'Requests', emoji: '📋', description: 'Material requests'),
-        ConstructionQuickAction(title: 'Reports', emoji: '📊', description: 'View reports'),
+      actions: [
+        ImmoAction(
+          title: 'Chantiers',
+          subtitle: 'Avancement et budget',
+          icon: Icons.foundation_rounded,
+          onTap: () => onOpenTab(ConstructionTab.work),
+        ),
+        ImmoAction(
+          title: 'Demandes',
+          subtitle: 'Matériaux et fournisseurs',
+          icon: Icons.assignment_rounded,
+          onTap: () => onOpenTab(ConstructionTab.work),
+        ),
+        ImmoAction(
+          title: 'Paiements',
+          subtitle: 'Régler les fournisseurs',
+          icon: Icons.account_balance_wallet_rounded,
+          onTap: () => onOpenTab(ConstructionTab.payments),
+        ),
+        ImmoAction(
+          title: 'Messages',
+          subtitle: 'Équipe et fournisseurs',
+          icon: Icons.chat_bubble_rounded,
+          onTap: () => onOpenTab(ConstructionTab.messages),
+        ),
       ],
+      emptyTitle: 'Aucun chantier suivi',
+      emptyMessage: 'Créez ou rejoignez un chantier pour suivre son avancement ici.',
     );
   }
 }

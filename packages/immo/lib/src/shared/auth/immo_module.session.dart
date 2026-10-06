@@ -15,6 +15,7 @@ class ImmoModuleSession extends ChangeNotifier {
   bool _guestMode = true;
   String? _userId;
   String? _phone;
+  String? _displayName;
 
   bool get authFailed => false;
   bool get authenticated => _bootstrapComplete && !_guestMode;
@@ -22,12 +23,14 @@ class ImmoModuleSession extends ChangeNotifier {
   String? get error => null;
   String? get userId => _userId;
   String? get phone => _phone;
+  String? get displayName => _displayName;
   ImmoApiClient get client => _apiClient;
 
   Future<void> bootstrap() async {
     _guestMode = true;
     _userId = null;
     _phone = null;
+    _displayName = null;
 
     try {
       final host = ImmoHostBridge.auth;
@@ -40,6 +43,7 @@ class ImmoModuleSession extends ChangeNotifier {
           _guestMode = false;
           _userId = result.userId ?? await host.immoUserId();
           _phone = await host.getPhone();
+          _displayName = await host.displayName();
         }
       }
     } catch (_) {

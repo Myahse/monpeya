@@ -37,7 +37,10 @@ class _MrImmoConstructionScreenState extends State<MrImmoConstructionScreen> {
       child: const ImmoModuleShell(
         primaryColor: ImmoBrand.constructionPrimary,
         moduleLabel: 'Mr Immo Construction',
-        child: ConstructionMainNavigation(),
+        child: ImmoRentalTheme(
+          accent: ImmoBrand.constructionPrimary,
+          child: ConstructionMainNavigation(),
+        ),
       ),
     );
   }

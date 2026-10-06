@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 
-import 'package:immo/src/core/constants/immo.brand.dart';
 import 'package:immo/src/features/collection/screens/dashboard.screen.dart';
 import 'package:immo/src/features/collection/screens/properties.screen.dart';
 import 'package:immo/src/features/collection/screens/rent_collection.screen.dart';
+import 'package:immo/src/shared/auth/scopes/immo_module_session.scope.dart';
+import 'package:immo/src/shared/widgets/immo_layout.widget.dart';
 
-enum CollectionRoute {
-  hub,
-  properties,
-  rentCollection,
-}
+enum CollectionTab { home, properties, rentCollection, account }
 
-/// Hub navigation — mirrors collection-app `App.tsx` main flow.
+/// Tab navigation — same shell as Mr Immo Location.
 class CollectionNavigator extends StatefulWidget {
   const CollectionNavigator({super.key});
 
@@ -20,144 +17,56 @@ class CollectionNavigator extends StatefulWidget {
 }
 
 class _CollectionNavigatorState extends State<CollectionNavigator> {
-  CollectionRoute _route = CollectionRoute.hub;
+  CollectionTab _tab = CollectionTab.home;
   String? _activePropertyId;
-  String? _activeContractId;
 
-  void _goHub() => setState(() {
-        _route = CollectionRoute.hub;
-        _activePropertyId = null;
-        _activeContractId = null;
-      });
+  static const _items = [
+    ImmoNavItem(label: 'Accueil', icon: Icons.home_outlined, selectedIcon: Icons.home_rounded),
+    ImmoNavItem(label: 'Biens', icon: Icons.apartment_outlined, selectedIcon: Icons.apartment_rounded),
+    ImmoNavItem(label: 'Loyers', icon: Icons.receipt_long_outlined, selectedIcon: Icons.receipt_long_rounded),
+    ImmoNavItem(label: 'Profil', icon: Icons.person_outline_rounded, selectedIcon: Icons.person_rounded),
+  ];
 
-  @override
-  Widget build(BuildContext context) {
-    return switch (_route) {
-      CollectionRoute.hub => _CollectionHub(
-          onProperties: () => setState(() => _route = CollectionRoute.properties),
-          onRentCollection: () =>
-              setState(() => _route = CollectionRoute.rentCollection),
-        ),
-      CollectionRoute.properties => PropertiesScreen(
-          onBack: _goHub,
-          onSelectProperty: (id) => setState(() {
-            _activePropertyId = id;
-            _route = CollectionRoute.rentCollection;
-          }),
-          onViewPayments: (propertyId, contractId) => setState(() {
-            _activePropertyId = propertyId;
-            _activeContractId = contractId;
-            _route = CollectionRoute.rentCollection;
-          }),
-        ),
-      CollectionRoute.rentCollection => RentCollectionScreen(
-          onBack: _activePropertyId == null ? _goHub : () => setState(() => _route = CollectionRoute.properties),
-          propertyId: _activePropertyId,
-          contractId: _activeContractId,
-        ),
-    };
-  }
-}
-
-class _CollectionHub extends StatelessWidget {
-  const _CollectionHub({
-    required this.onProperties,
-    required this.onRentCollection,
-  });
-
-  final VoidCallback onProperties;
-  final VoidCallback onRentCollection;
+  void _open(CollectionTab tab) => setState(() => _tab = tab);
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          children: [
-            const DashboardScreen(),
-            const SizedBox(height: 8),
-            Text(
-              'Services',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 10),
-            _HubCard(
-              title: 'Biens',
-              subtitle: 'Parc immobilier, lots, locataires',
-              icon: Icons.apartment_outlined,
-              color: ImmoBrand.collectionPrimary,
-              onTap: onProperties,
-            ),
-            const SizedBox(height: 12),
-            _HubCard(
-              title: 'Recouvrement loyers',
-              subtitle: 'Échéances, relances, encaissements',
-              icon: Icons.receipt_long_outlined,
-              color: ImmoBrand.collectionDark,
-              onTap: onRentCollection,
-            ),
-          ],
-        ),
-      ),
+    return ImmoTabScaffold(
+      items: _items,
+      index: _tab.index,
+      onIndexChanged: (i) => _open(CollectionTab.values[i]),
+      pageBuilder: (context, i) => switch (CollectionTab.values[i]) {
+        CollectionTab.home => DashboardScreen(
+            onOpenProperties: () => _open(CollectionTab.properties),
+            onOpenCollection: () => _open(CollectionTab.rentCollection),
+          ),
+        CollectionTab.properties => PropertiesScreen(
+            onSelectProperty: (id) => setState(() {
+              _activePropertyId = id;
+              _tab = CollectionTab.rentCollection;
+            }),
+          ),
+        CollectionTab.rentCollection =>
+          RentCollectionScreen(propertyId: _activePropertyId),
+        CollectionTab.account => const _CollectionAccount(),
+      },
     );
   }
 }
 
-class _HubCard extends StatelessWidget {
-  const _HubCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
+class _CollectionAccount extends StatelessWidget {
+  const _CollectionAccount();
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Material(
-      color: color.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: color.withValues(alpha: 0.15),
-                child: Icon(icon, color: color),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-                    const SizedBox(height: 4),
-                    Text(subtitle, style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
-            ],
-          ),
-        ),
-      ),
+    final session = ImmoModuleSessionScope.of(context);
+    final name = (session.displayName ?? '').trim();
+    return ImmoAccountView(
+      moduleLabel: 'Mr Immo Collection',
+      name: name.isEmpty ? 'Invité' : name,
+      phone: session.phone,
+      roleLabel: 'Gestionnaire',
+      guest: session.guestMode,
     );
   }
 }
