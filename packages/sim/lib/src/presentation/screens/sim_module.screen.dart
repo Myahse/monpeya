@@ -765,6 +765,22 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
     };
   }
 
+  IconData _productIcon(String code) {
+    final c = code.toLowerCase();
+    if (c.contains('moto')) return Icons.two_wheeler_rounded;
+    if (c.contains('auto')) return Icons.directions_car_rounded;
+    if (c.contains('accident')) return Icons.health_and_safety_rounded;
+    return Icons.shield_rounded;
+  }
+
+  String? _productTagline(String code) {
+    final c = code.toLowerCase();
+    if (c.contains('moto')) return 'Responsabilité civile moto';
+    if (c.contains('auto')) return 'Votre véhicule protégé';
+    if (c.contains('accident')) return 'Frais médicaux après accident';
+    return null;
+  }
+
   Widget _buildStepContent() {
     return switch (_step) {
       0 => _buildDevisStep(),
@@ -796,7 +812,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
     final formuleOptions = _formuleOptions;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 30, 20, 24),
       children: [
         const SimHeroCard(
           icon: Icons.calculate_outlined,
@@ -804,81 +820,74 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
           subtitle: 'Choisissez le produit et obtenez votre devis SIM Assurances.',
         ),
         const SizedBox(height: 16),
-        simCardSection(
-          title: '1. Produit et formule',
-          children: [
-            DropdownButtonFormField<String>(
-              initialValue: products.any((p) => p.code == _produit)
-                  ? _produit
-                  : (products.isNotEmpty ? products.first.code : _produit),
-              decoration: const InputDecoration(labelText: 'Produit'),
-              items: products
-                  .map(
-                    (p) => DropdownMenuItem(
-                      value: p.code,
-                      child: Text(p.libelle.isNotEmpty ? p.libelle : p.code),
-                    ),
-                  )
-                  .toList(),
-              onChanged: products.isEmpty
-                  ? null
-                  : (v) {
-                      if (v == null) return;
-                      setState(() {
-                        _produit = v;
-                        _devis = null;
-                        _syncFormuleForProduct();
-                      });
-                    },
+        if (products.isEmpty)
+          SimUnavailableCard(
+            message: SimApiConfig.isConfigured
+                ? 'Les produits SIM Assurances ne répondent pas. Vérifiez votre connexion.'
+                : 'Le service SIM Assurances n’est pas encore configuré sur cette version.',
+            onRetry: () {
+              setState(() => _catalogueLoading = true);
+              _loadCatalogue();
+            },
+          )
+        else ...[
+          const _SimSectionLabel('Choisissez votre assurance'),
+          for (final p in products)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: SimChoiceCard(
+                selected: p.code == _produit,
+                title: p.libelle.isNotEmpty ? p.libelle : p.code,
+                subtitle: _productTagline(p.code),
+                icon: _productIcon(p.code),
+                onTap: () => setState(() {
+                  _produit = p.code;
+                  _devis = null;
+                  _syncFormuleForProduct();
+                }),
+              ),
             ),
-            const SizedBox(height: 12),
-            if (formuleOptions.isEmpty)
-              const Text(
-                'Aucune formule disponible pour ce produit.',
-                style: TextStyle(fontSize: 13, color: SimBrand.textDark),
-              )
-            else
-              DropdownButtonFormField<String>(
-                initialValue: formuleOptions.any((o) => o.value == _formule) ? _formule : formuleOptions.first.value,
-                decoration: InputDecoration(labelText: _isMotoAuto ? 'Formule' : 'Variante'),
-                items: formuleOptions
-                    .map(
-                      (o) => DropdownMenuItem(
-                        value: o.value,
-                        child: Text(
-                          o.prime != null && o.prime! > 0
-                              ? '${o.label} — ${_formatAmount(o.prime!)}'
-                              : o.label,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() {
-                  if (v != null) {
-                    _formule = v;
+          const SizedBox(height: 12),
+          _SimSectionLabel(_isMotoAuto ? 'Formule' : 'Variante'),
+          if (formuleOptions.isEmpty)
+            const Text(
+              'Aucune formule disponible pour ce produit.',
+              style: TextStyle(fontSize: 13, color: SimBrand.muted),
+            )
+          else
+            for (final o in formuleOptions)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: SimChoiceCard(
+                  selected: o.value == _formule,
+                  title: o.label,
+                  icon: Icons.workspace_premium_outlined,
+                  price: o.prime != null && o.prime! > 0 ? _formatAmount(o.prime!) : null,
+                  onTap: () => setState(() {
+                    _formule = o.value;
                     _devis = null;
-                  }
-                }),
-              ),
-            if (_isMotoAuto) ...[
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: _nombrePeriodes,
-                decoration: const InputDecoration(labelText: 'Nombre de périodes'),
-                items: List.generate(
-                  12,
-                  (i) => DropdownMenuItem(value: i + 1, child: Text('${i + 1}')),
+                  }),
                 ),
+              ),
+          if (_isMotoAuto) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.fromLTRB(18, 10, 10, 10),
+              decoration: simCardDecoration(),
+              child: SimStepper(
+                label: 'Nombre de périodes',
+                value: _nombrePeriodes,
+                min: 1,
+                max: 12,
                 onChanged: (v) => setState(() {
-                  if (v != null) {
-                    _nombrePeriodes = v;
-                    _devis = null;
-                  }
+                  _nombrePeriodes = v;
+                  _devis = null;
                 }),
               ),
-            ],
+            ),
           ],
-        ),
+          const SizedBox(height: 16),
+        ],
         if (_devis != null) ...[
           SimResultCard(
             title: 'Prime à payer',
@@ -900,7 +909,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
 
   Widget _buildSouscriptionStep() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 30, 20, 24),
       children: [
         const SimHeroCard(
           icon: Icons.person_outline,
@@ -921,16 +930,17 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
         simCardSection(
           title: '2. Documents KYC',
           children: [
-            OutlinedButton.icon(
-              onPressed: () => _pickImageSheet(false),
-              icon: const Icon(Icons.badge_outlined),
-              label: Text(_pieceIdentiteName ?? 'Pièce d\'identité'),
+            SimUploadTile(
+              icon: Icons.badge_outlined,
+              label: 'Pièce d\'identité',
+              fileName: _pieceIdentiteName,
+              onTap: () => _pickImageSheet(false),
             ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: () => _pickImageSheet(true),
-              icon: const Icon(Icons.face_outlined),
-              label: Text(_selfieName ?? 'Selfie'),
+            SimUploadTile(
+              icon: Icons.face_outlined,
+              label: 'Selfie',
+              fileName: _selfieName,
+              onTap: () => _pickImageSheet(true),
             ),
           ],
         ),
@@ -949,7 +959,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
   Widget _buildPaymentStep() {
     final amount = _montantAPercevoir ?? _devis?.prime ?? 0;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 30, 20, 24),
       children: [
         const SimHeroCard(
           icon: Icons.account_balance_wallet_outlined,
@@ -986,7 +996,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
 
   Widget _buildDocumentsStep() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 30, 20, 24),
       children: [
         Container(
           width: double.infinity,
@@ -1142,29 +1152,76 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
       );
     }
 
+    final catalogueMissing =
+        _step == 0 && !_catalogueLoading && _activeProducts.isEmpty;
+
     return SimTheme(
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F8F8),
-        body: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SimHeader(
-                onBack: _handleModuleBack,
-                productLabel: _productLabel,
-                trailing: _savedCards.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Mes cartes',
-                        onPressed: () => setState(() => _viewingMyCards = true),
-                        icon: const Icon(Icons.credit_card_outlined, color: SimBrand.primary),
-                      ),
+        backgroundColor: SimBrand.background,
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SimHeroHeader(
+              onBack: _handleModuleBack,
+              productLabel: _productLabel,
+              steps: _steps,
+              current: _step,
+              onOpenCards: _savedCards.isEmpty
+                  ? null
+                  : () => setState(() => _viewingMyCards = true),
+            ),
+            Expanded(
+              child: SimSheet(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 380),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, a) => FadeTransition(
+                    opacity: a,
+                    child: SlideTransition(
+                      position: Tween(
+                        begin: const Offset(0.08, 0),
+                        end: Offset.zero,
+                      ).animate(a),
+                      child: child,
+                    ),
+                  ),
+                  child: KeyedSubtree(
+                    key: ValueKey(_step),
+                    child: _buildStepContent(),
+                  ),
+                ),
               ),
-              SimStepIndicator(steps: _steps, current: _step),
-              Expanded(child: _buildStepContent()),
-              SimBottomBar(label: _primaryLabel, loading: _loading, onPrimary: _onPrimaryAction),
-            ],
-          ),
+            ),
+          ],
+        ),
+        bottomNavigationBar: catalogueMissing
+            ? null
+            : SimBottomBar(
+                label: _primaryLabel,
+                loading: _loading,
+                onPrimary: _onPrimaryAction,
+              ),
+      ),
+    );
+  }
+}
+
+class _SimSectionLabel extends StatelessWidget {
+  const _SimSectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 10),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w900,
+          color: SimBrand.textDark,
         ),
       ),
     );

@@ -60,6 +60,16 @@ abstract final class SimBrand {
   static const gradientBottom = Color(0xFF00453B);
   static const onPrimary = Colors.white;
   static const textDark = Color(0xFF1A1A1A);
+  static const muted = Color(0xFF6B7280);
+  static const background = Color(0xFFF4F6F9);
+
+  /// Same deep green hero as the Mon Peya home.
+  static const heroGradient = LinearGradient(
+    colors: [Color(0xFF00876A), primary, Color(0xFF063E1C)],
+    stops: [0, 0.45, 1],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
   static const title = 'SIM Assurances';
   static const subtitle = 'RelaxMoto · RelaxAuto · Accidents';
 
