@@ -521,8 +521,8 @@ class _SeekerHomeBody extends StatelessWidget {
             )
           else ...[
             RentalSectionHeader(
-              title: 'Autour de vous',
-              actionLabel: 'Voir tout',
+              title: 'Around you',
+              actionLabel: 'See all',
               onAction: onSeeAll,
             ),
             const SizedBox(height: RentalTheme.spacingMd),
@@ -545,8 +545,8 @@ class _SeekerHomeBody extends StatelessWidget {
               ),
             const SizedBox(height: RentalTheme.spacingXl),
             RentalSectionHeader(
-              title: 'Disponibles',
-              actionLabel: 'Voir tout',
+              title: 'Available',
+              actionLabel: 'See all',
               onAction: onSeeAll,
             ),
             const SizedBox(height: RentalTheme.spacingMd),
