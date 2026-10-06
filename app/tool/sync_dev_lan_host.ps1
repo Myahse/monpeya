@@ -1,9 +1,9 @@
-# Syncs the PC's current LAN IPv4 into app/.env for local API hosts.
+# Syncs the PC's current LAN IPv4 into app/config/env.json for local API hosts.
 # Usage (from repo or app/):
 #   powershell -ExecutionPolicy Bypass -File app/tool/sync_dev_lan_host.ps1
 #   powershell -ExecutionPolicy Bypass -File app/tool/sync_dev_lan_host.ps1 -Ip 192.168.1.42
 #
-# Then hot-restart (or full restart) the Flutter app so dotenv reloads.
+# Then rebuild with: flutter run --dart-define-from-file=config/env.json
 
 param(
   [string]$Ip = '',
@@ -15,7 +15,7 @@ $ErrorActionPreference = 'Stop'
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $appDir = Split-Path -Parent $scriptDir
 if (-not $EnvFile) {
-  $EnvFile = Join-Path $appDir '.env'
+  $EnvFile = Join-Path (Join-Path $appDir 'config') 'env.json'
 }
 
 function Get-LanIpv4 {
@@ -50,18 +50,18 @@ function Replace-UrlHost([string]$url, [string]$hostIp) {
 
 $keys = @(
   'MONPEYA_API_URL',
-  'API_BASE_URL',
   'IMMO_API_URL',
-  'RENTAL_API_URL',
   'IMMO_WS_URL',
   'BILLETTERIE_API_URL',
   'BILLETTERIE_TRANSPORT_API_URL',
   'BILLETTERIE_EVENT_API_URL',
-  'BILLETTERIE_WS_URL'
+  'BILLETTERIE_WS_URL',
+  'GRENIER_API_URL',
+  'GRENIER_WS_URL'
 )
 
 if (-not (Test-Path -LiteralPath $EnvFile)) {
-  throw "Missing $EnvFile - copy app/.env.example to app/.env first."
+  throw "Missing $EnvFile - copy app/config/env.example.json to app/config/env.json first."
 }
 
 if (-not $Ip) {
@@ -72,31 +72,17 @@ if ($Ip -notmatch '^\d{1,3}(\.\d{1,3}){3}$') {
   throw "Invalid IPv4: $Ip"
 }
 
-$original = Get-Content -LiteralPath $EnvFile -Raw
-$lines = Get-Content -LiteralPath $EnvFile
-$updated = @()
+$config = Get-Content -LiteralPath $EnvFile -Raw | ConvertFrom-Json
 $changed = 0
 
-foreach ($line in $lines) {
-  if ($line -match '^\s*#' -or $line -notmatch '=') {
-    $updated += $line
-    continue
-  }
-
-  $eq = $line.IndexOf('=')
-  $key = $line.Substring(0, $eq).Trim()
-  $value = $line.Substring($eq + 1).Trim()
-
-  if ($keys -notcontains $key -or [string]::IsNullOrWhiteSpace($value)) {
-    $updated += $line
-    continue
-  }
+foreach ($key in $keys) {
+  $prop = $config.PSObject.Properties[$key]
+  if ($null -eq $prop) { continue }
+  $value = [string]$prop.Value
+  if ([string]::IsNullOrWhiteSpace($value)) { continue }
 
   $hostMatch = [regex]::Match($value, '^(?:https?|wss?):\/\/([^\/:\s]+)')
-  if (-not $hostMatch.Success) {
-    $updated += $line
-    continue
-  }
+  if (-not $hostMatch.Success) { continue }
   $oldHost = $hostMatch.Groups[1].Value
   $isLocalish =
     $oldHost -eq 'localhost' -or
@@ -108,10 +94,7 @@ foreach ($line in $lines) {
     $oldHost -match '^10\.' -or
     $oldHost -match '^172\.(1[6-9]|2[0-9]|3[0-1])\.'
 
-  if (-not $isLocalish) {
-    $updated += $line
-    continue
-  }
+  if (-not $isLocalish) { continue }
 
   $newValue = Replace-UrlHost $value $Ip
   if ($newValue -ne $value) {
@@ -119,16 +102,15 @@ foreach ($line in $lines) {
     Write-Host "  $key"
     Write-Host "    $value"
     Write-Host "    -> $newValue"
+    $prop.Value = $newValue
   }
-  $updated += "$key=$newValue"
 }
 
-$newContent = ($updated -join "`n") + "`n"
-if ($newContent -ne $original) {
-  Set-Content -LiteralPath $EnvFile -Value $newContent -NoNewline
+if ($changed -gt 0) {
+  $config | ConvertTo-Json | Set-Content -LiteralPath $EnvFile
 }
 
 Write-Host ""
 Write-Host "LAN host: $Ip"
 Write-Host "Updated $changed URL(s) in $EnvFile"
-Write-Host "Hot-restart (or full restart) Flutter so .env reloads."
+Write-Host "Rebuild: flutter run --dart-define-from-file=config/env.json"

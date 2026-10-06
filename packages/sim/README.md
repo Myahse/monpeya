@@ -11,15 +11,13 @@ Flutter package for SIM Assurances Partner API v1 inside Mon Peya.
 
 ## Config
 
-Set at startup in `app/lib/src/core/config/app_config.dart`:
+Set `SIM_API_KEY` (and optionally `SIM_API_URL`, `SIM_WEBHOOK_SECRET`) in
+`app/config/env.json`, then build with
+`flutter run --dart-define-from-file=config/env.json`.
+`AppConfig` reads them and `MonPeyaEnv.load()` applies them at startup.
 
-```dart
-static const simApiKey = 'sk_live_...';
-```
-
-Loaded automatically via `MonPeyaEnv.load()` in `main.dart`.
-
-Optional override at build time: `--dart-define=SIM_API_KEY=sk_live_...`
+Never commit the key. A key compiled into the app can be extracted from the
+binary — production calls should go through the Mon Peya backend.
 
 ## Docs
 

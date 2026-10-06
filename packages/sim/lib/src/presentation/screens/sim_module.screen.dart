@@ -580,7 +580,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
 
   Future<void> _runDevis() async {
     if (!SimApiConfig.isConfigured) {
-      await _showToast('Clé API manquante dans AppConfig.simApiKey', SimToastType.error);
+      await _showToast('Clé API manquante (SIM_API_KEY)', SimToastType.error);
       return;
     }
     if (_formule == null || _formule!.isEmpty) {

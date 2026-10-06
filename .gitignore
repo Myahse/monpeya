@@ -2,6 +2,9 @@
 .env
 .env.local
 .env.*.local
+# Build-time config for --dart-define-from-file (copy env.example.json)
+app/config/*.json
+!app/config/env.example.json
 # Legacy root config stub (unused)
 app/config.dart
 

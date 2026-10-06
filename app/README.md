@@ -216,16 +216,20 @@ flutter doctor
 
 ```bash
 cd app
+cp config/env.example.json config/env.json   # fill in keys and API hosts
 flutter pub get
-flutter run
+flutter run --dart-define-from-file=config/env.json
 ```
 
-Optional API endpoints (Mr Immo / Billetterie backends):
+All configuration (API hosts, PeyaPay credentials, SIM / Mapbox keys) is
+read from `--dart-define` in `lib/src/core/config/app_config.dart`.
+`config/env.json` is git-ignored — never commit keys. Without it the app
+still starts, using emulator hosts (`10.0.2.2`) and no partner keys.
+
+On a physical phone, point the hosts at your PC's LAN IP:
 
 ```powershell
-flutter run `
-  --dart-define=IMMO_API_URL=http://YOUR_IP:8081 `
-  --dart-define=BILLETTERIE_API_URL=http://YOUR_IP:8090
+powershell -ExecutionPolicy Bypass -File tool/sync_dev_lan_host.ps1
 ```
 
 Run on a specific device:
@@ -370,7 +374,7 @@ dependencies:
 | Embedded modules | `mr_immo`, `billetterie_electronique` (path packages) |
 | Linting | `flutter_lints` |
 
-**Not yet integrated:** Firebase, Supabase, go_router, Riverpod/Bloc, centralized `.env` config.
+**Not yet integrated:** Firebase, Supabase, go_router, Riverpod/Bloc.
 
 ---
 

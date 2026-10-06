@@ -41,7 +41,7 @@ abstract final class MonPeyaEnv {
       if (qrKey == null || qrKey.length < 32) {
         debugPrint(
           'MonPeyaEnv: QR key missing or too short (${qrKey?.length ?? 0} chars). '
-          'Set encryptKey / qrEncryptKey in AppConfig.',
+          'Set ENCRYPT_KEY / QR_ENCRYPT_KEY in config/env.json.',
         );
       }
       if (BilletterieEnvRegistry.mapboxAccessToken == null ||

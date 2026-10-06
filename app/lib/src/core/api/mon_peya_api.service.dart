@@ -406,7 +406,7 @@ class MonPeyaApiService {
         message:
             'Impossible de joindre le serveur Mon Peya ($base). '
             'Vérifiez que le téléphone et le PC sont sur le même Wi‑Fi, '
-            'que `devLanHost` dans app/lib/src/core/config/app_config.dart '
+            'que MONPEYA_API_URL dans app/config/env.json '
             'correspond à l’IP du PC (ipconfig), '
             'et que le backend écoute sur le port 8081.',
       );
