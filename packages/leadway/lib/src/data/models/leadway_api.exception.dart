@@ -24,6 +24,11 @@ class LeadwayApiException implements Exception {
     this.fieldErrors = const [],
   });
 
+  /// Leadway gateway unreachable (network down, timeout, TLS failure).
+  static const unreachable = LeadwayApiException(
+    message: 'Impossible de joindre Leadway. Vérifiez votre connexion et réessayez.',
+  );
+
   final String message;
   final int? statusCode;
   final String? code;

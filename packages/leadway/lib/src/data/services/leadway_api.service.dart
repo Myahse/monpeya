@@ -1,14 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:leadway/src/data/models/leadway_api.exception.dart';
 import 'package:leadway/src/data/models/leadway_premium_request.model.dart';
 import 'package:leadway/src/data/models/leadway_premium_response.model.dart';
-import 'package:leadway/src/data/models/leadway_quote.model.dart';
 import 'package:leadway/src/data/models/leadway_quote_request.model.dart';
 import 'package:leadway/src/data/models/leadway_quote_response.model.dart';
 import 'package:leadway/src/data/models/leadway_api_payment_init_request.model.dart';
@@ -44,14 +44,29 @@ class LeadwayApiConfig {
   }
 }
 
-HttpClient _getUnsafeHttpClient() {
+/// Accepts self-signed / IP-only certificates of the Leadway test gateway in
+/// debug builds only. Release builds always verify TLS certificates.
+HttpClient leadwayHttpClient() {
   final client = HttpClient();
-  client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  if (kDebugMode) {
+    client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  }
   return client;
 }
 
+/// Debug-only logging: request/response bodies carry customer data.
+void leadwayLog(String message) {
+  if (kDebugMode) debugPrint(message);
+}
+
+/// Connectivity / TLS failures. In debug builds callers fall back to simulated
+/// responses; release builds throw [LeadwayApiException.unreachable] so a
+/// failed payment is never reported as successful.
+bool isLeadwayNetworkError(Object e) =>
+    e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException;
+
 class LeadwayApiService {
-  LeadwayApiService({http.Client? client}) : _client = client ?? IOClient(_getUnsafeHttpClient());
+  LeadwayApiService({http.Client? client}) : _client = client ?? IOClient(leadwayHttpClient());
 
   final http.Client _client;
 
@@ -74,9 +89,9 @@ class LeadwayApiService {
     try {
       final requestBody = jsonEncode(request.toJson());
       
-      print('--> POST $url');
-      print('Headers: {Content-Type: application/json, Accept: application/json}');
-      print('Request Body: $requestBody');
+      leadwayLog('--> POST $url');
+      leadwayLog('Headers: {Content-Type: application/json, Accept: application/json}');
+      leadwayLog('Request Body: $requestBody');
 
       final response = await _client
           .post(
@@ -89,8 +104,8 @@ class LeadwayApiService {
           )
           .timeout(const Duration(seconds: 20));
 
-      print('<-- ${response.statusCode} $url');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('Response Body: ${response.body}');
 
       dynamic decoded;
       try {
@@ -111,8 +126,9 @@ class LeadwayApiService {
 
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
         return _simulateCalculatePremium(url, request);
       }
       rethrow;
@@ -129,9 +145,9 @@ class LeadwayApiService {
     try {
       final requestBody = jsonEncode(request.toJson());
 
-      print('--> POST $url');
-      print('Headers: {Content-Type: application/json, Accept: application/json}');
-      print('Request Body: $requestBody');
+      leadwayLog('--> POST $url');
+      leadwayLog('Headers: {Content-Type: application/json, Accept: application/json}');
+      leadwayLog('Request Body: $requestBody');
 
       final response = await _client
           .post(
@@ -144,8 +160,8 @@ class LeadwayApiService {
           )
           .timeout(const Duration(seconds: 20));
 
-      print('<-- ${response.statusCode} $url');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('Response Body: ${response.body}');
 
       dynamic decoded;
       try {
@@ -166,8 +182,9 @@ class LeadwayApiService {
 
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
         return _simulateCreateQuote(url, request);
       }
       rethrow;
@@ -184,9 +201,9 @@ class LeadwayApiService {
     try {
       final requestBody = jsonEncode(request.toJson());
 
-      print('--> POST $url');
-      print('Headers: {Content-Type: application/json, Accept: application/json}');
-      print('Request Body: $requestBody');
+      leadwayLog('--> POST $url');
+      leadwayLog('Headers: {Content-Type: application/json, Accept: application/json}');
+      leadwayLog('Request Body: $requestBody');
 
       final response = await _client
           .post(
@@ -199,8 +216,8 @@ class LeadwayApiService {
           )
           .timeout(const Duration(seconds: 20));
 
-      print('<-- ${response.statusCode} $url');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('Response Body: ${response.body}');
 
       dynamic decoded;
       try {
@@ -214,7 +231,7 @@ class LeadwayApiService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         if (decoded is Map<String, dynamic>) {
-          print('[Leadway] Init paiement — réponse (${response.statusCode}): ${jsonEncode(decoded)}');
+          leadwayLog('[Leadway] Init paiement — réponse (${response.statusCode}): ${jsonEncode(decoded)}');
           return decoded;
         }
         throw const LeadwayApiException(message: 'Format de réponse initiation paiement inattendu');
@@ -222,8 +239,9 @@ class LeadwayApiService {
 
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
         return _simulateInitPayment(url, request);
       }
       rethrow;
@@ -240,9 +258,9 @@ class LeadwayApiService {
     try {
       final requestBody = jsonEncode(request.toJson());
 
-      print('--> POST $url');
-      print('Headers: {Content-Type: application/json, Accept: application/json}');
-      print('Request Body: $requestBody');
+      leadwayLog('--> POST $url');
+      leadwayLog('Headers: {Content-Type: application/json, Accept: application/json}');
+      leadwayLog('Request Body: $requestBody');
 
       final response = await _client
           .post(
@@ -255,8 +273,8 @@ class LeadwayApiService {
           )
           .timeout(const Duration(seconds: 20));
 
-      print('<-- ${response.statusCode} $url');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('Response Body: ${response.body}');
 
       dynamic decoded;
       try {
@@ -277,8 +295,9 @@ class LeadwayApiService {
 
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
         return _simulateConfirmPayment(url, request);
       }
       rethrow;
@@ -299,9 +318,9 @@ class LeadwayApiService {
     try {
       final requestBody = jsonEncode(request.toJson());
 
-      print('--> POST $url');
-      print('Headers: {Content-Type: application/json, Accept: application/json}');
-      print('Request Body: $requestBody');
+      leadwayLog('--> POST $url');
+      leadwayLog('Headers: {Content-Type: application/json, Accept: application/json}');
+      leadwayLog('Request Body: $requestBody');
 
       final response = await _client
           .post(
@@ -314,8 +333,8 @@ class LeadwayApiService {
           )
           .timeout(const Duration(seconds: 20));
 
-      print('<-- ${response.statusCode} $url');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('Response Body: ${response.body}');
 
       dynamic decoded;
       try {
@@ -336,8 +355,9 @@ class LeadwayApiService {
 
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
         return _simulateCheckPaymentStatus(url, request);
       }
       rethrow;
@@ -362,7 +382,7 @@ class LeadwayApiService {
     }
 
     try {
-      print('--> GET $url');
+      leadwayLog('--> GET $url');
       final response = await _client
           .get(
             Uri.parse(url),
@@ -370,8 +390,8 @@ class LeadwayApiService {
           )
           .timeout(const Duration(seconds: 45));
 
-      print('<-- ${response.statusCode} $url');
-      print('[Leadway] PDF $label — taille: ${response.bodyBytes.length} octets');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('[Leadway] PDF $label — taille: ${response.bodyBytes.length} octets');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         if (response.bodyBytes.isEmpty) {
@@ -389,8 +409,9 @@ class LeadwayApiService {
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
       if (e is LeadwayApiException) rethrow;
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayApiService] PDF download failed: $e. Falling back to simulation...');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayApiService] PDF download failed: $e. Falling back to simulation...');
         return _simulateDownloadPdf(url, label, policyNo);
       }
       rethrow;
@@ -398,7 +419,7 @@ class LeadwayApiService {
   }
 
   Uint8List _simulateDownloadPdf(String url, String label, String policyNo) {
-    print('--> GET $url (MODE SIMULATION DÉMO PDF $label)');
+    leadwayLog('--> GET $url (MODE SIMULATION DÉMO PDF $label)');
     final content = '''
 %PDF-1.4
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
@@ -421,7 +442,7 @@ trailer<</Size 6/Root 1 0 R>>
 startxref
 515
 %%EOF''';
-    print('[Leadway] PDF $label — réponse simulée (${content.length} octets)');
+    leadwayLog('[Leadway] PDF $label — réponse simulée (${content.length} octets)');
     return Uint8List.fromList(utf8.encode(content));
   }
 
@@ -430,9 +451,9 @@ startxref
   // ==========================================
 
   Future<LeadwayPremiumResult> _simulateCalculatePremium(String url, LeadwayPremiumRequest request) async {
-    print('--> POST $url (MODE SIMULATION DÉMO)');
-    print('Headers: {Content-Type: application/json, Accept: application/json}');
-    print('Request Body: ${jsonEncode(request.toJson())}');
+    leadwayLog('--> POST $url (MODE SIMULATION DÉMO)');
+    leadwayLog('Headers: {Content-Type: application/json, Accept: application/json}');
+    leadwayLog('Request Body: ${jsonEncode(request.toJson())}');
 
     // Attente réaliste pour mimer le réseau
     await Future.delayed(const Duration(milliseconds: 1200));
@@ -550,16 +571,16 @@ startxref
     };
 
     final mockResponseJsonStr = jsonEncode(mockJson);
-    print('<-- 200 $url (SIMULATION DÉMO RESPONSE)');
-    print('Response Body: $mockResponseJsonStr');
+    leadwayLog('<-- 200 $url (SIMULATION DÉMO RESPONSE)');
+    leadwayLog('Response Body: $mockResponseJsonStr');
 
     return LeadwayPremiumResult.fromJson(mockJson);
   }
 
   Future<LeadwayQuoteResponse> _simulateCreateQuote(String url, LeadwayQuoteRequest request) async {
-    print('--> POST $url (MODE SIMULATION DÉMO)');
-    print('Headers: {Content-Type: application/json, Accept: application/json}');
-    print('Request Body: ${jsonEncode(request.toJson())}');
+    leadwayLog('--> POST $url (MODE SIMULATION DÉMO)');
+    leadwayLog('Headers: {Content-Type: application/json, Accept: application/json}');
+    leadwayLog('Request Body: ${jsonEncode(request.toJson())}');
 
     await Future.delayed(const Duration(milliseconds: 1000));
 
@@ -576,16 +597,16 @@ startxref
     };
 
     final mockResponseJsonStr = jsonEncode(mockJson);
-    print('<-- 200 $url (SIMULATION DÉMO RESPONSE)');
-    print('Response Body: $mockResponseJsonStr');
+    leadwayLog('<-- 200 $url (SIMULATION DÉMO RESPONSE)');
+    leadwayLog('Response Body: $mockResponseJsonStr');
 
     return LeadwayQuoteResponse.fromJson(mockJson);
   }
 
   Future<Map<String, dynamic>> _simulateInitPayment(String url, LeadwayApiPaymentInitRequest request) async {
-    print('--> POST $url (MODE SIMULATION DÉMO)');
-    print('Headers: {Content-Type: application/json, Accept: application/json}');
-    print('Request Body: ${jsonEncode(request.toJson())}');
+    leadwayLog('--> POST $url (MODE SIMULATION DÉMO)');
+    leadwayLog('Headers: {Content-Type: application/json, Accept: application/json}');
+    leadwayLog('Request Body: ${jsonEncode(request.toJson())}');
 
     await Future.delayed(const Duration(milliseconds: 800));
 
@@ -597,16 +618,16 @@ startxref
       'message': 'Paiement ${request.operator} initié pour le devis ${request.quoteNo}.',
     };
 
-    print('<-- 200 $url (SIMULATION DÉMO RESPONSE)');
-    print('[Leadway] Init paiement — réponse (200): ${jsonEncode(mockJson)}');
+    leadwayLog('<-- 200 $url (SIMULATION DÉMO RESPONSE)');
+    leadwayLog('[Leadway] Init paiement — réponse (200): ${jsonEncode(mockJson)}');
 
     return mockJson;
   }
 
   Future<Map<String, dynamic>> _simulateConfirmPayment(String url, LeadwayApiPaymentRequest request) async {
-    print('--> POST $url (MODE SIMULATION DÉMO)');
-    print('Headers: {Content-Type: application/json, Accept: application/json}');
-    print('Request Body: ${jsonEncode(request.toJson())}');
+    leadwayLog('--> POST $url (MODE SIMULATION DÉMO)');
+    leadwayLog('Headers: {Content-Type: application/json, Accept: application/json}');
+    leadwayLog('Request Body: ${jsonEncode(request.toJson())}');
 
     await Future.delayed(const Duration(milliseconds: 800));
 
@@ -619,16 +640,16 @@ startxref
       'paid': false,
     };
 
-    print('<-- 200 $url (SIMULATION DÉMO RESPONSE)');
-    print('Response Body: ${jsonEncode(mockJson)}');
+    leadwayLog('<-- 200 $url (SIMULATION DÉMO RESPONSE)');
+    leadwayLog('Response Body: ${jsonEncode(mockJson)}');
 
     return mockJson;
   }
 
   Future<Map<String, dynamic>> _simulateCheckPaymentStatus(String url, LeadwayApiPaymentCheckRequest request) async {
-    print('--> POST $url (MODE SIMULATION DÉMO)');
-    print('Headers: {Content-Type: application/json, Accept: application/json}');
-    print('Request Body: ${jsonEncode(request.toJson())}');
+    leadwayLog('--> POST $url (MODE SIMULATION DÉMO)');
+    leadwayLog('Headers: {Content-Type: application/json, Accept: application/json}');
+    leadwayLog('Request Body: ${jsonEncode(request.toJson())}');
 
     await Future.delayed(const Duration(milliseconds: 1000));
 
@@ -652,8 +673,8 @@ startxref
     }
 
     final mockResponseJsonStr = jsonEncode(mockJson);
-    print('<-- 200 $url (SIMULATION DÉMO RESPONSE)');
-    print('Response Body: $mockResponseJsonStr');
+    leadwayLog('<-- 200 $url (SIMULATION DÉMO RESPONSE)');
+    leadwayLog('Response Body: $mockResponseJsonStr');
 
     return mockJson;
   }

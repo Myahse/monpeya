@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
@@ -28,16 +29,10 @@ class LeadwayLifeApiConfig {
 /// Compteur de polling mock pour check-paiement.
 final Map<String, int> _lifeCheckAttempts = {};
 
-HttpClient _lifeUnsafeHttpClient() {
-  final client = HttpClient();
-  client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
-  return client;
-}
-
 /// Client HTTP pour l'API Vie (`/api/souscription/*`, `/api/enums/*`).
 class LeadwayLifeApiService {
   LeadwayLifeApiService({http.Client? client})
-      : _client = client ?? IOClient(_lifeUnsafeHttpClient());
+      : _client = client ?? IOClient(leadwayHttpClient());
 
   final http.Client _client;
 
@@ -57,7 +52,7 @@ class LeadwayLifeApiService {
     }
 
     try {
-      print('--> GET $url');
+      leadwayLog('--> GET $url');
       final response = await _client
           .get(
             Uri.parse(url),
@@ -65,8 +60,8 @@ class LeadwayLifeApiService {
           )
           .timeout(const Duration(seconds: 20));
 
-      print('<-- ${response.statusCode} $url');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('Response Body: ${response.body}');
 
       dynamic decoded;
       try {
@@ -90,8 +85,9 @@ class LeadwayLifeApiService {
 
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayLifeApi] enums failed: $e — fallback simulation');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayLifeApi] enums failed: $e — fallback simulation');
         return _simulateEnums(path);
       }
       rethrow;
@@ -107,8 +103,8 @@ class LeadwayLifeApiService {
 
     try {
       final body = jsonEncode(request.toJson());
-      print('--> POST $url');
-      print('Request Body: $body');
+      leadwayLog('--> POST $url');
+      leadwayLog('Request Body: $body');
 
       final response = await _client
           .post(
@@ -121,8 +117,8 @@ class LeadwayLifeApiService {
           )
           .timeout(const Duration(seconds: 30));
 
-      print('<-- ${response.statusCode} $url');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('Response Body: ${response.body}');
 
       dynamic decoded;
       try {
@@ -148,8 +144,9 @@ class LeadwayLifeApiService {
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
       if (e is LeadwayApiException) rethrow;
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayLifeApi] cotation failed: $e — fallback simulation');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayLifeApi] cotation failed: $e — fallback simulation');
         return _simulateCotation(url, request);
       }
       rethrow;
@@ -167,8 +164,8 @@ class LeadwayLifeApiService {
 
     try {
       final body = jsonEncode(request.toJson());
-      print('--> POST $url');
-      print('Request Body: $body');
+      leadwayLog('--> POST $url');
+      leadwayLog('Request Body: $body');
 
       final response = await _client
           .post(
@@ -181,8 +178,8 @@ class LeadwayLifeApiService {
           )
           .timeout(const Duration(seconds: 30));
 
-      print('<-- ${response.statusCode} $url');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('Response Body: ${response.body}');
 
       dynamic decoded;
       try {
@@ -207,8 +204,9 @@ class LeadwayLifeApiService {
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
       if (e is LeadwayApiException) rethrow;
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayLifeApi] souscription failed: $e — fallback simulation');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayLifeApi] souscription failed: $e — fallback simulation');
         return _simulateSubscription(url, request);
       }
       rethrow;
@@ -227,8 +225,8 @@ class LeadwayLifeApiService {
 
     try {
       final body = jsonEncode(request.toJson());
-      print('--> POST $url');
-      print('Request Body: $body');
+      leadwayLog('--> POST $url');
+      leadwayLog('Request Body: $body');
 
       final response = await _client
           .post(
@@ -241,8 +239,8 @@ class LeadwayLifeApiService {
           )
           .timeout(const Duration(seconds: 30));
 
-      print('<-- ${response.statusCode} $url');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('Response Body: ${response.body}');
 
       dynamic decoded;
       try {
@@ -267,8 +265,9 @@ class LeadwayLifeApiService {
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
       if (e is LeadwayApiException) rethrow;
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayLifeApi] paiement failed: $e — fallback simulation');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayLifeApi] paiement failed: $e — fallback simulation');
         return _simulateLifePayment(url, subscriptionRef, request);
       }
       rethrow;
@@ -284,8 +283,8 @@ class LeadwayLifeApiService {
 
     try {
       final body = jsonEncode(request.toJson());
-      print('--> POST $url');
-      print('Request Body: $body');
+      leadwayLog('--> POST $url');
+      leadwayLog('Request Body: $body');
 
       final response = await _client
           .post(
@@ -298,8 +297,8 @@ class LeadwayLifeApiService {
           )
           .timeout(const Duration(seconds: 20));
 
-      print('<-- ${response.statusCode} $url');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('Response Body: ${response.body}');
 
       dynamic decoded;
       try {
@@ -324,8 +323,9 @@ class LeadwayLifeApiService {
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
       if (e is LeadwayApiException) rethrow;
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayLifeApi] check-paiement failed: $e — fallback simulation');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayLifeApi] check-paiement failed: $e — fallback simulation');
         return _simulateLifeCheckPayment(url, request);
       }
       rethrow;
@@ -352,13 +352,13 @@ class LeadwayLifeApiService {
     }
 
     try {
-      print('--> GET $uri');
+      leadwayLog('--> GET $uri');
       final response = await _client
           .get(uri, headers: const {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 20));
 
-      print('<-- ${response.statusCode} $uri');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $uri');
+      leadwayLog('Response Body: ${response.body}');
 
       final decoded = _decodeJsonMap(response.body, response.statusCode, 'liste souscriptions');
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -367,8 +367,9 @@ class LeadwayLifeApiService {
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
       if (e is LeadwayApiException) rethrow;
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayLifeApi] listSubscriptions failed: $e — fallback simulation');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayLifeApi] listSubscriptions failed: $e — fallback simulation');
         return _simulateListSubscriptions(uri.toString(), customerId, status, page, size);
       }
       rethrow;
@@ -383,13 +384,13 @@ class LeadwayLifeApiService {
     }
 
     try {
-      print('--> GET $url');
+      leadwayLog('--> GET $url');
       final response = await _client
           .get(Uri.parse(url), headers: const {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 20));
 
-      print('<-- ${response.statusCode} $url');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('Response Body: ${response.body}');
 
       final decoded = _decodeJsonMap(response.body, response.statusCode, 'détail souscription');
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -398,8 +399,9 @@ class LeadwayLifeApiService {
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
       if (e is LeadwayApiException) rethrow;
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayLifeApi] getSubscription failed: $e — fallback simulation');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayLifeApi] getSubscription failed: $e — fallback simulation');
         return _simulateGetSubscription(url, reference);
       }
       rethrow;
@@ -414,13 +416,13 @@ class LeadwayLifeApiService {
     }
 
     try {
-      print('--> GET $url');
+      leadwayLog('--> GET $url');
       final response = await _client
           .get(Uri.parse(url), headers: const {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 20));
 
-      print('<-- ${response.statusCode} $url');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $url');
+      leadwayLog('Response Body: ${response.body}');
 
       final decoded = _decodeJsonMap(response.body, response.statusCode, 'statut police');
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -429,8 +431,9 @@ class LeadwayLifeApiService {
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
       if (e is LeadwayApiException) rethrow;
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayLifeApi] getIssueStatus failed: $e — fallback simulation');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayLifeApi] getIssueStatus failed: $e — fallback simulation');
         return _simulateIssueStatus(url, reference);
       }
       rethrow;
@@ -465,13 +468,13 @@ class LeadwayLifeApiService {
     }
 
     try {
-      print('--> GET $uri');
+      leadwayLog('--> GET $uri');
       final response = await _client
           .get(uri, headers: const {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 20));
 
-      print('<-- ${response.statusCode} $uri');
-      print('Response Body: ${response.body}');
+      leadwayLog('<-- ${response.statusCode} $uri');
+      leadwayLog('Response Body: ${response.body}');
 
       final decoded = _decodeJsonMap(response.body, response.statusCode, 'paiements récurrents');
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -480,8 +483,9 @@ class LeadwayLifeApiService {
       throw LeadwayApiException.fromResponse(response.statusCode, decoded);
     } catch (e) {
       if (e is LeadwayApiException) rethrow;
-      if (e is SocketException || e is HttpException || e is TimeoutException || e is HandshakeException) {
-        print('⚠️ [LeadwayLifeApi] listRecurringPayments failed: $e — fallback simulation');
+      if (isLeadwayNetworkError(e)) {
+        if (!kDebugMode) throw LeadwayApiException.unreachable;
+        leadwayLog('⚠️ [LeadwayLifeApi] listRecurringPayments failed: $e — fallback simulation');
         return _simulateRecurringPayments(uri.toString(), page, size, customerId, status);
       }
       rethrow;
@@ -511,7 +515,7 @@ class LeadwayLifeApiService {
       return result;
     }
 
-    print(
+    leadwayLog(
       '⚠️ [LeadwayLifeApi] data.premium.gross.amount == 0 — '
       'fallback tierInputAmount=${request.tierInputAmount}',
     );
@@ -538,8 +542,8 @@ class LeadwayLifeApiService {
     String url,
     LeadwayLifeCotationRequest request,
   ) async {
-    print('--> POST $url (SIMULATION VIE)');
-    print('Request Body: ${jsonEncode(request.toJson())}');
+    leadwayLog('--> POST $url (SIMULATION VIE)');
+    leadwayLog('Request Body: ${jsonEncode(request.toJson())}');
     await Future.delayed(const Duration(milliseconds: 900));
 
     final base = request.tierInputAmount > 0 ? request.tierInputAmount : 5000;
@@ -565,8 +569,8 @@ class LeadwayLifeApiService {
         'computedAt': DateTime.now().toUtc().toIso8601String(),
       },
     };
-    print('<-- 200 $url (SIMULATION)');
-    print('Response Body: ${jsonEncode(mock)}');
+    leadwayLog('<-- 200 $url (SIMULATION)');
+    leadwayLog('Response Body: ${jsonEncode(mock)}');
     return _applyTierInputAmountFallback(
       LeadwayLifeCotationResult.fromJson(mock),
       request,
@@ -577,8 +581,8 @@ class LeadwayLifeApiService {
     String url,
     LeadwayLifeSubscriptionRequest request,
   ) async {
-    print('--> POST $url (SIMULATION SOUSCRIPTION VIE)');
-    print('Request Body: ${jsonEncode(request.toJson())}');
+    leadwayLog('--> POST $url (SIMULATION SOUSCRIPTION VIE)');
+    leadwayLog('Request Body: ${jsonEncode(request.toJson())}');
     await Future.delayed(const Duration(milliseconds: 900));
 
     final ref = 'SUB-${DateTime.now().millisecondsSinceEpoch}';
@@ -593,8 +597,8 @@ class LeadwayLifeApiService {
         'createdAt': DateTime.now().toUtc().toIso8601String(),
       },
     };
-    print('<-- 200 $url (SIMULATION)');
-    print('Response Body: ${jsonEncode(mock)}');
+    leadwayLog('<-- 200 $url (SIMULATION)');
+    leadwayLog('Response Body: ${jsonEncode(mock)}');
     return LeadwayLifeSubscriptionResult.fromJson(mock);
   }
 
@@ -603,8 +607,8 @@ class LeadwayLifeApiService {
     String subscriptionRef,
     LeadwayLifePaymentRequest request,
   ) async {
-    print('--> POST $url (SIMULATION PAIEMENT VIE)');
-    print('Request Body: ${jsonEncode(request.toJson())}');
+    leadwayLog('--> POST $url (SIMULATION PAIEMENT VIE)');
+    leadwayLog('Request Body: ${jsonEncode(request.toJson())}');
     await Future.delayed(const Duration(milliseconds: 900));
 
     final tx = 'TX-${DateTime.now().millisecondsSinceEpoch}';
@@ -619,8 +623,8 @@ class LeadwayLifeApiService {
         'paymentStatus': 'PENDING',
       },
     };
-    print('<-- 200 $url (SIMULATION)');
-    print('Response Body: ${jsonEncode(mock)}');
+    leadwayLog('<-- 200 $url (SIMULATION)');
+    leadwayLog('Response Body: ${jsonEncode(mock)}');
     return LeadwayLifePaymentResult.fromJson(mock);
   }
 
@@ -628,8 +632,8 @@ class LeadwayLifeApiService {
     String url,
     LeadwayLifePaymentCheckRequest request,
   ) async {
-    print('--> POST $url (SIMULATION CHECK PAIEMENT VIE)');
-    print('Request Body: ${jsonEncode(request.toJson())}');
+    leadwayLog('--> POST $url (SIMULATION CHECK PAIEMENT VIE)');
+    leadwayLog('Request Body: ${jsonEncode(request.toJson())}');
     await Future.delayed(const Duration(milliseconds: 300));
 
     final attempts = (_lifeCheckAttempts[request.transactionId] ?? 0) + 1;
@@ -648,8 +652,8 @@ class LeadwayLifeApiService {
         'updatedAt': now,
       },
     };
-    print('<-- 200 $url (SIMULATION)');
-    print('Response Body: ${jsonEncode(mock)}');
+    leadwayLog('<-- 200 $url (SIMULATION)');
+    leadwayLog('Response Body: ${jsonEncode(mock)}');
     return LeadwayLifePaymentCheckResult.fromJson(mock);
   }
 
@@ -660,7 +664,7 @@ class LeadwayLifeApiService {
     int page,
     int size,
   ) async {
-    print('--> GET $url (SIMULATION LISTE SOUSCRIPTIONS)');
+    leadwayLog('--> GET $url (SIMULATION LISTE SOUSCRIPTIONS)');
     await Future.delayed(const Duration(milliseconds: 500));
 
     const totalItems = 28;
@@ -701,13 +705,13 @@ class LeadwayLifeApiService {
         },
       },
     };
-    print('<-- 200 $url (SIMULATION)');
-    print('Response Body: ${jsonEncode(mock)}');
+    leadwayLog('<-- 200 $url (SIMULATION)');
+    leadwayLog('Response Body: ${jsonEncode(mock)}');
     return LeadwayLifeSubscriptionListResult.fromJson(mock);
   }
 
   Future<LeadwayLifeSubscriptionResult> _simulateGetSubscription(String url, String reference) async {
-    print('--> GET $url (SIMULATION DÉTAIL SOUSCRIPTION)');
+    leadwayLog('--> GET $url (SIMULATION DÉTAIL SOUSCRIPTION)');
     await Future.delayed(const Duration(milliseconds: 400));
     final mock = {
       'success': true,
@@ -720,13 +724,13 @@ class LeadwayLifeApiService {
         'createdAt': DateTime.now().toUtc().toIso8601String(),
       },
     };
-    print('<-- 200 $url (SIMULATION)');
-    print('Response Body: ${jsonEncode(mock)}');
+    leadwayLog('<-- 200 $url (SIMULATION)');
+    leadwayLog('Response Body: ${jsonEncode(mock)}');
     return LeadwayLifeSubscriptionResult.fromJson(mock);
   }
 
   Future<LeadwayLifeIssueResult> _simulateIssueStatus(String url, String reference) async {
-    print('--> GET $url (SIMULATION ISSUE POLICE)');
+    leadwayLog('--> GET $url (SIMULATION ISSUE POLICE)');
     await Future.delayed(const Duration(milliseconds: 400));
     final mock = {
       'success': true,
@@ -737,8 +741,8 @@ class LeadwayLifeApiService {
         'status': 'READY',
       },
     };
-    print('<-- 200 $url (SIMULATION)');
-    print('Response Body: ${jsonEncode(mock)}');
+    leadwayLog('<-- 200 $url (SIMULATION)');
+    leadwayLog('Response Body: ${jsonEncode(mock)}');
     return LeadwayLifeIssueResult.fromJson(mock);
   }
 
@@ -749,7 +753,7 @@ class LeadwayLifeApiService {
     String? customerId,
     String? status,
   ) async {
-    print('--> GET $url (SIMULATION PAIEMENTS RÉCURRENTS)');
+    leadwayLog('--> GET $url (SIMULATION PAIEMENTS RÉCURRENTS)');
     await Future.delayed(const Duration(milliseconds: 500));
 
     const totalItems = 23;
@@ -787,8 +791,8 @@ class LeadwayLifeApiService {
         'totalPages': totalPages,
       },
     };
-    print('<-- 200 $url (SIMULATION)');
-    print('Response Body: ${jsonEncode(mock)}');
+    leadwayLog('<-- 200 $url (SIMULATION)');
+    leadwayLog('Response Body: ${jsonEncode(mock)}');
     return LeadwayLifeRecurringPaymentListResult.fromJson(mock);
   }
 }
