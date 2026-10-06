@@ -36,7 +36,7 @@ class BilletterieBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final brand = BilletterieBrand.of(context);
     final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
-    final homeLabel = businessMode ? 'Accueil' : 'Home';
+    const homeLabel = 'Accueil';
     final ticketsLabel = businessMode ? 'Scanner' : 'Mes tickets';
 
     final items = <({

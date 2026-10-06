@@ -40,7 +40,7 @@ class BilletterieEventBottomNav extends StatelessWidget {
       BilletterieEventTab tab,
     })>[
       (
-        label: 'Home',
+        label: 'Accueil',
         icon: Icons.home_outlined,
         selectedIcon: Icons.home_rounded,
         tab: BilletterieEventTab.home,

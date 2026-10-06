@@ -42,7 +42,7 @@ class MainBottomNavigationBar extends StatelessWidget {
       Widget? child,
     })>[
       (
-        label: 'Home',
+        label: 'Accueil',
         icon: Icons.home_outlined,
         selectedIcon: Icons.home_rounded,
         child: null,
@@ -54,7 +54,7 @@ class MainBottomNavigationBar extends StatelessWidget {
         child: const PeyaPayNavBarIcon(size: 20, width: 56),
       ),
       (
-        label: 'My Subs',
+        label: 'Abonnements',
         icon: Icons.list_alt_outlined,
         selectedIcon: Icons.list_alt_rounded,
         child: null,

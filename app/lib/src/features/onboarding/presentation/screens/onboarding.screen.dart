@@ -88,7 +88,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   Widget build(BuildContext context) {
     final slide = _slides[_index];
-    final bgImage = AssetPaths.onboardingImages[_index % AssetPaths.onboardingImages.length];
+    final art = _SlideArt.slides[_index % _SlideArt.slides.length];
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final mq = MediaQuery.of(context);
@@ -110,14 +110,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         children: [
           // Full top background that matches current slide.
           Positioned.fill(
-            child: ClipRect(
-              child: FittedBox(
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width,
-                  height: MediaQuery.of(context).size.height,
-                  child: Image.asset(bgImage, fit: BoxFit.cover),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: art.colors,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
             ),
@@ -160,16 +160,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               itemCount: _slides.length,
               onPageChanged: (i) => setState(() => _index = i),
               itemBuilder: (context, i) {
-                final img = AssetPaths.onboardingImages[i % AssetPaths.onboardingImages.length];
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 22),
                   child: Center(
                     child: SizedBox(
                       width: cardWidth,
                       height: cardHeight,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(28),
-                        child: Image.asset(img, fit: BoxFit.cover),
+                      child: _SlideArt(
+                        data: _SlideArt.slides[i % _SlideArt.slides.length],
                       ),
                     ),
                   ),
@@ -384,3 +382,146 @@ class _ArrowButtonState extends State<_ArrowButton> with SingleTickerProviderSta
   }
 }
 
+/// Branded slide illustration: gradient card, hero icon and floating
+/// service icons that bob gently.
+class _SlideArt extends StatefulWidget {
+  const _SlideArt({required this.data});
+
+  final ({List<Color> colors, IconData hero, List<IconData> orbit}) data;
+
+  static const slides = <({List<Color> colors, IconData hero, List<IconData> orbit})>[
+    (
+      colors: [Color(0xFF00876A), Color(0xFF063E1C)],
+      hero: Icons.account_balance_wallet_rounded,
+      orbit: [Icons.qr_code_2_rounded, Icons.send_rounded, Icons.bolt_rounded, Icons.receipt_long_rounded],
+    ),
+    (
+      colors: [Color(0xFF0EA5E9), Color(0xFF075985)],
+      hero: Icons.apps_rounded,
+      orbit: [Icons.home_work_rounded, Icons.directions_bus_rounded, Icons.shield_rounded, Icons.storefront_rounded],
+    ),
+    (
+      colors: [Color(0xFF7C3AED), Color(0xFF4C1D95)],
+      hero: Icons.event_repeat_rounded,
+      orbit: [Icons.notifications_active_rounded, Icons.check_circle_rounded, Icons.calendar_month_rounded, Icons.star_rounded],
+    ),
+    (
+      colors: [Color(0xFFF59E0B), Color(0xFFB45309)],
+      hero: Icons.rocket_launch_rounded,
+      orbit: [Icons.groups_rounded, Icons.favorite_rounded, Icons.verified_rounded, Icons.celebration_rounded],
+    ),
+  ];
+
+  @override
+  State<_SlideArt> createState() => _SlideArtState();
+}
+
+class _SlideArtState extends State<_SlideArt>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 4),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Respect the system "reduce motion" setting.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _c.value = 0.5;
+      _c.stop();
+    } else if (!_c.isAnimating) {
+      _c.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.data;
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
+          colors: [
+            Color.lerp(d.colors.first, Colors.white, 0.12)!,
+            d.colors.last,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: d.colors.last.withValues(alpha: 0.45),
+            blurRadius: 30,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final w = box.maxWidth;
+          final h = box.maxHeight;
+          const spots = [
+            Offset(0.18, 0.2),
+            Offset(0.8, 0.24),
+            Offset(0.2, 0.78),
+            Offset(0.78, 0.74),
+          ];
+          return AnimatedBuilder(
+            animation: _c,
+            builder: (context, _) {
+              final t = Curves.easeInOut.transform(_c.value);
+              return Stack(
+                children: [
+                  for (var i = 0; i < d.orbit.length && i < spots.length; i++)
+                    Positioned(
+                      left: spots[i].dx * w - 24,
+                      top: spots[i].dy * h - 24 + (i.isEven ? -8 : 8) * (t - 0.5) * 2,
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: Icon(d.orbit[i], color: Colors.white, size: 24),
+                      ),
+                    ),
+                  Center(
+                    child: Transform.scale(
+                      scale: 0.96 + t * 0.06,
+                      child: Container(
+                        width: w * 0.42,
+                        height: w * 0.42,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.18),
+                              blurRadius: 24,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Icon(d.hero, size: w * 0.2, color: d.colors.last),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}

@@ -35,6 +35,7 @@ export 'package:peyapay/src/core/utils/screen_insets.util.dart';
 export 'package:peyapay/src/data/models/fund_source.item.dart';
 export 'package:peyapay/src/data/models/transaction.item.dart';
 export 'package:peyapay/src/presentation/screens/peyapay_transfer.screen.dart';
+export 'package:peyapay/src/presentation/screens/peyapay_transfer_contacts.screen.dart';
 export 'package:peyapay/src/presentation/screens/peyapay_add_money.screen.dart';
 export 'package:peyapay/src/presentation/screens/peyapay_review_transfer.screen.dart';
 export 'package:peyapay/src/presentation/screens/peyapay.screen.dart';

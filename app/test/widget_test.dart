@@ -13,7 +13,9 @@ void main() {
     expect(find.byType(SplashScreen), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 2600));
-    await tester.pumpAndSettle();
+    // Onboarding art loops forever, so pump a fixed time instead of settling.
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
     expect(find.byType(OnboardingScreen), findsOneWidget);
   });
 }
