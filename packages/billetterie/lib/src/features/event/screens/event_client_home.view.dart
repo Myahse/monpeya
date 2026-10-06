@@ -28,7 +28,7 @@ class _EventClientHomeViewState extends State<EventClientHomeView> {
   DateTime? _filterStart;
   DateTime? _filterEnd;
   String _category = _categories.first;
-  String _city = 'Abidjan';
+  final String _city = 'Abidjan';
   String _greetingName = BilletterieHostBridge.guestDisplayName;
 
   @override

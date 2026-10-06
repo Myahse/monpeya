@@ -137,7 +137,7 @@ class _Thumb extends StatelessWidget {
     return Image.network(
       url!,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => ColoredBox(
+      errorBuilder: (_, _, _) => ColoredBox(
         color: b.searchFill,
         child: const Center(child: Icon(Icons.broken_image_outlined, color: RentalTheme.green)),
       ),

@@ -105,8 +105,8 @@ class BilletterieTransportApiService {
       data: {
         'qrPayload': qrPayload,
         'scannerCodeClient': scannerCodeClient,
-        if (consumedPlace != null) 'consumedPlace': consumedPlace,
-        if (scannerDeviceId != null) 'scannerDeviceId': scannerDeviceId,
+        'consumedPlace': ?consumedPlace,
+        'scannerDeviceId': ?scannerDeviceId,
       },
       parser: BilletterieTicket.fromTicketingJson,
       errorMessage: 'Validation du billet transport impossible',

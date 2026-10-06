@@ -3,7 +3,7 @@ import 'package:leadway/src/data/models/leadway_life_cotation_response.model.dar
 
 void main() {
   group('LeadwayLifeCotationResult.withTierInputAmountFallback', () {
-    LeadwayLifeCotationResult _resultWithGross(num grossAmount) {
+    LeadwayLifeCotationResult resultWithGross(num grossAmount) {
       return LeadwayLifeCotationResult.fromJson({
         'success': true,
         'data': {
@@ -22,20 +22,20 @@ void main() {
     }
 
     test('remplace gross.amount par tierInputAmount quand gross vaut 0', () {
-      final result = _resultWithGross(0).withTierInputAmountFallback(7500);
+      final result = resultWithGross(0).withTierInputAmountFallback(7500);
 
       expect(result.data.premium.gross.amount, 7500);
       expect(result.data.premium.gross.currency, 'XOF');
     });
 
     test('conserve gross.amount quand il est déjà renseigné', () {
-      final result = _resultWithGross(12000).withTierInputAmountFallback(7500);
+      final result = resultWithGross(12000).withTierInputAmountFallback(7500);
 
       expect(result.data.premium.gross.amount, 12000);
     });
 
     test('ne modifie pas le résultat si tierInputAmount <= 0', () {
-      final result = _resultWithGross(0).withTierInputAmountFallback(0);
+      final result = resultWithGross(0).withTierInputAmountFallback(0);
 
       expect(result.data.premium.gross.amount, 0);
     });

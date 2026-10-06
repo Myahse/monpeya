@@ -41,7 +41,7 @@ Widget simCardSection({required String title, required List<Widget> children}) {
 }
 
 class SimHeader extends StatelessWidget {
-  const SimHeader({required this.onBack, required this.productLabel, this.trailing});
+  const SimHeader({super.key, required this.onBack, required this.productLabel, this.trailing});
 
   final VoidCallback onBack;
   final String productLabel;
@@ -75,7 +75,7 @@ class SimHeader extends StatelessWidget {
               ],
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );
@@ -83,7 +83,7 @@ class SimHeader extends StatelessWidget {
 }
 
 class SimStepIndicator extends StatelessWidget {
-  const SimStepIndicator({required this.steps, required this.current});
+  const SimStepIndicator({super.key, required this.steps, required this.current});
 
   final List<String> steps;
   final int current;
@@ -167,7 +167,7 @@ class _SimStepDot extends StatelessWidget {
 }
 
 class SimHeroCard extends StatelessWidget {
-  const SimHeroCard({required this.icon, required this.title, required this.subtitle});
+  const SimHeroCard({super.key, required this.icon, required this.title, required this.subtitle});
 
   final IconData icon;
   final String title;
@@ -204,7 +204,7 @@ class SimHeroCard extends StatelessWidget {
 }
 
 class SimField extends StatelessWidget {
-  const SimField({
+  const SimField({super.key, 
     required this.label,
     required this.controller,
     required this.hint,
@@ -248,7 +248,7 @@ class SimField extends StatelessWidget {
 }
 
 class SimResultCard extends StatelessWidget {
-  const SimResultCard({required this.title, required this.value, required this.subtitle});
+  const SimResultCard({super.key, required this.title, required this.value, required this.subtitle});
 
   final String title;
   final String value;
@@ -278,7 +278,7 @@ class SimResultCard extends StatelessWidget {
 }
 
 class SimSummaryCard extends StatelessWidget {
-  const SimSummaryCard({required this.rows});
+  const SimSummaryCard({super.key, required this.rows});
   final List<(String, String)> rows;
 
   @override
@@ -309,7 +309,7 @@ class SimSummaryCard extends StatelessWidget {
 }
 
 class SimPaymentTile extends StatelessWidget {
-  const SimPaymentTile({
+  const SimPaymentTile({super.key, 
     required this.selected,
     required this.title,
     required this.subtitle,
@@ -357,7 +357,7 @@ class SimPaymentTile extends StatelessWidget {
 }
 
 class SimBottomBar extends StatelessWidget {
-  const SimBottomBar({required this.label, required this.onPrimary, this.loading = false});
+  const SimBottomBar({super.key, required this.label, required this.onPrimary, this.loading = false});
 
   final String label;
   final VoidCallback onPrimary;
@@ -392,7 +392,7 @@ class SimBottomBar extends StatelessWidget {
 }
 
 class SimSuccessBanner extends StatelessWidget {
-  const SimSuccessBanner({required this.title, required this.message});
+  const SimSuccessBanner({super.key, required this.title, required this.message});
 
   final String title;
   final String message;

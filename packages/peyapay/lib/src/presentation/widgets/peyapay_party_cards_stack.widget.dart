@@ -348,7 +348,7 @@ class _MiniPartyCard extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            if (badge != null) badge,
+            ?badge,
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(12),

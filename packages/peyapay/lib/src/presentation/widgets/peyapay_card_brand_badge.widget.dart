@@ -59,7 +59,7 @@ class _ModalBadge extends StatelessWidget {
             width: 60,
             height: 40,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Image.asset(
+            errorBuilder: (_, _, _) => Image.asset(
       'assets/logo/cards/visa.png',
       package: PeyaPayAssets.package,
               width: 60,
@@ -132,7 +132,7 @@ class _RowBadge extends StatelessWidget {
       package: PeyaPayAssets.package,
         height: height,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Text('VISA', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
+        errorBuilder: (_, _, _) => const Text('VISA', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
       );
     }
     if (cardType == 'MASTERCARD') {
@@ -141,7 +141,7 @@ class _RowBadge extends StatelessWidget {
       package: PeyaPayAssets.package,
         height: height * 0.75,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Text('MC', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
+        errorBuilder: (_, _, _) => const Text('MC', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
       );
     }
     return Text(cardType, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11));

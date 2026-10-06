@@ -501,7 +501,7 @@ class _HeroHeader extends StatelessWidget {
                 images[i],
                 fit: BoxFit.cover,
                 width: double.infinity,
-                errorBuilder: (_, __, ___) => const ColoredBox(
+                errorBuilder: (_, _, _) => const ColoredBox(
                   color: Color(0xFF0A2E18),
                   child: Center(
                     child: Icon(Icons.broken_image_outlined,
@@ -873,7 +873,7 @@ class _SheetTopCap extends StatelessWidget {
               width: logoSize,
               height: logoSize,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
+              errorBuilder: (_, _, _) => const Icon(
                 Icons.home_work_rounded,
                 color: RentalTheme.green,
                 size: 36,

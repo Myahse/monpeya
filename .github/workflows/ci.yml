@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - app
+          - packages/billetterie
+          - packages/grenier
+          - packages/immo
+          - packages/leadway
+          - packages/mocks
+          - packages/peyapay
+          - packages/sim
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        run: flutter test
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Block hardcoded keys
+        run: |
+          if git grep -nE 'sk_live_[A-Za-z0-9_]{10,}|pk\.eyJ[A-Za-z0-9._-]{20,}' -- ':!*.md'; then
+            echo "::error::Hardcoded API key found. Pass it via --dart-define (app/config/env.json) instead."
+            exit 1
+          fi

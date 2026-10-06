@@ -67,7 +67,7 @@ class RentalTenantCard extends StatelessWidget {
                         ? Image.network(
                             tenant.photoUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _Avatar(initials: tenant.initials),
+                            errorBuilder: (_, _, _) => _Avatar(initials: tenant.initials),
                           )
                         : _Avatar(initials: tenant.initials),
                   ),

@@ -370,10 +370,12 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
                                   first: DateTime(1920),
                                   last: DateTime.now(),
                                 );
-                                if (picked != null) setState(() {
+                                if (picked != null) {
+                                  setState(() {
                                   _birthDate = picked;
                                   _result = null;
                                 });
+                                }
                               },
                             ),
                             const SizedBox(height: 12),
@@ -410,10 +412,12 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
                                   first: DateTime(now.year, now.month, now.day),
                                   last: now.add(const Duration(days: 365 * 2)),
                                 );
-                                if (picked != null) setState(() {
+                                if (picked != null) {
+                                  setState(() {
                                   _effectiveDate = picked;
                                   _result = null;
                                 });
+                                }
                               },
                             ),
                           ],
@@ -611,16 +615,18 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
 
   Widget _dropdownGender() {
     return DropdownButtonFormField<LeadwayLifeGender>(
-      value: _gender,
+      initialValue: _gender,
       decoration: _dropdownDecoration('Genre *'),
       items: LeadwayLifeGender.values
           .map((g) => DropdownMenuItem(value: g, child: Text(g.label)))
           .toList(),
       onChanged: (v) {
-        if (v != null) setState(() {
+        if (v != null) {
+          setState(() {
           _gender = v;
           _result = null;
         });
+        }
       },
     );
   }
@@ -726,16 +732,18 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
           ],
         ),
         DropdownButtonFormField<String>(
-          value: relItems.any((e) => e.value == a.relationship) ? a.relationship : relItems.first.value,
+          initialValue: relItems.any((e) => e.value == a.relationship) ? a.relationship : relItems.first.value,
           decoration: _dropdownDecoration('Lien de parenté *'),
           items: relItems
               .map((e) => DropdownMenuItem(value: e.value, child: Text(e.description.isEmpty ? e.value : e.description)))
               .toList(),
           onChanged: (v) {
-            if (v != null) setState(() {
+            if (v != null) {
+              setState(() {
               a.relationship = v;
               _result = null;
             });
+            }
           },
         ),
         const SizedBox(height: 12),
@@ -752,24 +760,28 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
               first: DateTime(1920),
               last: DateTime.now(),
             );
-            if (picked != null) setState(() {
+            if (picked != null) {
+              setState(() {
               a.birthDate = picked;
               _result = null;
             });
+            }
           },
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<LeadwayLifeGender>(
-          value: a.gender,
+          initialValue: a.gender,
           decoration: _dropdownDecoration('Genre *'),
           items: LeadwayLifeGender.values
               .map((g) => DropdownMenuItem(value: g, child: Text(g.label)))
               .toList(),
           onChanged: (v) {
-            if (v != null) setState(() {
+            if (v != null) {
+              setState(() {
               a.gender = v;
               _result = null;
             });
+            }
           },
         ),
         const SizedBox(height: 12),

@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,7 +21,6 @@ import 'package:leadway/src/presentation/screens/leadway_life_subscriptions.scre
 import 'package:leadway/src/presentation/screens/leadway_pdf_viewer.screen.dart';
 import 'package:leadway/src/presentation/widgets/leadway_toast.widget.dart';
 import 'package:leadway/src/data/models/leadway_quote_request.model.dart';
-import 'package:leadway/src/data/models/leadway_quote_response.model.dart';
 import 'package:leadway/src/data/models/leadway_api_payment_init_request.model.dart';
 import 'package:leadway/src/data/models/leadway_api_payment_request.model.dart';
 import 'package:leadway/src/data/models/leadway_api_payment_check_request.model.dart';
@@ -702,10 +699,6 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
     });
   }
 
-  void _showMessage(String text) {
-    _showToast(text, LeadwayToastType.info);
-  }
-
   void _showToast(String text, LeadwayToastType type) {
     if (mounted) {
       LeadwayToast.show(context, message: text, type: type);
@@ -797,85 +790,6 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
 
   Future<void> _startDownloadAttestation() async {
     await _handlePdfDocument(LeadwayPdfDocumentType.contract, LeadwayPdfAction.share);
-  }
-
-  void _showDownloadSuccessDialog() {
-    _registerAndSaveActivePolicy();
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE8F5E9),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.check_circle_outline, color: Color(0xFF2E7D32), size: 48),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Téléchargement réussi !',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: LeadwayBrand.textDark),
-              ),
-              const SizedBox(height: 12),
-              RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF666666), height: 1.4),
-                  children: [
-                    TextSpan(text: 'L\'attestation officielle de votre assurance ${_vehicleType.description.toLowerCase()} a été générée et enregistrée dans votre dossier de téléchargements sous le nom :\n\n'),
-                    TextSpan(
-                      text: 'attestation_${_policyNumber ?? (_vehicleType == LeadwayVehicleType.auto ? 'AUTO' : 'MOTO')}.pdf\n',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: LeadwayBrand.textDark, fontFamily: 'monospace'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFDDDDDD)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Fermer', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: LeadwayBrand.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
-                      ),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        _openCertificateViewer();
-                      },
-                      child: const Text('Visualiser', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   void _openCertificateViewer() {
@@ -1133,7 +1047,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
         border: Border.all(color: Colors.grey[200]!, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -1155,7 +1069,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: LeadwayBrand.primary.withOpacity(0.08),
+                        color: LeadwayBrand.primary.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -1167,7 +1081,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: badgeColor.withOpacity(0.1),
+                        color: badgeColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -1197,7 +1111,7 @@ class _LeadwayModuleScreenState extends State<LeadwayModuleScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: LeadwayBrand.primary.withOpacity(0.8),
+                    color: LeadwayBrand.primary.withValues(alpha: 0.8),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -2337,7 +2251,7 @@ class _PremiumStep extends StatelessWidget {
           title: '1. Contrat',
           children: [
             DropdownButtonFormField<LeadwayProductCode>(
-              value: codeProduit,
+              initialValue: codeProduit,
               decoration: _dropdownDecoration('Formule / Code produit *'),
               items: (vehicleType == LeadwayVehicleType.auto
                       ? [
@@ -2353,7 +2267,7 @@ class _PremiumStep extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<LeadwayVehicleCategory>(
-              value: categorieVehicule,
+              initialValue: categorieVehicule,
               decoration: _dropdownDecoration('Catégorie de véhicule *'),
               items: (vehicleType == LeadwayVehicleType.auto
                       ? [
@@ -2450,7 +2364,7 @@ class _PremiumStep extends StatelessWidget {
             ),
             const Divider(height: 12),
             DropdownButtonFormField<int>(
-              value: garantieAssistanceAuto,
+              initialValue: garantieAssistanceAuto,
               decoration: _dropdownDecoration('Niveau d\'assistance auto'),
               items: LeadwayAssistanceLevel.values
                   .map<DropdownMenuItem<int>>(
@@ -2729,7 +2643,7 @@ class _QuoteStep extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<LeadwayEnergy>(
-                  value: energie,
+                  initialValue: energie,
                   decoration: _dropdownDecoration('Type d\'énergie *'),
                   items: LeadwayEnergy.values
                       .map<DropdownMenuItem<LeadwayEnergy>>(
@@ -4374,10 +4288,10 @@ class _SubscriptionsHeader extends StatelessWidget {
                   width: 46,
                   height: 46,
                   decoration: BoxDecoration(
-                    color: LeadwayBrand.primary.withOpacity(0.08),
+                    color: LeadwayBrand.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: LeadwayBrand.primary.withOpacity(0.15),
+                      color: LeadwayBrand.primary.withValues(alpha: 0.15),
                     ),
                   ),
                   child: Padding(
@@ -4386,7 +4300,7 @@ class _SubscriptionsHeader extends StatelessWidget {
                       'assets/logo/leadway.png',
                       package: 'leadway',
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(
+                      errorBuilder: (_, _, _) => const Icon(
                         Icons.shield_rounded,
                         color: LeadwayBrand.primary,
                         size: 22,
@@ -4435,7 +4349,7 @@ class _SubscriptionsView extends StatelessWidget {
         border: Border.all(color: const Color(0xFFF1F1F1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.01),
+            color: Colors.black.withValues(alpha: 0.01),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -4447,7 +4361,7 @@ class _SubscriptionsView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.08),
+              color: color.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 20),
@@ -4489,7 +4403,7 @@ class _SubscriptionsView extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, -4),
           ),
@@ -4507,7 +4421,7 @@ class _SubscriptionsView extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: LeadwayBrand.primary.withOpacity(0.3),
+                color: LeadwayBrand.primary.withValues(alpha: 0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -4551,8 +4465,8 @@ class _SubscriptionsView extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          LeadwayBrand.primary.withOpacity(0.1),
-                          LeadwayBrand.gradientBottom.withOpacity(0.05)
+                          LeadwayBrand.primary.withValues(alpha: 0.1),
+                          LeadwayBrand.gradientBottom.withValues(alpha: 0.05)
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -4681,7 +4595,7 @@ class _SubscriptionsView extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -4714,7 +4628,7 @@ class _SubscriptionsView extends StatelessWidget {
                                         Container(
                                           padding: const EdgeInsets.all(10),
                                           decoration: BoxDecoration(
-                                            color: LeadwayBrand.primary.withOpacity(0.08),
+                                            color: LeadwayBrand.primary.withValues(alpha: 0.08),
                                             borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: const Icon(Icons.two_wheeler_rounded, color: LeadwayBrand.primary, size: 22),

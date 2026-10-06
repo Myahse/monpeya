@@ -28,7 +28,7 @@ class _PeyapayPrepaidCardScreenState extends State<PeyapayPrepaidCardScreen> {
 
   final _api = PeyapayHostBridge.carteApi ?? PeyapayCarteApiService();
 
-  bool _showDetails = false;
+  final bool _showDetails = false;
   bool _loading = true;
   bool _busyAction = false;
   String? _error;

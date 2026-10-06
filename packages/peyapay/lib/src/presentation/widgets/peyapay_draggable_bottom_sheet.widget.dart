@@ -148,7 +148,7 @@ class PeyapayDraggableBottomSheetState extends State<PeyapayDraggableBottomSheet
 }
 
 class PeyapayBottomSheetHandle extends StatelessWidget {
-  const PeyapayBottomSheetHandle({this.color});
+  const PeyapayBottomSheetHandle({super.key, this.color});
 
   final Color? color;
 

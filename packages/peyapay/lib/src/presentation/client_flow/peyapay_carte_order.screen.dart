@@ -190,7 +190,7 @@ class _PeyapayCarteOrderScreenState extends State<PeyapayCarteOrderScreen> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<PeyapayCarteLocation>(
-                  value: _ville,
+                  initialValue: _ville,
                   decoration: const InputDecoration(
                     labelText: 'Ville',
                     border: OutlineInputBorder(),
@@ -218,7 +218,7 @@ class _PeyapayCarteOrderScreenState extends State<PeyapayCarteOrderScreen> {
                   )
                 else
                   DropdownButtonFormField<PeyapayCarteLocation>(
-                    value: _commune,
+                    initialValue: _commune,
                     decoration: const InputDecoration(
                       labelText: 'Commune',
                       border: OutlineInputBorder(),

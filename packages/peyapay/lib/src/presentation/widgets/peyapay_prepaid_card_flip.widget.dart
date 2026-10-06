@@ -188,10 +188,10 @@ class _CardFace extends StatelessWidget {
         height: double.infinity,
         filterQuality: FilterQuality.high,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => Image.asset(
+        errorBuilder: (_, _, _) => Image.asset(
           fallbackPath,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
+          errorBuilder: (_, _, _) => Container(
             decoration: BoxDecoration(
               color: const Color(0xFF006D56),
               borderRadius: BorderRadius.circular(16),

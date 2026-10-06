@@ -17,7 +17,7 @@ class LeadwayPeyapayLogo extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => Icon(
+        errorBuilder: (_, _, _) => Icon(
           Icons.account_balance_wallet_outlined,
           size: size * 0.85,
         ),

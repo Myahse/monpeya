@@ -125,7 +125,7 @@ class TransportTicketBack extends StatelessWidget {
                                       color: BilletterieBrand.qrInk,
                                     ),
                                   ),
-                                  if (qrOverlay != null) qrOverlay!,
+                                  ?qrOverlay,
                                 ],
                               ),
                             ),

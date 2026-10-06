@@ -256,7 +256,7 @@ class _CieLogo extends StatelessWidget {
         'assets/logo/logo_partenaires.png',
         package: PeyaPayAssets.package,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const SizedBox(width: 40, height: 40),
+        errorBuilder: (_, _, _) => const SizedBox(width: 40, height: 40),
       ),
     );
   }
@@ -276,7 +276,7 @@ class _SodeciLogo extends StatelessWidget {
           'assets/logo/logo_sodeci.png',
           package: PeyaPayAssets.package,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const SizedBox(width: 40, height: 40),
+          errorBuilder: (_, _, _) => const SizedBox(width: 40, height: 40),
         ),
       ),
     );

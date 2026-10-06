@@ -72,7 +72,7 @@ class BundledModules {
       url: 'native:billetterie/transport',
       type: ModuleLaunchType.native,
       source: ModuleSource.bundled,
-      sortOrder: 5,
+      sortOrder: 6,
     ),
     AppModule(
       id: 7,
@@ -82,7 +82,7 @@ class BundledModules {
       url: 'native:billetterie/event',
       type: ModuleLaunchType.native,
       source: ModuleSource.bundled,
-      sortOrder: 6,
+      sortOrder: 7,
     ),
     AppModule(
       id: 8,
@@ -92,7 +92,7 @@ class BundledModules {
       url: 'native:grenier',
       type: ModuleLaunchType.native,
       source: ModuleSource.bundled,
-      sortOrder: 7,
+      sortOrder: 8,
     ),
   ];
 }

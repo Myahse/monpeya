@@ -445,12 +445,12 @@ class _HomeHeader extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isDark
-                            ? Colors.white.withOpacity(0.12)
-                            : const Color(0xFF006D56).withOpacity(0.12),
+                            ? Colors.white.withValues(alpha: 0.12)
+                            : const Color(0xFF006D56).withValues(alpha: 0.12),
                         border: Border.all(
                           color: isDark
-                              ? Colors.white.withOpacity(0.2)
-                              : const Color(0xFF006D56).withOpacity(0.25),
+                              ? Colors.white.withValues(alpha: 0.2)
+                              : const Color(0xFF006D56).withValues(alpha: 0.25),
                         ),
                       ),
                       child: Center(
@@ -546,7 +546,7 @@ class _HomeHeader extends StatelessWidget {
                               showBalance
                                   ? Icons.visibility_off_outlined
                                   : Icons.visibility_outlined,
-                              color: Colors.white.withOpacity(0.85),
+                              color: Colors.white.withValues(alpha: 0.85),
                               size: 16,
                             ),
                           ),
@@ -633,7 +633,7 @@ class _MonPeyaMiniCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: isDark
-                  ? Colors.white.withOpacity(0.08)
+                  ? Colors.white.withValues(alpha: 0.08)
                   : const Color(0xFFEEEEEE),
             ),
           ),
@@ -662,7 +662,7 @@ class _MonPeyaMiniCard extends StatelessWidget {
                       'Paramètres, profil & préférences',
                       style: TextStyle(
                         fontSize: 10,
-                        color: cs.onSurface.withOpacity(0.5),
+                        color: cs.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                   ],
@@ -670,7 +670,7 @@ class _MonPeyaMiniCard extends StatelessWidget {
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: cs.onSurface.withOpacity(0.4),
+                color: cs.onSurface.withValues(alpha: 0.4),
               ),
             ],
           ),
@@ -719,7 +719,7 @@ class _SectionHeader extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF006D56).withOpacity(0.8),
+                color: const Color(0xFF006D56).withValues(alpha: 0.8),
               ),
             ),
           ),
@@ -802,7 +802,7 @@ class _HorizontalNewsCarouselState extends State<_HorizontalNewsCarousel> {
               physics: const BouncingScrollPhysics(),
               clipBehavior: Clip.none,
               itemCount: _items.length,
-              separatorBuilder: (_, __) => const SizedBox(width: cardGap),
+              separatorBuilder: (_, _) => const SizedBox(width: cardGap),
               itemBuilder: (context, index) {
                 final item = _items[index];
                 return SizedBox(
@@ -815,7 +815,7 @@ class _HorizontalNewsCarouselState extends State<_HorizontalNewsCarousel> {
                         Image.asset(
                           item.imageAsset,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                          errorBuilder: (_, _, _) => Container(
                             color: item.color,
                           ),
                         ),
@@ -823,8 +823,8 @@ class _HorizontalNewsCarouselState extends State<_HorizontalNewsCarousel> {
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                item.color.withOpacity(0.15),
-                                item.color.withOpacity(0.85),
+                                item.color.withValues(alpha: 0.15),
+                                item.color.withValues(alpha: 0.85),
                               ],
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
@@ -842,7 +842,7 @@ class _HorizontalNewsCarouselState extends State<_HorizontalNewsCarousel> {
                                   vertical: 3,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.25),
+                                  color: Colors.white.withValues(alpha: 0.25),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
@@ -873,7 +873,7 @@ class _HorizontalNewsCarouselState extends State<_HorizontalNewsCarousel> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.white.withValues(alpha: 0.8),
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -902,7 +902,7 @@ class _HorizontalNewsCarouselState extends State<_HorizontalNewsCarousel> {
               decoration: BoxDecoration(
                 color: i == _activeIndex
                     ? const Color(0xFF006D56)
-                    : const Color(0xFF006D56).withOpacity(0.25),
+                    : const Color(0xFF006D56).withValues(alpha: 0.25),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -990,7 +990,7 @@ class _ServiceTile extends StatelessWidget {
         height: iconBoxHeight,
         decoration: BoxDecoration(
           color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withOpacity(0.08)
+              ? Colors.white.withValues(alpha: 0.08)
               : const Color(0xFFEEEEEE),
           borderRadius: BorderRadius.circular(16),
         ),

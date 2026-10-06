@@ -455,7 +455,7 @@ class _LeadwayLifeSubscriptionScreenState extends State<LeadwayLifeSubscriptionS
           ],
         ),
         DropdownButtonFormField<String>(
-          value: relValue,
+          initialValue: relValue,
           decoration: _dropdownDecoration('Lien de parenté *'),
           items: _relationships
               .map((e) => DropdownMenuItem(

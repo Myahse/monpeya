@@ -249,7 +249,7 @@ class _PropertyImage extends StatelessWidget {
       url!,
       fit: BoxFit.cover,
       width: double.infinity,
-      errorBuilder: (_, __, ___) => ColoredBox(
+      errorBuilder: (_, _, _) => ColoredBox(
         color: b.searchFill,
         child: const Center(
           child: Icon(Icons.broken_image_outlined, size: 24, color: RentalTheme.green),

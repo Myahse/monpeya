@@ -440,7 +440,7 @@ class _BrandBadge extends StatelessWidget {
         height: compact ? 26 : 35,
         width: compact ? 48 : 65,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Text('VISA', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1F71))),
+        errorBuilder: (_, _, _) => const Text('VISA', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1F71))),
       );
     }
     if (cardType == 'MASTERCARD') {
@@ -450,7 +450,7 @@ class _BrandBadge extends StatelessWidget {
         height: compact ? 26 : 35,
         width: compact ? 48 : 65,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Text('MC', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFEB001B))),
+        errorBuilder: (_, _, _) => const Text('MC', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFEB001B))),
       );
     }
     return Text(

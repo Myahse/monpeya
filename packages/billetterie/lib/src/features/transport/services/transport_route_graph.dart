@@ -145,8 +145,8 @@ abstract final class TransportRouteGraph {
     final b = toPoint ?? TransportCities.coordinates[to];
     if (a == null || b == null) {
       return [
-        if (a != null) a,
-        if (b != null) b,
+        ?a,
+        ?b,
       ];
     }
 

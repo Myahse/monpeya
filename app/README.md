@@ -242,13 +242,24 @@ flutter run -d <device_id>
 ### Run tests
 
 ```bash
+flutter analyze --no-fatal-infos
 flutter test
 ```
 
+CI (`.github/workflows/ci.yml`) runs both for the app and every package, and
+fails if an API key is committed.
+
 ### Build release
+
+Android release signing reads `android/key.properties` (git-ignored). Copy
+`android/key.properties.example`, point it at your upload keystore, and keep
+both out of git. Without it the build falls back to the debug key, which the
+Play Store rejects. Release builds also refuse plain-HTTP traffic, so
+`config/env.json` must use `https://` / `wss://` hosts.
 
 ```bash
 # Android
+flutter build appbundle --release --dart-define-from-file=config/env.json
 flutter build apk --release
 flutter build appbundle --release
 

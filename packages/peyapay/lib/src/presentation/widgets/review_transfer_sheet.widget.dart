@@ -84,7 +84,7 @@ class _PeyapayReviewTransferSheet extends StatefulWidget {
 
 class _PeyapayReviewTransferSheetState extends State<_PeyapayReviewTransferSheet>
     with SingleTickerProviderStateMixin {
-  bool _loading = false;
+  final bool _loading = false;
   bool _successShown = false;
 
   late final AnimationController _anim;

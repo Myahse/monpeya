@@ -174,7 +174,7 @@ class RentalHomeListingsSkeleton extends StatelessWidget {
                     horizontal: RentalTheme.spacingLg,
                   ),
                   itemCount: 3,
-                  itemBuilder: (_, __) => RentalPropertyCardSkeleton(
+                  itemBuilder: (_, _) => RentalPropertyCardSkeleton(
                     size: 192,
                     color: shade(bone),
                     soft: shade(soft),

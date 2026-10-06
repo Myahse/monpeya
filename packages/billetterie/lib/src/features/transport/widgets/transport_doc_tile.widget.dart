@@ -148,7 +148,7 @@ class _PreviewSurface extends StatelessWidget {
           Image.file(
             File(path!),
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _Placeholder(
+            errorBuilder: (_, _, _) => _Placeholder(
               brand: brand,
               icon: Icons.broken_image_outlined,
               label: 'Aperçu indisponible',
@@ -257,7 +257,7 @@ class TransportDocPreviewScreen extends StatelessWidget {
           child: Image.file(
             File(path),
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(
+            errorBuilder: (_, _, _) => const Icon(
               Icons.broken_image_outlined,
               color: Colors.white54,
               size: 64,

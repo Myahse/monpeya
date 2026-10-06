@@ -808,7 +808,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
           title: '1. Produit et formule',
           children: [
             DropdownButtonFormField<String>(
-              value: products.any((p) => p.code == _produit)
+              initialValue: products.any((p) => p.code == _produit)
                   ? _produit
                   : (products.isNotEmpty ? products.first.code : _produit),
               decoration: const InputDecoration(labelText: 'Produit'),
@@ -839,7 +839,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
               )
             else
               DropdownButtonFormField<String>(
-                value: formuleOptions.any((o) => o.value == _formule) ? _formule : formuleOptions.first.value,
+                initialValue: formuleOptions.any((o) => o.value == _formule) ? _formule : formuleOptions.first.value,
                 decoration: InputDecoration(labelText: _isMotoAuto ? 'Formule' : 'Variante'),
                 items: formuleOptions
                     .map(
@@ -863,7 +863,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
             if (_isMotoAuto) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
-                value: _nombrePeriodes,
+                initialValue: _nombrePeriodes,
                 decoration: const InputDecoration(labelText: 'Nombre de périodes'),
                 items: List.generate(
                   12,

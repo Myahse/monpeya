@@ -144,7 +144,7 @@ class PeyapayCarteApiService {
     } on PeyapayApiException {
       rethrow;
     } on TimeoutException {
-      throw PeyapayApiException(message: 'Le serveur Mon Peya ne répond pas (${_baseUrl})');
+      throw PeyapayApiException(message: 'Le serveur Mon Peya ne répond pas ($_baseUrl)');
     } on SocketException {
       throw PeyapayApiException(
         message: 'Impossible de joindre Mon Peya ($_baseUrl). Vérifiez le backend.',

@@ -64,7 +64,7 @@ class SimMyCardsView extends StatelessWidget {
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                       itemCount: cards.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 20),
+                      separatorBuilder: (_, _) => const SizedBox(height: 20),
                       itemBuilder: (context, index) {
                         final card = cards[index];
                         return _SavedCardTile(

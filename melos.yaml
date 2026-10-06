@@ -1,5 +1,5 @@
 name: mon_peya_mobile
-repository: https://github.com/djogana/mon-peya
+repository: https://github.com/Myahse/monpeya
 
 packages:
   - app

@@ -393,7 +393,7 @@ class _Logo extends StatelessWidget {
               width: 44,
               height: 44,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => _placeholder(context, item.name),
+              errorBuilder: (_, _, _) => _placeholder(context, item.name),
             )
           : _placeholder(context, item.name),
     );
@@ -606,7 +606,7 @@ class _BankPickerSheet extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: banks.length,
-            separatorBuilder: (_, __) => Divider(height: 1, color: cs.outlineVariant),
+            separatorBuilder: (_, _) => Divider(height: 1, color: cs.outlineVariant),
             itemBuilder: (_, i) {
               final bank = banks[i];
               return ListTile(

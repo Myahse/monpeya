@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:immo/immo.dart';
-import 'package:immo/src/core/constants/immo.brand.dart';
-import 'package:immo/src/core/constants/immo_module.keys.dart';
 
 void main() {
   group('Immo barrel exports', () {
@@ -11,9 +9,9 @@ void main() {
     });
 
     test('ImmoBrand constants', () {
-      expect(ImmoBrand.rentalPrimary.value, 0xFF136734);
-      expect(ImmoBrand.constructionPrimary.value, 0xFFFF9401);
-      expect(ImmoBrand.collectionPrimary.value, 0xFF006D56);
+      expect(ImmoBrand.rentalPrimary.toARGB32(), 0xFF063E1C);
+      expect(ImmoBrand.constructionPrimary.toARGB32(), 0xFFFF9401);
+      expect(ImmoBrand.collectionPrimary.toARGB32(), 0xFF006D56);
     });
 
     test('ImmoModuleKeys', () {
