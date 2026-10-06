@@ -102,13 +102,9 @@ class _NteriBubbleState extends State<NteriBubble> with SingleTickerProviderStat
     );
   }
 
-  /// Height reserved under the default spot so the bubble never covers a
-  /// module's bottom bar or primary button.
-  static const double _bottomBarClearance = 96;
-
   Offset _defaultPosition(BuildContext context) {
     final bounds = _bounds(context);
-    return Offset(bounds.right, bounds.bottom - _bottomBarClearance);
+    return Offset(bounds.right, bounds.bottom);
   }
 
   Offset _clamp(Offset position, BuildContext context) {
