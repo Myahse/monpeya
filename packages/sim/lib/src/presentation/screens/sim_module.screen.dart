@@ -98,15 +98,13 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
     });
   }
 
-  Future<void> _persistActiveCard() async {
-    final id = _souscriptionId;
-    final police = _numeroPolice?.trim();
-    if (id == null || id.isEmpty || police == null || police.isEmpty) return;
-
-    final record = SimAssuranceCardRecord(
-      id: id,
-      souscriptionId: id,
-      numeroPolice: police,
+  /// The policy being subscribed, as a card record.
+  SimAssuranceCardRecord _activeRecord({String? id, String? police}) {
+    final sid = id ?? _souscriptionId ?? '';
+    return SimAssuranceCardRecord(
+      id: sid,
+      souscriptionId: sid,
+      numeroPolice: police ?? _numeroPolice?.trim() ?? '',
       productCode: _produit,
       productLabel: _productLabel,
       dateDebut: _dateDebut ?? '',
@@ -117,6 +115,14 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
       cartePngBase64: _cartePng != null ? base64Encode(_cartePng!) : null,
       savedAt: DateTime.now().toUtc().toIso8601String(),
     );
+  }
+
+  Future<void> _persistActiveCard() async {
+    final id = _souscriptionId;
+    final police = _numeroPolice?.trim();
+    if (id == null || id.isEmpty || police == null || police.isEmpty) return;
+
+    final record = _activeRecord(id: id, police: police);
     await SimAssuranceCardStore.upsert(record);
     await _loadSavedCards();
   }
@@ -994,11 +1000,22 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
         SimRise(
           delay: const Duration(milliseconds: 500),
           offset: const Offset(0, 40),
-          child: _ActivePolicyCard(
-            product: '$_productLabel · $_formuleLabel',
-            police: _numeroPolice ?? '—',
-            holder: '${_prenomCtrl.text.trim()} ${_nomCtrl.text.trim()}'.trim(),
-            until: _dateFin ?? '—',
+          child: Column(
+            children: [
+              SimAssuranceCardFlip(record: _activeRecord()),
+              const SizedBox(height: 10),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.threesixty_rounded, size: 16, color: SimBrand.muted),
+                  SizedBox(width: 6),
+                  Text(
+                    'Touchez ou glissez pour retourner la carte',
+                    style: TextStyle(fontSize: 12.5, color: SimBrand.muted, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 18),
@@ -1017,11 +1034,6 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
           const Text(
             'Carte de prise en charge',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.memory(_cartePng!, fit: BoxFit.contain),
           ),
           const SizedBox(height: 12),
           Row(
@@ -1198,106 +1210,6 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
           amountLabel: _amountLabel,
           amount: _amountText,
           footnote: _step == 3 ? null : 'Payé avec\nPeya Pay',
-        ),
-      ),
-    );
-  }
-}
-
-/// Digital insurance card shown once the policy is active.
-class _ActivePolicyCard extends StatelessWidget {
-  const _ActivePolicyCard({
-    required this.product,
-    required this.police,
-    required this.holder,
-    required this.until,
-  });
-
-  final String product;
-  final String police;
-  final String holder;
-  final String until;
-
-  @override
-  Widget build(BuildContext context) {
-    TextStyle small() => TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: .75));
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: SimShine(
-        child: Container(
-          height: 210,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: SimBrand.primary,
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                right: -30,
-                bottom: -40,
-                child: Icon(Icons.shield_outlined, size: 170, color: Colors.white.withValues(alpha: .1)),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const SimLogoBadge(height: 28),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: .18),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text('Active', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(product.toUpperCase(), style: small().copyWith(letterSpacing: .5)),
-                      const SizedBox(height: 2),
-                      Text(
-                        police,
-                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 1.2),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Assuré', style: small()),
-                            Text(
-                              holder.isEmpty ? '—' : holder,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Valide jusqu’au', style: small()),
-                            Text(until, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
         ),
       ),
     );

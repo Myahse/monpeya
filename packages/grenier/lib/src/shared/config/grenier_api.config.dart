@@ -1,13 +1,6 @@
 import 'package:grenier/src/shared/config/grenier_env.registry.dart';
 
 abstract final class GrenierApiConfig {
-  /// Mon Grenier endpoint that creates an account from Mon Peya details.
-  /// Confirm with the Mon Grenier team; override with GRENIER_REGISTER_PATH.
-  static const registerPath = String.fromEnvironment(
-    'GRENIER_REGISTER_PATH',
-    defaultValue: '/api/comptes',
-  );
-
   static const _defineBaseUrl = String.fromEnvironment(
     'GRENIER_API_URL',
     defaultValue: 'http://10.0.2.2:8083',

@@ -267,67 +267,6 @@ class _CheckPainter extends CustomPainter {
   bool shouldRepaint(_CheckPainter old) => old.progress != progress;
 }
 
-/// A soft light band sweeping across its child every few seconds.
-class SimShine extends StatefulWidget {
-  const SimShine({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  State<SimShine> createState() => _SimShineState();
-}
-
-class _SimShineState extends State<SimShine> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 3200),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _c.stop();
-    } else if (!_c.isAnimating) {
-      _c.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        widget.child,
-        Positioned.fill(
-          child: IgnorePointer(
-            child: LayoutBuilder(
-              builder: (context, box) => AnimatedBuilder(
-                animation: _c,
-                builder: (context, _) {
-                  final p = (_c.value / 0.6).clamp(0.0, 1.0);
-                  return Transform.translate(
-                    offset: Offset(-box.maxWidth * 0.5 + box.maxWidth * 1.7 * p, 0),
-                    child: Transform(
-                      transform: Matrix4.skewX(-0.3),
-                      child: Container(width: box.maxWidth * 0.3, color: Colors.white.withValues(alpha: 0.14)),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 // ── Brand ──────────────────────────────────────────────────────────────────
 
 /// SIM logo when provided, else the name in a white badge.
