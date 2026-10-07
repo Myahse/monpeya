@@ -741,19 +741,7 @@ class _ActionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [b.primary, Color.lerp(b.primary, Colors.black, 0.25)!],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(action.icon, color: Colors.white, size: 20),
-            ),
+            Icon(action.icon, color: b.primary, size: 28),
             const Spacer(),
             Text(
               action.title,

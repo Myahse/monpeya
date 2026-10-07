@@ -14,8 +14,9 @@ abstract final class ImmoBrand {
   static const constructionPrimary = Color(0xFFFF9401);
   static const constructionDark = Color(0xFFEA580C);
 
-  static const collectionPrimary = Color(0xFF006D56);
-  static const collectionDark = Color(0xFF08421F);
+  /// Collection blue — matches the Mr Immo Collection logo.
+  static const collectionPrimary = Color(0xFF035F7B);
+  static const collectionDark = Color(0xFF024459);
 
   /// Service typeface — Urbanist across Mr Immo Location.
   static String get fontFamily => GoogleFonts.urbanist().fontFamily!;

@@ -11,7 +11,7 @@ void main() {
     test('ImmoBrand constants', () {
       expect(ImmoBrand.rentalPrimary.toARGB32(), 0xFF063E1C);
       expect(ImmoBrand.constructionPrimary.toARGB32(), 0xFFFF9401);
-      expect(ImmoBrand.collectionPrimary.toARGB32(), 0xFF006D56);
+      expect(ImmoBrand.collectionPrimary.toARGB32(), 0xFF035F7B);
     });
 
     test('ImmoModuleKeys', () {
