@@ -40,7 +40,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return ImmoHeaderPage(
       eyebrow: 'Mr Immo Collection',
-      title: name.isEmpty ? 'Bonjour 👋' : 'Bonjour, $name',
+      title: name.isEmpty ? 'Bonjour' : 'Bonjour, $name',
       subtitle: 'Gestion locative & recouvrement',
       trailing: const Icon(Icons.apartment_rounded, color: Colors.white, size: 30),
       body: FutureBuilder(

@@ -128,7 +128,7 @@ class LeadwayApiService {
     } catch (e) {
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
+        leadwayLog('[LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
         return _simulateCalculatePremium(url, request);
       }
       rethrow;
@@ -184,7 +184,7 @@ class LeadwayApiService {
     } catch (e) {
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
+        leadwayLog('[LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
         return _simulateCreateQuote(url, request);
       }
       rethrow;
@@ -241,7 +241,7 @@ class LeadwayApiService {
     } catch (e) {
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
+        leadwayLog('[LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
         return _simulateInitPayment(url, request);
       }
       rethrow;
@@ -297,7 +297,7 @@ class LeadwayApiService {
     } catch (e) {
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
+        leadwayLog('[LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
         return _simulateConfirmPayment(url, request);
       }
       rethrow;
@@ -357,7 +357,7 @@ class LeadwayApiService {
     } catch (e) {
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
+        leadwayLog('[LeadwayApiService] Connection failed: $e. Falling back to realistic simulation...');
         return _simulateCheckPaymentStatus(url, request);
       }
       rethrow;
@@ -411,7 +411,7 @@ class LeadwayApiService {
       if (e is LeadwayApiException) rethrow;
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayApiService] PDF download failed: $e. Falling back to simulation...');
+        leadwayLog('[LeadwayApiService] PDF download failed: $e. Falling back to simulation...');
         return _simulateDownloadPdf(url, label, policyNo);
       }
       rethrow;

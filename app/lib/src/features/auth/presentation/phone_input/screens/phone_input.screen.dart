@@ -23,10 +23,10 @@ class PhoneInputScreen extends StatefulWidget {
 
 class _PhoneInputScreenState extends State<PhoneInputScreen> {
   static const _countries = <({String code, String flag, String name})>[
-    (code: '+225', flag: '🇨🇮', name: "Côte d'Ivoire"),
-    (code: '+33', flag: '🇫🇷', name: 'France'),
-    (code: '+1', flag: '🇺🇸', name: 'USA'),
-    (code: '+44', flag: '🇬🇧', name: 'UK'),
+    (code: '+225', flag: 'CI', name: "Côte d'Ivoire"),
+    (code: '+33', flag: 'FR', name: 'France'),
+    (code: '+1', flag: 'US', name: 'USA'),
+    (code: '+44', flag: 'GB', name: 'UK'),
   ];
 
   final _controller = TextEditingController();
@@ -89,7 +89,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         child: Row(
                           children: [
-                            Text(c.flag, style: const TextStyle(fontSize: 18)),
+                            Text(c.flag, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
                             const SizedBox(width: 10),
                             SizedBox(
                               width: 56,
@@ -293,7 +293,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(_country.flag, style: const TextStyle(fontSize: 18)),
+                          Text(_country.flag, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
                           const SizedBox(width: 8),
                           Text(
                             _country.code,

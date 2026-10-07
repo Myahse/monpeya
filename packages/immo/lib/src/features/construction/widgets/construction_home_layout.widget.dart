@@ -31,7 +31,7 @@ class ConstructionHomeLayout extends StatelessWidget {
 
     return ImmoHeaderPage(
       eyebrow: 'Mr Immo Construction',
-      title: name.isEmpty ? 'Bonjour 👋' : 'Bonjour, $name',
+      title: name.isEmpty ? 'Bonjour' : 'Bonjour, $name',
       subtitle: role == ConstructionRole.supplier
           ? 'Vos commandes et livraisons'
           : 'Vos chantiers en un coup d’œil',

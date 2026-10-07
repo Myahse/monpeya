@@ -166,7 +166,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           physics: const AlwaysScrollableScrollPhysics(),
                           children: [
                             const SizedBox(height: 80),
-                            const Center(child: Text('💬', style: TextStyle(fontSize: 64))),
+                            Center(child: Icon(Icons.chat_bubble_outline_rounded, size: 64, color: b.muted)),
                             const SizedBox(height: RentalTheme.spacingMd),
                             Center(
                               child: Text(
@@ -286,7 +286,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                   IconButton(
                     onPressed: () => setState(() => _messages = const []),
-                    icon: const Text('🗑️', style: TextStyle(fontSize: 20)),
+                    icon: Icon(Icons.delete_outline_rounded, color: b.muted),
                   ),
                 ],
               ),

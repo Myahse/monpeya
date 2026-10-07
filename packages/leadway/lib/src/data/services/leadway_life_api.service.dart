@@ -87,7 +87,7 @@ class LeadwayLifeApiService {
     } catch (e) {
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayLifeApi] enums failed: $e — fallback simulation');
+        leadwayLog('[LeadwayLifeApi] enums failed: $e — fallback simulation');
         return _simulateEnums(path);
       }
       rethrow;
@@ -146,7 +146,7 @@ class LeadwayLifeApiService {
       if (e is LeadwayApiException) rethrow;
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayLifeApi] cotation failed: $e — fallback simulation');
+        leadwayLog('[LeadwayLifeApi] cotation failed: $e — fallback simulation');
         return _simulateCotation(url, request);
       }
       rethrow;
@@ -206,7 +206,7 @@ class LeadwayLifeApiService {
       if (e is LeadwayApiException) rethrow;
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayLifeApi] souscription failed: $e — fallback simulation');
+        leadwayLog('[LeadwayLifeApi] souscription failed: $e — fallback simulation');
         return _simulateSubscription(url, request);
       }
       rethrow;
@@ -267,7 +267,7 @@ class LeadwayLifeApiService {
       if (e is LeadwayApiException) rethrow;
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayLifeApi] paiement failed: $e — fallback simulation');
+        leadwayLog('[LeadwayLifeApi] paiement failed: $e — fallback simulation');
         return _simulateLifePayment(url, subscriptionRef, request);
       }
       rethrow;
@@ -325,7 +325,7 @@ class LeadwayLifeApiService {
       if (e is LeadwayApiException) rethrow;
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayLifeApi] check-paiement failed: $e — fallback simulation');
+        leadwayLog('[LeadwayLifeApi] check-paiement failed: $e — fallback simulation');
         return _simulateLifeCheckPayment(url, request);
       }
       rethrow;
@@ -369,7 +369,7 @@ class LeadwayLifeApiService {
       if (e is LeadwayApiException) rethrow;
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayLifeApi] listSubscriptions failed: $e — fallback simulation');
+        leadwayLog('[LeadwayLifeApi] listSubscriptions failed: $e — fallback simulation');
         return _simulateListSubscriptions(uri.toString(), customerId, status, page, size);
       }
       rethrow;
@@ -401,7 +401,7 @@ class LeadwayLifeApiService {
       if (e is LeadwayApiException) rethrow;
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayLifeApi] getSubscription failed: $e — fallback simulation');
+        leadwayLog('[LeadwayLifeApi] getSubscription failed: $e — fallback simulation');
         return _simulateGetSubscription(url, reference);
       }
       rethrow;
@@ -433,7 +433,7 @@ class LeadwayLifeApiService {
       if (e is LeadwayApiException) rethrow;
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayLifeApi] getIssueStatus failed: $e — fallback simulation');
+        leadwayLog('[LeadwayLifeApi] getIssueStatus failed: $e — fallback simulation');
         return _simulateIssueStatus(url, reference);
       }
       rethrow;
@@ -485,7 +485,7 @@ class LeadwayLifeApiService {
       if (e is LeadwayApiException) rethrow;
       if (isLeadwayNetworkError(e)) {
         if (!kDebugMode) throw LeadwayApiException.unreachable;
-        leadwayLog('⚠️ [LeadwayLifeApi] listRecurringPayments failed: $e — fallback simulation');
+        leadwayLog('[LeadwayLifeApi] listRecurringPayments failed: $e — fallback simulation');
         return _simulateRecurringPayments(uri.toString(), page, size, customerId, status);
       }
       rethrow;
@@ -516,7 +516,7 @@ class LeadwayLifeApiService {
     }
 
     leadwayLog(
-      '⚠️ [LeadwayLifeApi] data.premium.gross.amount == 0 — '
+      '[LeadwayLifeApi] data.premium.gross.amount == 0 — '
       'fallback tierInputAmount=${request.tierInputAmount}',
     );
     return result.withTierInputAmountFallback(request.tierInputAmount);

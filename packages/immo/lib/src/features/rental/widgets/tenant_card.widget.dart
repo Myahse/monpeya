@@ -139,7 +139,7 @@ class RentalTenantCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              '📱 ${tenant.phone}',
+                              tenant.phone,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(fontSize: 9, color: b.muted),

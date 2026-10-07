@@ -293,7 +293,7 @@ class _PaymentsEmptyState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 60),
       child: Column(
         children: [
-          const Text('💳', style: TextStyle(fontSize: 64)),
+          Icon(Icons.credit_card_rounded, size: 64, color: RentalTheme.of(context).muted),
           const SizedBox(height: RentalTheme.spacingMd),
           Text(
             'Aucun paiement',

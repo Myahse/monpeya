@@ -8,7 +8,7 @@ import 'package:immo/src/features/rental/models/create_listing.draft.dart';
 import 'package:immo/src/features/rental/creation/theme/themes/creation.theme.dart';
 import 'package:immo/src/features/rental/creation/widgets/creation_shell.widget.dart';
 
-typedef _Amenity = ({String id, String label, String emoji});
+typedef _Amenity = ({String id, String label, IconData icon});
 
 /// 7-step create listing — mirrors rental-app steps 1–7.
 class CreateListingWizard extends StatefulWidget {
@@ -42,42 +42,42 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
       'Commençons par l\'essentiel.',
       'Les besoins de base pour vos locataires.',
       [
-        (id: 'wifi', label: 'WiFi', emoji: '📶'),
-        (id: 'tv', label: 'TV', emoji: '📺'),
-        (id: 'kitchen', label: 'Cuisine', emoji: '🍳'),
-        (id: 'washer', label: 'Lave-linge', emoji: '🧺'),
-        (id: 'ac', label: 'Climatisation', emoji: '❄️'),
-        (id: 'heating', label: 'Chauffage', emoji: '🔥'),
-        (id: 'parking', label: 'Parking', emoji: '🚗'),
-        (id: 'elevator', label: 'Ascenseur', emoji: '🛗'),
-        (id: 'gym', label: 'Salle de sport', emoji: '💪'),
+        (id: 'wifi', label: 'WiFi', icon: Icons.wifi_rounded),
+        (id: 'tv', label: 'TV', icon: Icons.tv_rounded),
+        (id: 'kitchen', label: 'Cuisine', icon: Icons.kitchen_rounded),
+        (id: 'washer', label: 'Lave-linge', icon: Icons.local_laundry_service_rounded),
+        (id: 'ac', label: 'Climatisation', icon: Icons.ac_unit_rounded),
+        (id: 'heating', label: 'Chauffage', icon: Icons.local_fire_department_rounded),
+        (id: 'parking', label: 'Parking', icon: Icons.local_parking_rounded),
+        (id: 'elevator', label: 'Ascenseur', icon: Icons.elevator_rounded),
+        (id: 'gym', label: 'Salle de sport', icon: Icons.fitness_center_rounded),
       ],
     ),
     (
       'Ce qui fait la différence.',
       'Les équipements qui se démarquent.',
       [
-        (id: 'pool', label: 'Piscine', emoji: '🏊'),
-        (id: 'hot_tub', label: 'Jacuzzi', emoji: '🛁'),
-        (id: 'pool_table', label: 'Billard', emoji: '🎱'),
-        (id: 'piano', label: 'Piano', emoji: '🎹'),
-        (id: 'fireplace', label: 'Cheminée', emoji: '🔥'),
-        (id: 'balcony', label: 'Balcon', emoji: '🌅'),
-        (id: 'garden', label: 'Jardin', emoji: '🌷'),
-        (id: 'bbq', label: 'Barbecue', emoji: '🍖'),
-        (id: 'workspace', label: 'Bureau', emoji: '💻'),
+        (id: 'pool', label: 'Piscine', icon: Icons.pool_rounded),
+        (id: 'hot_tub', label: 'Jacuzzi', icon: Icons.hot_tub_rounded),
+        (id: 'pool_table', label: 'Billard', icon: Icons.sports_bar_rounded),
+        (id: 'piano', label: 'Piano', icon: Icons.piano_rounded),
+        (id: 'fireplace', label: 'Cheminée', icon: Icons.fireplace_rounded),
+        (id: 'balcony', label: 'Balcon', icon: Icons.balcony_rounded),
+        (id: 'garden', label: 'Jardin', icon: Icons.yard_rounded),
+        (id: 'bbq', label: 'Barbecue', icon: Icons.outdoor_grill_rounded),
+        (id: 'workspace', label: 'Bureau', icon: Icons.laptop_rounded),
       ],
     ),
     (
       'La sécurité.',
       'Équipements de sécurité importants.',
       [
-        (id: 'smoke_detector', label: 'Détecteur fumée', emoji: '🚨'),
-        (id: 'carbon_monoxide_detector', label: 'Détecteur CO', emoji: '⚠️'),
-        (id: 'fire_extinguisher', label: 'Extincteur', emoji: '🧯'),
-        (id: 'first_aid_kit', label: 'Trousse secours', emoji: '🏥'),
-        (id: 'security_camera', label: 'Caméra', emoji: '📹'),
-        (id: 'lockbox', label: 'Coffre à clés', emoji: '🔒'),
+        (id: 'smoke_detector', label: 'Détecteur fumée', icon: Icons.sensors_rounded),
+        (id: 'carbon_monoxide_detector', label: 'Détecteur CO', icon: Icons.warning_amber_rounded),
+        (id: 'fire_extinguisher', label: 'Extincteur', icon: Icons.fire_extinguisher_rounded),
+        (id: 'first_aid_kit', label: 'Trousse secours', icon: Icons.medical_services_rounded),
+        (id: 'security_camera', label: 'Caméra', icon: Icons.videocam_rounded),
+        (id: 'lockbox', label: 'Coffre à clés', icon: Icons.lock_rounded),
       ],
     ),
   ];
@@ -503,7 +503,7 @@ class _CreateListingWizardState extends State<CreateListingWizard> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Text(a.emoji, style: const TextStyle(fontSize: 24)),
+                Icon(a.icon, size: 24, color: theme.textPrimary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
