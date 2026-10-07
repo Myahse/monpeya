@@ -406,7 +406,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                                 color: chrome.text,
                                 fontWeight: FontWeight.w500,
                                 fontSize: 24,
-                                fontFamily: 'serif',
+                                fontFamily: 'Urbanist',
                               ),
                               children: [
                                 const TextSpan(text: 'Programme '),
@@ -781,7 +781,7 @@ class _SummaryCard extends StatelessWidget {
                           color: chrome.text,
                           fontWeight: FontWeight.w600,
                           fontSize: 22,
-                          fontFamily: 'serif',
+                          fontFamily: 'Urbanist',
                           fontStyle: FontStyle.italic,
                           height: 1.15,
                         ),

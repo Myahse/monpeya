@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'package:immo/src/core/constants/immo.brand.dart';
@@ -224,12 +223,14 @@ class _MapScreenState extends State<MapScreen>
     }
 
     try {
-      final itemsFuture = (session.isBusiness &&
+      final itemsFuture =
+          (session.isBusiness &&
               !session.guestMode &&
               session.userId != null &&
               session.userId!.isNotEmpty)
-          ? session.api.properties
-              .fetchMyProperties(ownerUserId: session.userId)
+          ? session.api.properties.fetchMyProperties(
+              ownerUserId: session.userId,
+            )
           : session.api.properties.fetchAvailableProperties(
               forceRefresh: forceRefresh,
             );
@@ -288,8 +289,9 @@ class _MapScreenState extends State<MapScreen>
       return RentalLocationResult.fail(RentalLocationStatus.denied);
     }
 
-    return RentalLocationService.requestAndGetPosition(forceRefresh: false)
-        .timeout(
+    return RentalLocationService.requestAndGetPosition(
+      forceRefresh: false,
+    ).timeout(
       const Duration(seconds: 2),
       onTimeout: () {
         final again = RentalLocationService.cached;
@@ -347,12 +349,11 @@ class _MapScreenState extends State<MapScreen>
       final short = city.isNotEmpty
           ? city
           : (p.address.trim().isEmpty
-              ? p.title
-              : p.address.split(',').first.trim());
+                ? p.title
+                : p.address.split(',').first.trim());
 
       final type = p.propertyType.trim();
-      final tag =
-          type.isEmpty || type == '—' ? 'BIEN' : type.toUpperCase();
+      final tag = type.isEmpty || type == '—' ? 'BIEN' : type.toUpperCase();
 
       final rating = p.rating > 0 ? p.rating.toStringAsFixed(1) : '—';
 
@@ -398,7 +399,8 @@ class _MapScreenState extends State<MapScreen>
     final q = _searchCtrl.text.trim().toLowerCase();
     return _places.where((p) {
       final type = p.property.propertyType.toLowerCase();
-      final catOk = _category == 'Tous' ||
+      final catOk =
+          _category == 'Tous' ||
           type.contains(_category.toLowerCase()) ||
           p.tag.toLowerCase().contains(_category.toLowerCase());
       if (!catOk) return false;
@@ -456,9 +458,7 @@ class _MapScreenState extends State<MapScreen>
     }
 
     // Longer travels get a slightly longer flight.
-    final flight = meters > 2500
-        ? const Duration(milliseconds: 950)
-        : duration;
+    final flight = meters > 2500 ? const Duration(milliseconds: 950) : duration;
 
     await _runCameraTween(
       begin: begin,
@@ -525,7 +525,8 @@ class _MapScreenState extends State<MapScreen>
     try {
       // Instant feedback from last known point (map marker or service cache).
       final cachedService = RentalLocationService.cached;
-      final instant = _userPoint ??
+      final instant =
+          _userPoint ??
           (cachedService != null
               ? LatLng(cachedService.latitude, cachedService.longitude)
               : null);
@@ -550,8 +551,7 @@ class _MapScreenState extends State<MapScreen>
       );
       // Skip a second flight when GPS barely moved.
       final previous = _userPoint;
-      if (previous == null ||
-          _geo.as(LengthUnit.Meter, previous, fresh) > 25) {
+      if (previous == null || _geo.as(LengthUnit.Meter, previous, fresh) > 25) {
         _recenterCamera(fresh);
       } else {
         setState(() {
@@ -730,8 +730,9 @@ class _MapScreenState extends State<MapScreen>
                               boxShadow: chrome.isLight
                                   ? [
                                       BoxShadow(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.06),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.06,
+                                        ),
                                         blurRadius: 16,
                                         offset: const Offset(0, 4),
                                       ),
@@ -781,9 +782,9 @@ class _MapScreenState extends State<MapScreen>
                                       ),
                                       prefixIconConstraints:
                                           const BoxConstraints(
-                                        minWidth: 32,
-                                        minHeight: 32,
-                                      ),
+                                            minWidth: 32,
+                                            minHeight: 32,
+                                          ),
                                     ),
                                   ),
                                 ),
@@ -795,11 +796,13 @@ class _MapScreenState extends State<MapScreen>
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(
-                                      color:
-                                          chrome.accent.withValues(alpha: 0.7),
+                                      color: chrome.accent.withValues(
+                                        alpha: 0.7,
+                                      ),
                                     ),
-                                    color:
-                                        chrome.accent.withValues(alpha: 0.18),
+                                    color: chrome.accent.withValues(
+                                      alpha: 0.18,
+                                    ),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -834,19 +837,16 @@ class _MapScreenState extends State<MapScreen>
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: _categories.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(width: 8),
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
                           itemBuilder: (context, index) {
                             final cat = _categories[index];
                             final selected = cat.label == _category;
-                            final fg =
-                                selected ? Colors.white : chrome.chipIdleFg;
+                            final fg = selected
+                                ? Colors.white
+                                : chrome.chipIdleFg;
                             return Material(
-                              color: selected
-                                  ? chrome.accent
-                                  : chrome.chipIdle,
-                              elevation:
-                                  chrome.isLight && !selected ? 1 : 0,
+                              color: selected ? chrome.accent : chrome.chipIdle,
+                              elevation: chrome.isLight && !selected ? 1 : 0,
                               shadowColor: Colors.black26,
                               shape: StadiumBorder(
                                 side: BorderSide(
@@ -976,8 +976,7 @@ class _UserSonarMarkerState extends State<_UserSonarMarker>
           child: Stack(
             alignment: Alignment.center,
             children: [
-              for (final phase in const [0.0, 0.45])
-                _sonarRing(t, phase),
+              for (final phase in const [0.0, 0.45]) _sonarRing(t, phase),
               Container(
                 width: 18,
                 height: 18,
@@ -1056,8 +1055,9 @@ class _PhotoMarker extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black
-                      .withValues(alpha: chrome.isLight ? 0.18 : 0.45),
+                  color: Colors.black.withValues(
+                    alpha: chrome.isLight ? 0.18 : 0.45,
+                  ),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -1077,18 +1077,15 @@ class _PhotoMarker extends StatelessWidget {
                       imageUrl!,
                       fit: BoxFit.cover,
                       // Decode near display size — much faster marker paint.
-                      cacheWidth: (54 *
-                              MediaQuery.devicePixelRatioOf(context))
+                      cacheWidth: (54 * MediaQuery.devicePixelRatioOf(context))
                           .round(),
-                      cacheHeight: (54 *
-                              MediaQuery.devicePixelRatioOf(context))
+                      cacheHeight: (54 * MediaQuery.devicePixelRatioOf(context))
                           .round(),
                       errorBuilder: (_, _, _) => ColoredBox(
                         color: chrome.accent.withValues(alpha: 0.3),
                         child: Icon(
                           Icons.home_work_outlined,
-                          color:
-                              chrome.isLight ? chrome.accent : Colors.white,
+                          color: chrome.isLight ? chrome.accent : Colors.white,
                           size: 18,
                         ),
                       ),
@@ -1151,8 +1148,7 @@ class _NearbyFindsSheet extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             color: chrome.panel,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             border: Border.all(color: chrome.panelBorder),
             boxShadow: chrome.isLight
                 ? [
@@ -1180,7 +1176,8 @@ class _NearbyFindsSheet extends StatelessWidget {
                     Expanded(
                       child: Text.rich(
                         TextSpan(
-                          style: GoogleFonts.urbanist(
+                          style: TextStyle(
+                            fontFamily: 'Urbanist',
                             color: chrome.fg,
                             fontWeight: FontWeight.w500,
                             fontSize: 24,
@@ -1189,7 +1186,8 @@ class _NearbyFindsSheet extends StatelessWidget {
                             const TextSpan(text: 'À proximité '),
                             TextSpan(
                               text: 'trouvés',
-                              style: GoogleFonts.urbanist(
+                              style: TextStyle(
+                                fontFamily: 'Urbanist',
                                 color: chrome.accent,
                                 fontStyle: FontStyle.italic,
                                 fontWeight: FontWeight.w600,
@@ -1229,10 +1227,7 @@ class _NearbyFindsSheet extends StatelessWidget {
                           final place = places[index];
                           return GestureDetector(
                             onTap: () => onTap(place),
-                            child: _NearbyCard(
-                              chrome: chrome,
-                              place: place,
-                            ),
+                            child: _NearbyCard(chrome: chrome, place: place),
                           );
                         },
                       ),
@@ -1248,10 +1243,7 @@ class _NearbyFindsSheet extends StatelessWidget {
 }
 
 class _NearbyCard extends StatelessWidget {
-  const _NearbyCard({
-    required this.chrome,
-    required this.place,
-  });
+  const _NearbyCard({required this.chrome, required this.place});
 
   final _MapChrome chrome;
   final _MapPlace place;
@@ -1310,8 +1302,10 @@ class _NearbyCard extends StatelessWidget {
                 top: 10,
                 left: 10,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -1389,7 +1383,8 @@ class _NearbyCard extends StatelessWidget {
                       place.property.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.urbanist(
+                      style: TextStyle(
+                        fontFamily: 'Urbanist',
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
                         fontSize: 18,

@@ -3166,7 +3166,7 @@ class _DownloadStep extends StatelessWidget {
       child: Text(
         regNo.toUpperCase(),
         style: const TextStyle(
-          fontFamily: 'monospace',
+          fontFamily: 'Urbanist',
           fontWeight: FontWeight.bold,
           fontSize: 12,
           color: Color(0xFF333333),
@@ -3999,7 +3999,7 @@ class LeadwayCertificateViewerScreen extends StatelessWidget {
                                       fontWeight: FontWeight.w900,
                                       fontSize: 13,
                                       color: LeadwayBrand.textDark,
-                                      fontFamily: 'monospace',
+                                      fontFamily: 'Urbanist',
                                     ),
                                   ),
                                   const SizedBox(height: 12),
@@ -4652,7 +4652,7 @@ class _SubscriptionsView extends StatelessWidget {
                                                 style: TextStyle(
                                                   fontSize: 11,
                                                   color: Colors.grey[500],
-                                                  fontFamily: 'monospace',
+                                                  fontFamily: 'Urbanist',
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
@@ -4728,7 +4728,7 @@ class _SubscriptionsView extends StatelessWidget {
                                                   color: Color(0xFF374151),
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 11,
-                                                  fontFamily: 'monospace',
+                                                  fontFamily: 'Urbanist',
                                                   letterSpacing: 0.5,
                                                 ),
                                               ),

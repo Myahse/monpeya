@@ -345,7 +345,7 @@ class _LeadwayLifeCotationScreenState extends State<LeadwayLifeCotationScreen> {
                             const SizedBox(height: 4),
                             Text(
                               widget.productCode,
-                              style: TextStyle(fontSize: 12, color: LeadwayBrand.of(context).muted, fontFamily: 'monospace'),
+                              style: TextStyle(fontSize: 12, color: LeadwayBrand.of(context).muted, fontFamily: 'Urbanist'),
                             ),
                             const SizedBox(height: 8),
                             Text(

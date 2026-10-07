@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:immo/src/core/host/immo_host.bridge.dart';
 import 'package:immo/src/shared/auth/immo_module.session.dart';
@@ -34,13 +33,13 @@ class ImmoModuleShell extends StatelessWidget {
     final muted = dark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280);
     final surface = dark ? const Color(0xFF1E1E1E) : Colors.white;
     final base = dark ? ThemeData.dark() : ThemeData.light();
-    final urbanist = GoogleFonts.urbanistTextTheme(base.textTheme);
+    final urbanist = base.textTheme;
 
     return Theme(
       data: ThemeData(
         useMaterial3: true,
         brightness: dark ? Brightness.dark : Brightness.light,
-        fontFamily: GoogleFonts.urbanist().fontFamily,
+        fontFamily: 'Urbanist',
         colorScheme: ColorScheme(
           brightness: dark ? Brightness.dark : Brightness.light,
           primary: primaryColor,
@@ -57,7 +56,7 @@ class ImmoModuleShell extends StatelessWidget {
         textTheme: urbanist.apply(
           bodyColor: text,
           displayColor: text,
-          fontFamily: GoogleFonts.urbanist().fontFamily,
+          fontFamily: 'Urbanist',
         ),
       ),
       child: session.authFailed

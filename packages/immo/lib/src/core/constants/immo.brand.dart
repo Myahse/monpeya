@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Mr Immo module branding — adapts to device light/dark (like Billetterie).
 abstract final class ImmoBrand {
@@ -19,7 +18,7 @@ abstract final class ImmoBrand {
   static const collectionDark = Color(0xFF024459);
 
   /// Service typeface — Urbanist across Mr Immo Location.
-  static String get fontFamily => GoogleFonts.urbanist().fontFamily!;
+  static String get fontFamily => 'Urbanist';
 
   static ImmoRentalPalette rentalOf(BuildContext context) =>
       ImmoRentalPalette.of(context);
@@ -45,8 +44,8 @@ abstract final class ImmoBrand {
       onError: Colors.white,
     );
 
-    final urbanist = GoogleFonts.urbanistTextTheme(base.textTheme);
-    final urbanistPrimary = GoogleFonts.urbanistTextTheme(base.primaryTextTheme);
+    final urbanist = base.textTheme;
+    final urbanistPrimary = base.primaryTextTheme;
 
     return base.copyWith(
       colorScheme: scheme,
@@ -72,52 +71,68 @@ abstract final class ImmoBrand {
         foregroundColor: b.text,
         elevation: 0,
         scrolledUnderElevation: 0,
-        systemOverlayStyle:
-            b.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+        systemOverlayStyle: b.isDark
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
         iconTheme: IconThemeData(color: b.text),
-        titleTextStyle: GoogleFonts.urbanist(
+        titleTextStyle: TextStyle(
+          fontFamily: 'Urbanist',
           color: b.text,
           fontWeight: FontWeight.w800,
           fontSize: 18,
         ),
       ),
-      listTileTheme: ListTileThemeData(
-        textColor: b.text,
-        iconColor: b.primary,
-      ),
+      listTileTheme: ListTileThemeData(textColor: b.text, iconColor: b.primary),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: b.primary,
           foregroundColor: Colors.white,
-          textStyle: GoogleFonts.urbanist(fontWeight: FontWeight.w700),
+          textStyle: TextStyle(
+            fontFamily: 'Urbanist',
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: b.primary,
           side: BorderSide(color: b.border),
-          textStyle: GoogleFonts.urbanist(fontWeight: FontWeight.w600),
+          textStyle: TextStyle(
+            fontFamily: 'Urbanist',
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: b.text,
-          textStyle: GoogleFonts.urbanist(fontWeight: FontWeight.w600),
+          textStyle: TextStyle(
+            fontFamily: 'Urbanist',
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(color: b.primary),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: b.primary,
-        contentTextStyle: GoogleFonts.urbanist(color: Colors.white),
+        contentTextStyle: TextStyle(
+          fontFamily: 'Urbanist',
+          color: Colors.white,
+        ),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: b.card,
-        titleTextStyle: GoogleFonts.urbanist(
+        titleTextStyle: TextStyle(
+          fontFamily: 'Urbanist',
           color: b.text,
           fontWeight: FontWeight.w700,
           fontSize: 18,
         ),
-        contentTextStyle: GoogleFonts.urbanist(color: b.muted, fontSize: 14),
+        contentTextStyle: TextStyle(
+          fontFamily: 'Urbanist',
+          color: b.muted,
+          fontSize: 14,
+        ),
       ),
     );
   }
@@ -188,18 +203,18 @@ class ImmoRentalPalette {
   /// Same surfaces and text, with [accent] as primary + header colour.
   /// Lets Construction / Collection reuse the Location layout.
   ImmoRentalPalette withAccent(Color accent) => ImmoRentalPalette(
-        isDark: isDark,
-        primary: accent,
-        primaryDark: accent,
-        bg: bg,
-        card: card,
-        text: text,
-        muted: muted,
-        border: border,
-        searchFill: searchFill,
-        header: accent,
-        danger: danger,
-      );
+    isDark: isDark,
+    primary: accent,
+    primaryDark: accent,
+    bg: bg,
+    card: card,
+    text: text,
+    muted: muted,
+    border: border,
+    searchFill: searchFill,
+    header: accent,
+    danger: danger,
+  );
 
   static bool _isDark(BuildContext context) {
     final platform = MediaQuery.maybePlatformBrightnessOf(context);
@@ -237,10 +252,8 @@ class ImmoRentalTheme extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themed = Builder(
-      builder: (context) => Theme(
-        data: ImmoBrand.rentalModuleTheme(context),
-        child: child,
-      ),
+      builder: (context) =>
+          Theme(data: ImmoBrand.rentalModuleTheme(context), child: child),
     );
     if (accent == null) return themed;
     return ImmoAccentScope(accent: accent!, child: themed);

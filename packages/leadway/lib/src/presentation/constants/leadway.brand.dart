@@ -99,6 +99,7 @@ abstract final class LeadwayBrand {
     final base = ThemeData(
       useMaterial3: true,
       brightness: brightness,
+      fontFamily: 'Urbanist',
     );
     final scheme = ColorScheme(
       brightness: brightness,

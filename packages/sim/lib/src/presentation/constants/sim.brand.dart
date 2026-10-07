@@ -73,7 +73,7 @@ abstract final class SimBrand {
 
   static ThemeData moduleTheme(BuildContext context) {
     final b = of(context);
-    final base = ThemeData(useMaterial3: true, brightness: Brightness.light);
+    final base = ThemeData(useMaterial3: true, brightness: Brightness.light, fontFamily: 'Urbanist');
     return base.copyWith(
       colorScheme: ColorScheme.fromSeed(seedColor: b.primary, brightness: Brightness.light),
       scaffoldBackgroundColor: b.surface,

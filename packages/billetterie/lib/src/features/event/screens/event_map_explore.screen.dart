@@ -904,7 +904,7 @@ class _NearbyFindsSheet extends StatelessWidget {
                             color: chrome.fg,
                             fontWeight: FontWeight.w500,
                             fontSize: 24,
-                            fontFamily: 'serif',
+                            fontFamily: 'Urbanist',
                           ),
                           children: [
                             const TextSpan(text: 'À proximité '),
@@ -1104,7 +1104,7 @@ class _NearbyCard extends StatelessWidget {
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
                         fontSize: 18,
-                        fontFamily: 'serif',
+                        fontFamily: 'Urbanist',
                       ),
                     ),
                   ],

@@ -42,6 +42,7 @@ class _MonPeyaSuperAppState extends State<MonPeyaSuperApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        fontFamily: 'Urbanist',
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF006D56),
           brightness: Brightness.light,
@@ -49,6 +50,7 @@ class _MonPeyaSuperAppState extends State<MonPeyaSuperApp> {
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
+        fontFamily: 'Urbanist',
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF006D56),
           brightness: Brightness.dark,

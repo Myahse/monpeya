@@ -187,7 +187,7 @@ class _DetailRow extends StatelessWidget {
               fontSize: 13,
               fontWeight: FontWeight.w800,
               color: ink,
-              fontFamily: mono ? 'monospace' : null,
+              fontFamily: mono ? 'Urbanist' : null,
             ),
           ),
         ),
