@@ -19,6 +19,7 @@ import 'package:sim/src/data/services/sim_api.service.dart';
 import 'package:sim/src/data/services/sim_carte.service.dart';
 import 'package:sim/src/data/storage/sim_assurance_card.store.dart';
 import 'package:sim/src/presentation/constants/sim.brand.dart';
+import 'package:sim/src/presentation/screens/sim_home.view.dart';
 import 'package:sim/src/presentation/widgets/sim_assurance_card_flip.widget.dart';
 import 'package:sim/src/presentation/widgets/sim_my_cards.view.dart';
 import 'package:sim/src/presentation/widgets/sim_shared_widgets.dart';
@@ -43,6 +44,9 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
   final _uuid = const Uuid();
 
   int _step = 0;
+
+  /// Product choice (SIM home) before the 4 steps.
+  bool _choosing = true;
   bool _loading = false;
   bool _catalogueLoading = true;
 
@@ -255,8 +259,8 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
       setState(() => _step -= 1);
       return;
     }
-    if (_savedCards.isNotEmpty) {
-      setState(() => _viewingMyCards = true);
+    if (!_choosing) {
+      setState(() => _choosing = true);
       return;
     }
     SimHostBridge.exitModule(context);
@@ -765,6 +769,23 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
     };
   }
 
+  String? get _amountLabel => switch (_step) {
+        0 => _devis == null ? 'Prime estimée' : 'Prime à payer',
+        1 || 2 => 'Montant à payer',
+        _ => null,
+      };
+
+  String? get _amountText {
+    if (_step == 3) return null;
+    if (_step == 0 && _devis == null) {
+      final prime = _formuleOptions.where((o) => o.value == _formule).firstOrNull?.prime;
+      if (prime == null || prime <= 0) return null;
+      return _formatAmount(prime * (_isMotoAuto ? _nombrePeriodes : 1));
+    }
+    final amount = _montantAPercevoir ?? _devis?.prime;
+    return amount == null ? null : _formatAmount(amount);
+  }
+
   Widget _buildStepContent() {
     return switch (_step) {
       0 => _buildDevisStep(),
@@ -792,93 +813,57 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
       );
     }
 
-    final products = _activeProducts;
     final formuleOptions = _formuleOptions;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
       children: [
         const SimHeroCard(
           icon: Icons.calculate_outlined,
           title: 'Calcul de prime',
-          subtitle: 'Choisissez le produit et obtenez votre devis SIM Assurances.',
+          subtitle: 'Choisissez votre formule et obtenez votre devis immédiatement.',
         ),
         const SizedBox(height: 16),
-        simCardSection(
-          title: '1. Produit et formule',
-          children: [
-            DropdownButtonFormField<String>(
-              initialValue: products.any((p) => p.code == _produit)
-                  ? _produit
-                  : (products.isNotEmpty ? products.first.code : _produit),
-              decoration: const InputDecoration(labelText: 'Produit'),
-              items: products
-                  .map(
-                    (p) => DropdownMenuItem(
-                      value: p.code,
-                      child: Text(p.libelle.isNotEmpty ? p.libelle : p.code),
-                    ),
-                  )
-                  .toList(),
-              onChanged: products.isEmpty
-                  ? null
-                  : (v) {
-                      if (v == null) return;
-                      setState(() {
-                        _produit = v;
-                        _devis = null;
-                        _syncFormuleForProduct();
-                      });
-                    },
-            ),
-            const SizedBox(height: 12),
-            if (formuleOptions.isEmpty)
-              const Text(
-                'Aucune formule disponible pour ce produit.',
-                style: TextStyle(fontSize: 13, color: SimBrand.textDark),
-              )
-            else
-              DropdownButtonFormField<String>(
-                initialValue: formuleOptions.any((o) => o.value == _formule) ? _formule : formuleOptions.first.value,
-                decoration: InputDecoration(labelText: _isMotoAuto ? 'Formule' : 'Variante'),
-                items: formuleOptions
-                    .map(
-                      (o) => DropdownMenuItem(
-                        value: o.value,
-                        child: Text(
-                          o.prime != null && o.prime! > 0
-                              ? '${o.label} — ${_formatAmount(o.prime!)}'
-                              : o.label,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() {
-                  if (v != null) {
-                    _formule = v;
-                    _devis = null;
-                  }
-                }),
-              ),
-            if (_isMotoAuto) ...[
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: _nombrePeriodes,
-                decoration: const InputDecoration(labelText: 'Nombre de périodes'),
-                items: List.generate(
-                  12,
-                  (i) => DropdownMenuItem(value: i + 1, child: Text('${i + 1}')),
-                ),
-                onChanged: (v) => setState(() {
-                  if (v != null) {
-                    _nombrePeriodes = v;
-                    _devis = null;
-                  }
-                }),
-              ),
-            ],
-          ],
+        const SizedBox(height: 18),
+        Text(
+          _isMotoAuto ? 'Choisissez votre formule' : 'Choisissez votre variante',
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
         ),
+        const SizedBox(height: 12),
+        if (formuleOptions.isEmpty)
+          const Text(
+            'Aucune formule disponible pour ce produit.',
+            style: TextStyle(fontSize: 13, color: SimBrand.muted),
+          )
+        else
+          for (final (i, o) in formuleOptions.indexed)
+            SimRise(
+              delay: Duration(milliseconds: 60 * i),
+              child: SimChoiceCard(
+                selected: o.value == _formule,
+                title: o.label,
+                trailing: o.prime != null && o.prime! > 0 ? _formatAmount(o.prime!) : null,
+                onTap: () => setState(() {
+                  _formule = o.value;
+                  _devis = null;
+                }),
+              ),
+            ),
+        if (_isMotoAuto) ...[
+          const SizedBox(height: 4),
+          SimStepper(
+            title: 'Durée',
+            subtitle: '$_nombrePeriodes période${_nombrePeriodes > 1 ? 's' : ''} de couverture',
+            value: _nombrePeriodes,
+            min: 1,
+            max: 12,
+            onChanged: (v) => setState(() {
+              _nombrePeriodes = v;
+              _devis = null;
+            }),
+          ),
+        ],
+        const SizedBox(height: 14),
         if (_devis != null) ...[
           SimResultCard(
             title: 'Prime à payer',
@@ -900,7 +885,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
 
   Widget _buildSouscriptionStep() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
       children: [
         const SimHeroCard(
           icon: Icons.person_outline,
@@ -921,16 +906,17 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
         simCardSection(
           title: '2. Documents KYC',
           children: [
-            OutlinedButton.icon(
-              onPressed: () => _pickImageSheet(false),
-              icon: const Icon(Icons.badge_outlined),
-              label: Text(_pieceIdentiteName ?? 'Pièce d\'identité'),
+            SimUploadTile(
+              icon: Icons.badge_outlined,
+              label: 'Pièce d\'identité',
+              fileName: _pieceIdentiteName,
+              onTap: () => _pickImageSheet(false),
             ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: () => _pickImageSheet(true),
-              icon: const Icon(Icons.face_outlined),
-              label: Text(_selfieName ?? 'Selfie'),
+            SimUploadTile(
+              icon: Icons.face_outlined,
+              label: 'Selfie',
+              fileName: _selfieName,
+              onTap: () => _pickImageSheet(true),
             ),
           ],
         ),
@@ -949,7 +935,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
   Widget _buildPaymentStep() {
     final amount = _montantAPercevoir ?? _devis?.prime ?? 0;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
       children: [
         const SimHeroCard(
           icon: Icons.account_balance_wallet_outlined,
@@ -986,32 +972,36 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
 
   Widget _buildDocumentsStep() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
       children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: SimBrand.gradient,
-            borderRadius: BorderRadius.circular(20),
-          ),
+        const Center(child: SimCheckBurst()),
+        const SizedBox(height: 16),
+        const SimRise(
+          delay: Duration(milliseconds: 250),
           child: Column(
             children: [
-              const Icon(Icons.verified_user, color: Colors.white, size: 48),
-              const SizedBox(height: 12),
-              const Text(
-                'Assurance active',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 6),
+              Text('Vous êtes assuré', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+              SizedBox(height: 6),
               Text(
-                _numeroPolice ?? '—',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w700),
+                'Votre carte est disponible ici, même hors connexion.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14.5, color: SimBrand.muted),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
+        SimRise(
+          delay: const Duration(milliseconds: 500),
+          offset: const Offset(0, 40),
+          child: _ActivePolicyCard(
+            product: '$_productLabel · $_formuleLabel',
+            police: _numeroPolice ?? '—',
+            holder: '${_prenomCtrl.text.trim()} ${_nomCtrl.text.trim()}'.trim(),
+            until: _dateFin ?? '—',
+          ),
+        ),
+        const SizedBox(height: 18),
         SimSummaryCard(
           rows: [
             ('Assureur', SimBrand.title),
@@ -1025,8 +1015,8 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
         const SizedBox(height: 16),
         if (_cartePng != null) ...[
           const Text(
-            'CARTE DE PRISE EN CHARGE',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: SimBrand.primary, letterSpacing: 0.5),
+            'Carte de prise en charge',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 12),
           ClipRRect(
@@ -1129,40 +1119,183 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
       return SimTheme(
         child: SimMyCardsView(
           cards: _savedCards,
-          onBack: () {
-            if (_step == 0 && !_loading) {
-              SimHostBridge.exitModule(context);
-            } else {
-              setState(() => _viewingMyCards = false);
-            }
-          },
-          onNewSubscription: () => setState(() => _viewingMyCards = false),
+          onBack: () => setState(() => _viewingMyCards = false),
+          onNewSubscription: () => setState(() {
+            _viewingMyCards = false;
+            _choosing = true;
+          }),
           onOpenCard: _showSavedCardDetails,
+        ),
+      );
+    }
+
+    if (_choosing) {
+      return SimTheme(
+        child: SimHomeView(
+          products: _activeProducts,
+          loading: _catalogueLoading,
+          configured: SimApiConfig.isConfigured,
+          hasCards: _savedCards.isNotEmpty,
+          onBack: _handleModuleBack,
+          onOpenCards: () => setState(() => _viewingMyCards = true),
+          onSelect: (p) => setState(() {
+            _produit = p.code;
+            _devis = null;
+            _step = 0;
+            _syncFormuleForProduct();
+            _choosing = false;
+          }),
+          onRetry: () {
+            setState(() => _catalogueLoading = true);
+            _loadCatalogue();
+          },
         ),
       );
     }
 
     return SimTheme(
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F8F8),
-        body: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SimHeader(
-                onBack: _handleModuleBack,
-                productLabel: _productLabel,
-                trailing: _savedCards.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Mes cartes',
-                        onPressed: () => setState(() => _viewingMyCards = true),
-                        icon: const Icon(Icons.credit_card_outlined, color: SimBrand.primary),
-                      ),
+        backgroundColor: SimBrand.background,
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SimHeader(
+              onBack: _handleModuleBack,
+              productLabel: _productLabel,
+              steps: _steps,
+              current: _step,
+              trailing: _savedCards.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Mes cartes',
+                      onPressed: () => setState(() => _viewingMyCards = true),
+                      icon: const Icon(Icons.credit_card_rounded, color: Colors.white),
+                    ),
+            ),
+            Expanded(
+              child: SimSheet(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 380),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, a) => FadeTransition(
+                    opacity: a,
+                    child: SlideTransition(
+                      position: Tween(begin: const Offset(0.06, 0), end: Offset.zero).animate(a),
+                      child: child,
+                    ),
+                  ),
+                  child: KeyedSubtree(key: ValueKey(_step), child: _buildStepContent()),
+                ),
               ),
-              SimStepIndicator(steps: _steps, current: _step),
-              Expanded(child: _buildStepContent()),
-              SimBottomBar(label: _primaryLabel, loading: _loading, onPrimary: _onPrimaryAction),
+            ),
+          ],
+        ),
+        bottomNavigationBar: SimBottomBar(
+          label: _primaryLabel,
+          loading: _loading,
+          onPrimary: _onPrimaryAction,
+          amountLabel: _amountLabel,
+          amount: _amountText,
+          footnote: _step == 3 ? null : 'Payé avec\nPeya Pay',
+        ),
+      ),
+    );
+  }
+}
+
+/// Digital insurance card shown once the policy is active.
+class _ActivePolicyCard extends StatelessWidget {
+  const _ActivePolicyCard({
+    required this.product,
+    required this.police,
+    required this.holder,
+    required this.until,
+  });
+
+  final String product;
+  final String police;
+  final String holder;
+  final String until;
+
+  @override
+  Widget build(BuildContext context) {
+    TextStyle small() => TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: .75));
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: SimShine(
+        child: Container(
+          height: 210,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: SimBrand.primary,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -30,
+                bottom: -40,
+                child: Icon(Icons.shield_outlined, size: 170, color: Colors.white.withValues(alpha: .1)),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const SimLogoBadge(height: 28),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: .18),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text('Active', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(product.toUpperCase(), style: small().copyWith(letterSpacing: .5)),
+                      const SizedBox(height: 2),
+                      Text(
+                        police,
+                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 1.2),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Assuré', style: small()),
+                            Text(
+                              holder.isEmpty ? '—' : holder,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Valide jusqu’au', style: small()),
+                            Text(until, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ],
           ),
         ),

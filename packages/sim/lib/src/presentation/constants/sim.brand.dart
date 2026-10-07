@@ -31,9 +31,9 @@ class SimPalette {
 
   static const light = SimPalette(
     isDark: false,
-    primary: Color(0xFF006D56),
-    primaryDark: Color(0xFF00453B),
-    primarySoft: Color(0xFFE8F5E9),
+    primary: SimBrand.primary,
+    primaryDark: SimBrand.primaryDark,
+    primarySoft: SimBrand.soft,
     onPrimary: Colors.white,
     bg: Color(0xFFF5F7F6),
     surface: Color(0xFFF8F8F8),
@@ -54,10 +54,21 @@ class SimPalette {
 }
 
 abstract final class SimBrand {
-  static const primary = Color(0xFF006D56);
-  static const primaryDark = Color(0xFF00453B);
-  static const gradientTop = Color(0xFF006D56);
-  static const gradientBottom = Color(0xFF00453B);
+  // SIM Assurances charter. Placeholder navy until SIM's official colours
+  // and logo are provided — change them here only.
+  static const primary = Color(0xFF0F3D6E);
+  static const primaryDark = Color(0xFF0A2A4D);
+  static const gradientTop = primary;
+  static const gradientBottom = primaryDark;
+
+  /// SIM logo asset (e.g. 'packages/sim/assets/logo/sim.png'); null shows
+  /// the name in a badge.
+  static const String? logoAsset = null;
+
+  static const background = Color(0xFFF4F6FA);
+  static const muted = Color(0xFF4B5563);
+  static const border = Color(0xFFE6EAF1);
+  static const soft = Color(0xFFEEF3FA);
   static const onPrimary = Colors.white;
   static const textDark = Color(0xFF1A1A1A);
   static const title = 'SIM Assurances';

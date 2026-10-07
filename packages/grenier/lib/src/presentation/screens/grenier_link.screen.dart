@@ -99,8 +99,8 @@ class _GrenierLinkScreenState extends State<GrenierLinkScreen> {
                         ),
                         const SizedBox(height: 12),
                         _SharedField(
-                          label: 'Prénom et nom',
-                          value: profile?.fullName ?? 'Vous serez invité à vous connecter à Mon Peya',
+                          label: profile == null ? 'Compte Mon Peya' : 'Prénom et nom',
+                          value: profile?.fullName ?? 'Connexion demandée avant la création',
                         ),
                         if (profile?.phone != null) ...[
                           const SizedBox(height: 12),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:sim/src/data/models/sim_assurance_card.model.dart';
 import 'package:sim/src/presentation/constants/sim.brand.dart';
 import 'package:sim/src/presentation/widgets/sim_assurance_card_flip.widget.dart';
+import 'package:sim/src/presentation/widgets/sim_shared_widgets.dart';
 
 class SimMyCardsView extends StatelessWidget {
   const SimMyCardsView({
@@ -20,80 +21,79 @@ class SimMyCardsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
-              child: Row(
-                children: [
-                  IconButton(tooltip: 'Retour', onPressed: onBack, icon: const Icon(Icons.chevron_left)),
-                  const Expanded(
+      backgroundColor: SimBrand.background,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            color: SimBrand.primary,
+            padding: EdgeInsets.fromLTRB(8, top + 4, 20, 44),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IconButton(
+                  tooltip: 'Retour',
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 12, top: 4),
+                  child: SimRise(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Mes cartes SIM',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: SimBrand.textDark),
+                          SimBrand.title.toUpperCase(),
+                          style: TextStyle(color: Colors.white.withValues(alpha: .8), fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: .6),
                         ),
+                        const SizedBox(height: 4),
+                        const Text('Mes cartes', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
                         Text(
-                          'Prise en charge · validité',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: SimBrand.primary),
+                          '${cards.length} carte${cards.length > 1 ? 's' : ''} · prise en charge et validité',
+                          style: TextStyle(color: Colors.white.withValues(alpha: .88), fontSize: 13),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Expanded(
+          ),
+          Expanded(
+            child: SimSheet(
               child: cards.isEmpty
-                  ? Center(
+                  ? const Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(24),
+                        padding: EdgeInsets.all(24),
                         child: Text(
                           'Aucune carte enregistrée pour le moment.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey.shade700),
+                          style: TextStyle(color: SimBrand.muted),
                         ),
                       ),
                     )
                   : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                      padding: const EdgeInsets.fromLTRB(20, 30, 20, 24),
                       itemCount: cards.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 20),
                       itemBuilder: (context, index) {
                         final card = cards[index];
-                        return _SavedCardTile(
-                          record: card,
-                          onTap: onOpenCard == null ? null : () => onOpenCard!(card),
+                        return SimRise(
+                          delay: Duration(milliseconds: 80 * index),
+                          child: _SavedCardTile(
+                            record: card,
+                            onTap: onOpenCard == null ? null : () => onOpenCard!(card),
+                          ),
                         );
                       },
                     ),
             ),
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, -4))],
-              ),
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: SimBrand.primary,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: onNewSubscription,
-                child: const Text('Nouvelle souscription', style: TextStyle(fontWeight: FontWeight.w800)),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+      bottomNavigationBar: SimBottomBar(label: 'Nouvelle souscription', onPrimary: onNewSubscription),
     );
   }
 }
