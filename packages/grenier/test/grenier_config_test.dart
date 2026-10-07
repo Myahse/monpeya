@@ -55,6 +55,28 @@ void main() {
       expect(p.priceLabel, '1 250 000 FCFA');
     });
 
+    test('reads photo and sorts price history', () {
+      final p = GrenierProduit.fromJson({
+        'id': 9,
+        'name': 'Oignon',
+        'price': 500,
+        'image': ' https://cdn.example.com/oignon.jpg ',
+        'history': [
+          {'at': '2026-01-03T00:00:00Z', 'price': 520},
+          {'date': '2026-01-01T00:00:00Z', 'prix': 480},
+          {'at': 'not a date', 'price': 1},
+        ],
+      });
+      expect(p.imageUrl, 'https://cdn.example.com/oignon.jpg');
+      expect(p.history.map((h) => h.price), [480, 520]);
+    });
+
+    test('no photo when the field is blank', () {
+      final p = GrenierProduit.fromJson({'id': 2, 'price': 1, 'imageUrl': ''});
+      expect(p.imageUrl, isNull);
+      expect(p.history, isEmpty);
+    });
+
     test('defaults currency to XOF', () {
       final p = GrenierProduit.fromJson({'id': 1, 'price': 500});
       expect(p.currency, 'XOF');
