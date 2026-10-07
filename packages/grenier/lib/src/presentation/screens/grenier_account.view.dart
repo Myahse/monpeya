@@ -3,13 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:grenier/src/core/host/grenier_host.bridge.dart';
 import 'package:grenier/src/presentation/widgets/grenier_ui.dart';
 
-/// "Mon compte": the Mon Peya identity used by Mon Grenier.
+/// "Mon compte": the Mon Peya user info loaded from the backend.
 class GrenierAccountView extends StatelessWidget {
-  const GrenierAccountView({
-    super.key,
-    required this.profile,
-    required this.onExit,
-  });
+  const GrenierAccountView({super.key, required this.profile, required this.onExit});
 
   final GrenierHostProfile? profile;
   final VoidCallback onExit;
@@ -56,9 +52,31 @@ class GrenierAccountView extends StatelessWidget {
               ),
             ),
           ),
+          if (p != null) ...[
+            const SizedBox(height: 12),
+            GrenierRise(
+              delay: const Duration(milliseconds: 50),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+                decoration: grenierCard(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Mes informations', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    const SizedBox(height: 6),
+                    _InfoRow(icon: Icons.person_outline_rounded, label: 'Nom', value: p.fullName),
+                    _InfoRow(icon: Icons.phone_outlined, label: 'Téléphone', value: p.phone),
+                    _InfoRow(icon: Icons.mail_outline_rounded, label: 'E-mail', value: p.email),
+                    _InfoRow(icon: Icons.badge_outlined, label: 'Code client', value: p.clientCode),
+                    _InfoRow(icon: Icons.public_rounded, label: 'Pays', value: p.country),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           GrenierRise(
-            delay: const Duration(milliseconds: 70),
+            delay: const Duration(milliseconds: 100),
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: grenierCard(),
@@ -78,7 +96,7 @@ class GrenierAccountView extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           GrenierRise(
-            delay: const Duration(milliseconds: 140),
+            delay: const Duration(milliseconds: 150),
             child: GrenierPressable(
               onTap: onExit,
               child: Container(
@@ -89,10 +107,7 @@ class GrenierAccountView extends StatelessWidget {
                     Container(
                       width: 38,
                       height: 38,
-                      decoration: BoxDecoration(
-                        color: GrenierColors.soft,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      decoration: BoxDecoration(color: GrenierColors.soft, borderRadius: BorderRadius.circular(12)),
                       child: const Icon(Icons.logout_rounded, color: GrenierColors.primary, size: 20),
                     ),
                     const SizedBox(width: 12),
@@ -103,6 +118,39 @@ class GrenierAccountView extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.icon, required this.label, required this.value});
+
+  final IconData icon;
+  final String label;
+  final String? value;
+
+  @override
+  Widget build(BuildContext context) {
+    final v = value?.trim();
+    if (v == null || v.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: GrenierColors.primary),
+          const SizedBox(width: 12),
+          Text(label, style: const TextStyle(fontSize: 13.5, color: GrenierColors.muted)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              v,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             ),
           ),
         ],

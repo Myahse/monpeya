@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 typedef GrenierHostExitHandler = void Function(BuildContext context);
 typedef GrenierEnsureSession = Future<bool> Function(BuildContext context);
 
-/// Mon Peya identity shared with Mon Grenier (only after the user agrees).
+/// The signed-in Mon Peya user, as returned by the Mon Peya backend.
 class GrenierHostProfile {
-  const GrenierHostProfile({required this.fullName, this.phone});
+  const GrenierHostProfile({required this.fullName, this.phone, this.email, this.clientCode, this.country});
 
   final String fullName;
   final String? phone;
+  final String? email;
+  final String? clientCode;
+  final String? country;
 
   String get initials {
     final parts = fullName.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
