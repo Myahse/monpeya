@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sim/src/presentation/constants/sim.brand.dart';
@@ -483,6 +485,7 @@ class SimChoiceCard extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.icon,
+    this.leading,
   });
 
   final bool selected;
@@ -490,6 +493,7 @@ class SimChoiceCard extends StatelessWidget {
   final String? subtitle;
   final String? trailing;
   final IconData? icon;
+  final Widget? leading;
   final VoidCallback onTap;
 
   @override
@@ -506,7 +510,22 @@ class SimChoiceCard extends StatelessWidget {
           decoration: simCardDecoration(selected: selected, radius: 18),
           child: Row(
             children: [
-              if (icon != null) ...[
+              if (leading != null) ...[
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: selected ? SimBrand.soft : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: selected ? SimBrand.primary.withValues(alpha: 0.35) : const Color(0xFFE5E7EB),
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: leading,
+                ),
+              ] else if (icon != null) ...[
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
                   width: 44,
@@ -813,14 +832,16 @@ class SimPaymentTile extends StatelessWidget {
     required this.selected,
     required this.title,
     required this.subtitle,
-    required this.icon,
+    this.icon,
+    this.leading,
     this.onTap,
   });
 
   final bool selected;
   final String title;
   final String subtitle;
-  final IconData icon;
+  final IconData? icon;
+  final Widget? leading;
   final VoidCallback? onTap;
 
   @override
@@ -830,6 +851,7 @@ class SimPaymentTile extends StatelessWidget {
       title: title,
       subtitle: subtitle,
       icon: icon,
+      leading: leading,
       onTap: onTap ?? () {},
     );
   }
@@ -983,6 +1005,149 @@ class SimSuccessBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// KYC document row: image preview when selected, otherwise a pick prompt.
+class SimKycDocumentPreview extends StatelessWidget {
+  const SimKycDocumentPreview({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.imageBytes,
+    required this.onTap,
+    this.previewHeight = 168,
+    this.busy = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final Uint8List? imageBytes;
+  final VoidCallback onTap;
+  final double previewHeight;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageBytes != null && imageBytes!.isNotEmpty;
+    final cacheWidth = (MediaQuery.sizeOf(context).width *
+            MediaQuery.devicePixelRatioOf(context))
+        .round()
+        .clamp(320, 960);
+
+    return Material(
+      color: const Color(0xFFF8F8F8),
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: busy ? null : onTap,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: hasImage ? SimBrand.primary.withValues(alpha: 0.35) : const Color(0xFFE5E7EB),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (busy && !hasImage)
+                SizedBox(
+                  height: previewHeight,
+                  child: const Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    ),
+                  ),
+                )
+              else if (hasImage)
+                SizedBox(
+                  height: previewHeight,
+                  width: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.memory(
+                        imageBytes!,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                        cacheWidth: cacheWidth,
+                      ),
+                      if (busy)
+                        ColoredBox(
+                          color: const Color(0x66000000),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Column(
+                    children: [
+                      Icon(icon, size: 36, color: const Color(0xFF6B7280)),
+                      const SizedBox(height: 8),
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: SimBrand.textDark,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Appuyer pour ajouter',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                color: hasImage ? const Color(0xFFF8FAF9) : null,
+                child: Row(
+                  children: [
+                    Icon(icon, size: 20, color: SimBrand.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        hasImage ? label : 'Photo ou galerie',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: SimBrand.textDark,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      hasImage ? 'Modifier' : 'Choisir',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        color: SimBrand.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

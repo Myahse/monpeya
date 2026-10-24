@@ -14,4 +14,5 @@ abstract final class SimProfileUtil {
     }
     return (nom: bits.first, prenom: bits.sublist(1).join(' '));
   }
+
 }

@@ -79,4 +79,23 @@ void main() {
     expect(parts.nom, 'DIOMANDE');
     expect(parts.prenom, 'Tini Yacou');
   });
+
+  test('SimApiException parses nested error message', () {
+    final e = SimApiException.fromEnvelope(422, {
+      'error': {'code': 'validation', 'message': 'dateNaissance invalide'},
+    });
+    expect(e.message, 'dateNaissance invalide');
+    expect(e.code, 'validation');
+  });
+
+  test('SimProspect optional birth date and sex are omitted when null', () {
+    const prospect = SimProspect(
+      nom: 'KOUAME',
+      prenom: 'Ama',
+      telephone: '+2250700000000',
+    );
+    final json = prospect.toJson();
+    expect(json.containsKey('dateNaissance'), isFalse);
+    expect(json.containsKey('sexe'), isFalse);
+  });
 }

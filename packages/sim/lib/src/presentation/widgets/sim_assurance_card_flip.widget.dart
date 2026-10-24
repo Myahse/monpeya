@@ -1,21 +1,25 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
 import 'package:sim/src/data/models/sim_assurance_card.model.dart';
 import 'package:sim/src/presentation/constants/sim.brand.dart';
 
-/// Carte assurance 3D (même principe que la carte bancaire Peya Pay).
+/// Carte officielle SIM (PNG API) avec interaction 3D — pas de maquette locale.
 class SimAssuranceCardFlip extends StatefulWidget {
   const SimAssuranceCardFlip({
     super.key,
     required this.record,
+    this.pngBytes,
     this.compact = false,
     this.frozen = false,
   });
 
   final SimAssuranceCardRecord record;
+  final Uint8List? pngBytes;
   final bool compact;
   final bool frozen;
 
@@ -24,24 +28,70 @@ class SimAssuranceCardFlip extends StatefulWidget {
 }
 
 class _SimAssuranceCardFlipState extends State<SimAssuranceCardFlip> with SingleTickerProviderStateMixin {
-  static const _cardHeight = 200.0;
-  static const _compactCardHeight = 168.0;
+  static const _maxHeightFull = 420.0;
+  static const _maxHeightCompact = 280.0;
 
   late final AnimationController _flip;
   bool _isFlipped = false;
+  double? _aspectRatio;
+  Object? _decodedBytesIdentity;
 
-  double get _height => widget.compact ? _compactCardHeight : _cardHeight;
+  Uint8List? get _bytes => widget.pngBytes ?? widget.record.cartePngBytes;
 
   @override
   void initState() {
     super.initState();
     _flip = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
+    _scheduleAspectDecode();
+  }
+
+  @override
+  void didUpdateWidget(covariant SimAssuranceCardFlip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.pngBytes, widget.pngBytes) ||
+        oldWidget.record.cartePngBase64 != widget.record.cartePngBase64) {
+      _scheduleAspectDecode();
+    }
   }
 
   @override
   void dispose() {
     _flip.dispose();
     super.dispose();
+  }
+
+  void _scheduleAspectDecode() {
+    final bytes = _bytes;
+    if (bytes == null) {
+      _decodedBytesIdentity = null;
+      _aspectRatio = null;
+      return;
+    }
+    if (identical(bytes, _decodedBytesIdentity) && _aspectRatio != null) return;
+    unawaited(_decodeAspectRatio(bytes));
+  }
+
+  Future<void> _decodeAspectRatio(Uint8List bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+      final w = image.width;
+      final h = image.height;
+      image.dispose();
+      if (w <= 0 || h <= 0 || !mounted) return;
+      if (!identical(bytes, _bytes)) return;
+      setState(() {
+        _decodedBytesIdentity = bytes;
+        _aspectRatio = w / h;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _decodedBytesIdentity = bytes;
+        _aspectRatio = 1.586; // ISO ID-1 fallback
+      });
+    }
   }
 
   Future<void> _animateToSide(bool showBack) async {
@@ -53,15 +103,20 @@ class _SimAssuranceCardFlipState extends State<SimAssuranceCardFlip> with Single
     if (mounted) setState(() => _isFlipped = showBack);
   }
 
-  void _toggleFlip() => _animateToSide(!_isFlipped);
+  void _toggleFlip() {
+    if (_bytes == null) return;
+    _animateToSide(!_isFlipped);
+  }
 
   void _onDragUpdate(DragUpdateDetails d) {
+    if (_bytes == null) return;
     _flip.stop();
     final delta = -d.delta.dx / 220;
     _flip.value = (_flip.value + delta).clamp(0.0, 1.0);
   }
 
   void _onDragEnd(DragEndDetails d) {
+    if (_bytes == null) return;
     final vx = d.velocity.pixelsPerSecond.dx;
     final showBack = _flip.value > 0.5 || vx < -400
         ? true
@@ -73,49 +128,67 @@ class _SimAssuranceCardFlipState extends State<SimAssuranceCardFlip> with Single
 
   @override
   Widget build(BuildContext context) {
-    final record = widget.record;
     final opacity = widget.frozen ? 0.55 : 1.0;
+    final bytes = _bytes;
+    final maxHeight = widget.compact ? _maxHeightCompact : _maxHeightFull;
+    final aspect = _aspectRatio ?? 1.586;
 
     return Opacity(
       opacity: opacity,
-      child: SizedBox(
-        height: _height,
-        width: double.infinity,
-        child: GestureDetector(
-          onTap: _toggleFlip,
-          onHorizontalDragUpdate: _onDragUpdate,
-          onHorizontalDragEnd: _onDragEnd,
-          child: AnimatedBuilder(
-            animation: _flip,
-            builder: (context, _) {
-              final angle = _flip.value * math.pi;
-              final showFront = angle <= math.pi / 2;
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxW = constraints.maxWidth;
+          var height = maxW / aspect;
+          var width = maxW;
+          if (height > maxHeight) {
+            height = maxHeight;
+            width = height * aspect;
+          }
 
-              return Stack(
-                fit: StackFit.expand,
-                alignment: Alignment.center,
-                children: [
-                  _CardSide(
-                    visible: showFront,
-                    angle: angle,
-                    isFront: true,
-                    child: _SimCardFront(record: record, compact: widget.compact),
-                  ),
-                  _CardSide(
-                    visible: !showFront,
-                    angle: angle,
-                    isFront: false,
-                    child: _SimCardBack(
-                      record: record,
-                      compact: widget.compact,
-                      pngBytes: record.cartePngBytes,
+          return SizedBox(
+            width: double.infinity,
+            height: height,
+            child: GestureDetector(
+              onTap: _toggleFlip,
+              onHorizontalDragUpdate: _onDragUpdate,
+              onHorizontalDragEnd: _onDragEnd,
+              child: bytes == null
+                  ? _OfficialCardPlaceholder(compact: widget.compact)
+                  : Center(
+                      child: SizedBox(
+                        width: width,
+                        height: height,
+                        child: AnimatedBuilder(
+                          animation: _flip,
+                          builder: (context, _) {
+                            final angle = _flip.value * math.pi;
+                            final showFront = angle <= math.pi / 2;
+
+                            return Stack(
+                              fit: StackFit.expand,
+                              alignment: Alignment.center,
+                              children: [
+                                _CardSide(
+                                  visible: showFront,
+                                  angle: angle,
+                                  isFront: true,
+                                  child: _OfficialCardFace(bytes: bytes, compact: widget.compact),
+                                ),
+                                _CardSide(
+                                  visible: !showFront,
+                                  angle: angle,
+                                  isFront: false,
+                                  child: _OfficialCardFace(bytes: bytes, compact: widget.compact),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -157,238 +230,76 @@ class _CardSide extends StatelessWidget {
   }
 }
 
-class _SimCardShell extends StatelessWidget {
-  const _SimCardShell({
-    required this.compact,
-    required this.gradient,
-    required this.child,
-    this.borderColor = const Color(0x33000000),
-  });
+class _OfficialCardFace extends StatelessWidget {
+  const _OfficialCardFace({required this.bytes, required this.compact});
 
+  final Uint8List bytes;
   final bool compact;
-  final List<Color> gradient;
-  final Widget child;
-  final Color borderColor;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: compact ? 2 : 4),
-      padding: EdgeInsets.all(compact ? 14 : 18),
+    final radius = compact ? 12.0 : 14.0;
+    final cacheWidth = (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context))
+        .round()
+        .clamp(640, 2048);
+
+    return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(compact ? 16 : 18),
-        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(radius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: compact ? 12 : 16,
+            color: Colors.black.withValues(alpha: 0.22),
+            blurRadius: compact ? 10 : 16,
             offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: child,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.memory(
+          bytes,
+          fit: BoxFit.fill,
+          width: double.infinity,
+          height: double.infinity,
+          gaplessPlayback: true,
+          cacheWidth: cacheWidth,
+          filterQuality: FilterQuality.high,
+        ),
+      ),
     );
   }
 }
 
-class _SimCardFront extends StatelessWidget {
-  const _SimCardFront({required this.record, required this.compact});
+class _OfficialCardPlaceholder extends StatelessWidget {
+  const _OfficialCardPlaceholder({required this.compact});
 
-  final SimAssuranceCardRecord record;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final police = record.numeroPolice.isEmpty ? '— — —' : record.numeroPolice;
-    final holder = record.holderName.isEmpty ? 'ASSURÉ' : record.holderName.toUpperCase();
-    final expiry = record.shortEndDate;
-
-    return _SimCardShell(
-      compact: compact,
-      gradient: const [SimBrand.gradientTop, SimBrand.primaryDark],
-      borderColor: Colors.white.withValues(alpha: 0.25),
+    final radius = compact ? 12.0 : 14.0;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F4),
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: const Color(0xFFE2E8E6)),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.shield_outlined, color: Colors.white.withValues(alpha: 0.95), size: compact ? 18 : 22),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'SIM',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      fontWeight: FontWeight.w900,
-                      fontSize: compact ? 11 : 12,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: (record.isActive ? Colors.white : Colors.black26).withValues(alpha: record.isActive ? 0.22 : 0.35),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      record.statusLabel,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: compact ? 9 : 10,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          const SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2.5, color: SimBrand.primary),
           ),
-          SizedBox(height: compact ? 10 : 16),
+          const SizedBox(height: 12),
           Text(
-            police,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            'Carte officielle en cours de chargement…',
+            textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white,
-              fontSize: compact ? 15 : 18,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.1,
-            ),
-          ),
-          Text(
-            record.productLabel,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.88),
               fontSize: compact ? 11 : 12,
               fontWeight: FontWeight.w600,
-            ),
-          ),
-          const Spacer(),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _FooterBlock(label: 'ASSURÉ', value: holder, compact: compact),
-              _FooterBlock(label: 'FIN', value: expiry, compact: compact),
-            ],
-          ),
-          if (!compact) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Glisser pour la carte de prise en charge',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 10),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SimCardBack extends StatelessWidget {
-  const _SimCardBack({
-    required this.record,
-    required this.compact,
-    required this.pngBytes,
-  });
-
-  final SimAssuranceCardRecord record;
-  final bool compact;
-  final Uint8List? pngBytes;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SimCardShell(
-      compact: compact,
-      gradient: const [Color(0xFFF8FAFC), Color(0xFFE2E8F0)],
-      borderColor: const Color(0xFFDADADA),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Carte de prise en charge',
-            style: TextStyle(
-              fontSize: compact ? 11 : 12,
-              fontWeight: FontWeight.w800,
-              color: SimBrand.primaryDark,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            record.validityLabel,
-            style: TextStyle(fontSize: compact ? 10 : 11, color: SimBrand.textDark.withValues(alpha: 0.75)),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: pngBytes != null
-                  ? Image.memory(pngBytes!, fit: BoxFit.contain)
-                  : Container(
-                      color: Colors.white,
-                      alignment: Alignment.center,
-                      child: Text(
-                        'Carte non téléchargée',
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                      ),
-                    ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FooterBlock extends StatelessWidget {
-  const _FooterBlock({required this.label, required this.value, required this.compact});
-
-  final String label;
-  final String value;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.65),
-              fontSize: compact ? 8 : 9,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: compact ? 11 : 12,
-              fontWeight: FontWeight.w800,
+              color: SimBrand.muted,
             ),
           ),
         ],

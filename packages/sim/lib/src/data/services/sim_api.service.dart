@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:sim/src/data/errors/sim_api.exception.dart';
 import 'package:sim/src/shared/config/sim_env.registry.dart';
@@ -69,7 +70,18 @@ class SimApiService {
       throw const SimApiException(message: 'Format de réponse inattendu');
     }
 
+    _logError(response, body);
     throw SimApiException.fromEnvelope(response.statusCode, body);
+  }
+
+  void _logError(http.Response response, dynamic body) {
+    if (!kDebugMode) return;
+    final url = response.request?.url;
+    final snippet = response.body.length > 600 ? '${response.body.substring(0, 600)}…' : response.body;
+    debugPrint('[SIM API] ${response.statusCode} $url → $snippet');
+    if (body is Map && body['error'] != null) {
+      debugPrint('[SIM API] error object: ${body['error']}');
+    }
   }
 
   Future<List<T>> _decodeDataList<T>(
@@ -96,6 +108,7 @@ class SimApiService {
       throw const SimApiException(message: 'Format de liste inattendu');
     }
 
+    _logError(response, body);
     throw SimApiException.fromEnvelope(response.statusCode, body);
   }
 

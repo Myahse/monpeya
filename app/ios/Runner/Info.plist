@@ -50,7 +50,9 @@
 	<key>NSFaceIDUsageDescription</key>
 	<string>Utilisez Face ID pour déverrouiller Mon Peya rapidement.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>La caméra est utilisée pour scanner les QR codes Peya Pay.</string>
+	<string>La caméra est utilisée pour les selfies et documents (SIM, inscription) et les QR codes Peya Pay.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>La galerie est utilisée pour joindre des photos (documents SIM, inscription).</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Mr Immo utilise votre position pour afficher les biens disponibles dans un rayon de 500 m autour de vous.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

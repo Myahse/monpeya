@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
@@ -21,11 +22,18 @@ import 'package:sim/src/data/storage/sim_assurance_card.store.dart';
 import 'package:sim/src/presentation/constants/sim.brand.dart';
 import 'package:sim/src/presentation/screens/sim_home.view.dart';
 import 'package:sim/src/presentation/widgets/sim_assurance_card_flip.widget.dart';
+import 'package:sim/src/presentation/widgets/sim_peyapay_logo.widget.dart';
 import 'package:sim/src/presentation/widgets/sim_my_cards.view.dart';
 import 'package:sim/src/presentation/widgets/sim_shared_widgets.dart';
 import 'package:sim/src/presentation/widgets/sim_toast.widget.dart';
+import 'package:sim/src/shared/utils/sim_idempotency.util.dart';
 import 'package:sim/src/shared/utils/sim_peyapay_payment.util.dart';
 import 'package:sim/src/shared/utils/sim_profile.util.dart';
+
+/// Runs off the UI isolate — KYC images can be several MB before base64.
+String simKycEncodeDataUrl((String mime, Uint8List bytes) input) {
+  return 'data:${input.$1};base64,${base64Encode(input.$2)}';
+}
 
 /// Parcours SIM Assurances — 4 étapes (même structure que Leadway).
 class SimModuleScreen extends StatefulWidget {
@@ -36,7 +44,7 @@ class SimModuleScreen extends StatefulWidget {
 }
 
 class _SimModuleScreenState extends State<SimModuleScreen> {
-  static const _steps = ['Devis', 'Souscription', 'Paiement', 'Documents'];
+  static const _steps = ['Devis', 'Souscription', 'Paiement'];
 
   final _api = SimApiService();
   final _carteService = SimCarteService();
@@ -59,7 +67,9 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
   String? _souscriptionId;
   int? _montantAPercevoir;
   String? _idempotencyCreate;
+  String? _idempotencyCreateFingerprint;
   String? _idempotencyConfirm;
+  String? _idempotencyConfirmFingerprint;
   String? _paymentReference;
 
   bool _paid = false;
@@ -76,8 +86,9 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
   final _telephoneCtrl = TextEditingController();
   String? _pieceIdentiteDataUrl;
   String? _selfieDataUrl;
-  String? _pieceIdentiteName;
-  String? _selfieName;
+  Uint8List? _pieceIdentiteBytes;
+  Uint8List? _selfieBytes;
+  bool _kycImageBusy = false;
 
   @override
   void initState() {
@@ -90,12 +101,38 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
   Future<void> _loadSavedCards() async {
     final cards = await SimAssuranceCardStore.loadAll();
     if (!mounted) return;
+    setState(() => _savedCards = cards);
+  }
+
+  void _resetSubscriptionFlow() {
+    _step = 0;
+    _paid = false;
+    _devis = null;
+    _souscriptionId = null;
+    _montantAPercevoir = null;
+    _paymentReference = null;
+    _numeroPolice = null;
+    _dateDebut = null;
+    _dateFin = null;
+    _cartePng = null;
+    _pieceIdentiteDataUrl = null;
+    _selfieDataUrl = null;
+    _pieceIdentiteBytes = null;
+    _selfieBytes = null;
+    _kycImageBusy = false;
+    _resetCreateIdempotency();
+    _resetConfirmIdempotency();
+  }
+
+  Future<void> _returnToSimHomeAfterSubscription({required String toastMessage}) async {
+    await _persistActiveCard();
+    if (!mounted) return;
+    _resetSubscriptionFlow();
     setState(() {
-      _savedCards = cards;
-      if (cards.isNotEmpty && _step == 0 && !_paid) {
-        _viewingMyCards = true;
-      }
+      _choosing = true;
+      _viewingMyCards = false;
     });
+    await _showToast(toastMessage, SimToastType.success);
   }
 
   /// The policy being subscribed, as a card record.
@@ -172,7 +209,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              SimAssuranceCardFlip(record: record),
+              SimAssuranceCardFlip(record: record, pngBytes: record.cartePngBytes),
               const SizedBox(height: 12),
               Text(
                 record.validityLabel,
@@ -258,6 +295,52 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _resetCreateIdempotency() {
+    _idempotencyCreate = null;
+    _idempotencyCreateFingerprint = null;
+  }
+
+  void _resetConfirmIdempotency() {
+    _idempotencyConfirm = null;
+    _idempotencyConfirmFingerprint = null;
+  }
+
+  String _idempotencyKeyForCreate(SimSouscriptionRequest request, {bool forceNew = false}) {
+    final fingerprint = SimIdempotency.fingerprintJson(request.toJson());
+    if (forceNew) {
+      _idempotencyCreateFingerprint = fingerprint;
+      _idempotencyCreate = _uuid.v4();
+      return _idempotencyCreate!;
+    }
+    final key = SimIdempotency.resolveKey(
+      currentKey: _idempotencyCreate,
+      currentFingerprint: _idempotencyCreateFingerprint,
+      fingerprint: fingerprint,
+      newKey: _uuid.v4(),
+    );
+    _idempotencyCreate = key;
+    _idempotencyCreateFingerprint = fingerprint;
+    return key;
+  }
+
+  String _idempotencyKeyForConfirm(SimConfirmPaymentRequest request, {bool forceNew = false}) {
+    final fingerprint = SimIdempotency.fingerprintJson(request.toJson());
+    if (forceNew) {
+      _idempotencyConfirmFingerprint = fingerprint;
+      _idempotencyConfirm = _uuid.v4();
+      return _idempotencyConfirm!;
+    }
+    final key = SimIdempotency.resolveKey(
+      currentKey: _idempotencyConfirm,
+      currentFingerprint: _idempotencyConfirmFingerprint,
+      fingerprint: fingerprint,
+      newKey: _uuid.v4(),
+    );
+    _idempotencyConfirm = key;
+    _idempotencyConfirmFingerprint = fingerprint;
+    return key;
   }
 
   void _handleModuleBack() {
@@ -398,10 +481,6 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
     return SimToast.show(context, message: message, type: type);
   }
 
-  String get _carteFileName => _carteService.fileName(_numeroPolice, _souscriptionId);
-
-  String get _cartePdfFileName => _carteService.pdfFileName(_numeroPolice, _souscriptionId);
-
   Future<Uint8List?> _ensureCartePng() async {
     if (_cartePng != null) return _cartePng;
 
@@ -421,117 +500,6 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
     }
   }
 
-  Future<void> _shareCarte() async {
-    if (_loading) return;
-    setState(() => _loading = true);
-    try {
-      final bytes = await _ensureCartePng();
-      if (bytes == null) {
-        await _showToast('Carte indisponible pour le moment.', SimToastType.error);
-        return;
-      }
-
-      final fileName = _carteFileName;
-      final file = await _carteService.writeToTemp(bytes, fileName);
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'image/png', name: fileName)],
-        text: 'Ma carte de prise en charge SIM — ${_numeroPolice ?? ''}',
-      );
-    } catch (e) {
-      await _showToast('Erreur partage : $e', SimToastType.error);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _saveCarte() async {
-    if (_loading) return;
-    setState(() => _loading = true);
-    try {
-      final bytes = await _ensureCartePng();
-      if (bytes == null) {
-        await _showToast('Carte indisponible pour le moment.', SimToastType.error);
-        return;
-      }
-
-      final fileName = _carteFileName;
-      final file = await _carteService.saveToDevice(bytes, fileName);
-      await _showToast('Carte enregistrée : ${file.path}', SimToastType.success);
-    } catch (e) {
-      await _showToast('Erreur enregistrement : $e', SimToastType.error);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<Uint8List?> _buildCartePdfBytes(Uint8List pngBytes) async {
-    final police = _numeroPolice?.trim();
-    if (police == null || police.isEmpty) return null;
-
-    return _carteService.buildPdfFromPng(
-      pngBytes,
-      numeroPolice: police,
-      productLabel: _productLabel,
-      dateDebut: _dateDebut,
-      dateFin: _dateFin,
-    );
-  }
-
-  Future<void> _shareCartePdf() async {
-    if (_loading) return;
-    setState(() => _loading = true);
-    try {
-      final pngBytes = await _ensureCartePng();
-      if (pngBytes == null) {
-        await _showToast('Carte indisponible pour le moment.', SimToastType.error);
-        return;
-      }
-
-      final pdfBytes = await _buildCartePdfBytes(pngBytes);
-      if (pdfBytes == null) {
-        await _showToast('Numéro de police indisponible.', SimToastType.error);
-        return;
-      }
-
-      final fileName = _cartePdfFileName;
-      final file = await _carteService.writeToTemp(pdfBytes, fileName);
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'application/pdf', name: fileName)],
-        text: 'Carte de prise en charge SIM (PDF) — ${_numeroPolice ?? ''}',
-      );
-    } catch (e) {
-      await _showToast('Erreur export PDF : $e', SimToastType.error);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _saveCartePdf() async {
-    if (_loading) return;
-    setState(() => _loading = true);
-    try {
-      final pngBytes = await _ensureCartePng();
-      if (pngBytes == null) {
-        await _showToast('Carte indisponible pour le moment.', SimToastType.error);
-        return;
-      }
-
-      final pdfBytes = await _buildCartePdfBytes(pngBytes);
-      if (pdfBytes == null) {
-        await _showToast('Numéro de police indisponible.', SimToastType.error);
-        return;
-      }
-
-      final fileName = _cartePdfFileName;
-      final file = await _carteService.saveToDevice(pdfBytes, fileName);
-      await _showToast('PDF enregistré : ${file.path}', SimToastType.success);
-    } catch (e) {
-      await _showToast('Erreur export PDF : $e', SimToastType.error);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
   Future<void> _pickImageSheet(bool isSelfie) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -544,7 +512,9 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
               title: Text(isSelfie ? 'Prendre un selfie' : 'Prendre une photo'),
               onTap: () {
                 Navigator.pop(ctx);
-                _pickImage(isSelfie, ImageSource.camera);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _pickImage(isSelfie, ImageSource.camera);
+                });
               },
             ),
             ListTile(
@@ -552,7 +522,9 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
               title: const Text('Choisir depuis la galerie'),
               onTap: () {
                 Navigator.pop(ctx);
-                _pickImage(isSelfie, ImageSource.gallery);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _pickImage(isSelfie, ImageSource.gallery);
+                });
               },
             ),
           ],
@@ -562,30 +534,52 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
   }
 
   Future<void> _pickImage(bool isSelfie, ImageSource source) async {
-    final file = await _picker.pickImage(
-      source: source,
-      maxWidth: 1600,
-      imageQuality: 85,
-      preferredCameraDevice: isSelfie ? CameraDevice.front : CameraDevice.rear,
-    );
-    if (file == null) return;
-    final bytes = await file.readAsBytes();
-    if (bytes.length > 2 * 1024 * 1024) {
-      await _showToast('Image trop volumineuse (max 2 Mo).', SimToastType.error);
-      return;
-    }
-    final ext = file.path.split('.').last.toLowerCase();
-    final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
-    final dataUrl = 'data:$mime;base64,${base64Encode(bytes)}';
-    setState(() {
-      if (isSelfie) {
-        _selfieDataUrl = dataUrl;
-        _selfieName = file.name;
-      } else {
-        _pieceIdentiteDataUrl = dataUrl;
-        _pieceIdentiteName = file.name;
+    if (_kycImageBusy) return;
+    setState(() => _kycImageBusy = true);
+    try {
+      final file = await _picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        imageQuality: 68,
+        preferredCameraDevice: isSelfie ? CameraDevice.front : CameraDevice.rear,
+      );
+      if (file == null) return;
+      if (!mounted) return;
+
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+
+      const maxBytes = 900 * 1024;
+      if (bytes.length > maxBytes) {
+        await _showToast('Image trop volumineuse (max 900 Ko). Réessayez avec moins de zoom.', SimToastType.error);
+        return;
       }
-    });
+      final ext = file.path.split('.').last.toLowerCase();
+      final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
+      final dataUrl = await compute(simKycEncodeDataUrl, (mime, bytes));
+      if (!mounted) return;
+
+      setState(() {
+        if (isSelfie) {
+          _selfieBytes = bytes;
+          _selfieDataUrl = dataUrl;
+        } else {
+          _pieceIdentiteBytes = bytes;
+          _pieceIdentiteDataUrl = dataUrl;
+        }
+      });
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[SIM] pickImage failed ($source): $e\n$st');
+      }
+      if (!mounted) return;
+      final message = source == ImageSource.camera
+          ? 'Impossible d\'ouvrir la caméra. Autorisez Caméra pour Mon Peya dans les réglages du téléphone, puis réessayez.'
+          : 'Impossible d\'accéder à la galerie. Vérifiez les autorisations Photos.';
+      await _showToast(message, SimToastType.error);
+    } finally {
+      if (mounted) setState(() => _kycImageBusy = false);
+    }
   }
 
   Future<void> _runDevis() async {
@@ -606,7 +600,12 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
           nombrePeriodes: _isMotoAuto ? _nombrePeriodes : null,
         ),
       );
-      setState(() => _devis = result);
+      setState(() {
+        _devis = result;
+        _resetCreateIdempotency();
+        _souscriptionId = null;
+        _montantAPercevoir = null;
+      });
       await _showToast('Devis calculé avec succès.', SimToastType.success);
     } on SimApiException catch (e) {
       await _showToast(e.displayMessage, SimToastType.error);
@@ -617,7 +616,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
     }
   }
 
-  Future<void> _createSouscription() async {
+  Future<void> _createSouscription({bool forceNewIdempotencyKey = false}) async {
     if (_devis == null) {
       await _showToast('Calculez d\'abord le devis.', SimToastType.error);
       return;
@@ -626,36 +625,46 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
       await _showToast('Renseignez nom, prénom et téléphone.', SimToastType.error);
       return;
     }
-    if (_pieceIdentiteDataUrl == null || _selfieDataUrl == null) {
+    if (_pieceIdentiteBytes == null ||
+        _selfieBytes == null ||
+        _pieceIdentiteDataUrl == null ||
+        _selfieDataUrl == null) {
       await _showToast('Pièce d\'identité et selfie obligatoires.', SimToastType.error);
       return;
     }
 
     setState(() => _loading = true);
-    _idempotencyCreate ??= _uuid.v4();
+    final request = SimSouscriptionRequest(
+      produit: _produit,
+      formule: _formule!,
+      nombrePeriodes: _isMotoAuto ? _nombrePeriodes : null,
+      prospect: SimProspect(
+        nom: _nomCtrl.text.trim().toUpperCase(),
+        prenom: _prenomCtrl.text.trim(),
+        telephone: _telephoneCtrl.text.trim(),
+      ),
+      pieceIdentiteUrl: _pieceIdentiteDataUrl!,
+      selfieUrl: _selfieDataUrl!,
+    );
+    final idempotencyKey = _idempotencyKeyForCreate(request, forceNew: forceNewIdempotencyKey);
     try {
       final result = await _api.createSouscription(
-        SimSouscriptionRequest(
-          produit: _produit,
-          formule: _formule!,
-          nombrePeriodes: _isMotoAuto ? _nombrePeriodes : null,
-          prospect: SimProspect(
-            nom: _nomCtrl.text.trim().toUpperCase(),
-            prenom: _prenomCtrl.text.trim(),
-            telephone: _telephoneCtrl.text.trim(),
-          ),
-          pieceIdentiteUrl: _pieceIdentiteDataUrl!,
-          selfieUrl: _selfieDataUrl!,
-        ),
-        idempotencyKey: _idempotencyCreate!,
+        request,
+        idempotencyKey: idempotencyKey,
       );
       setState(() {
         _souscriptionId = result.id;
         _montantAPercevoir = result.montantAPercevoir;
+        _resetConfirmIdempotency();
       });
       await _showToast('Souscription créée — en attente de paiement.', SimToastType.success);
       setState(() => _step = 2);
     } on SimApiException catch (e) {
+      if (!forceNewIdempotencyKey && SimIdempotency.isBodyMismatch(e)) {
+        if (mounted) setState(() => _loading = false);
+        await _createSouscription(forceNewIdempotencyKey: true);
+        return;
+      }
       await _showToast(e.displayMessage, SimToastType.error);
     } catch (e) {
       await _showToast('Erreur souscription : $e', SimToastType.error);
@@ -686,16 +695,17 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
       }
 
       _paymentReference = 'PEYAPAY-${DateTime.now().millisecondsSinceEpoch}';
-      _idempotencyConfirm ??= _uuid.v4();
+      final confirmRequest = SimConfirmPaymentRequest(
+        referencePaiement: _paymentReference!,
+        montantPercu: amount,
+        datePaiement: DateTime.now().toUtc().toIso8601String(),
+      );
+      final confirmKey = _idempotencyKeyForConfirm(confirmRequest);
 
       final confirm = await _api.confirmPayment(
         id,
-        SimConfirmPaymentRequest(
-          referencePaiement: _paymentReference!,
-          montantPercu: amount,
-          datePaiement: DateTime.now().toUtc().toIso8601String(),
-        ),
-        idempotencyKey: _idempotencyConfirm!,
+        confirmRequest,
+        idempotencyKey: confirmKey,
       );
 
       setState(() {
@@ -709,16 +719,27 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
         final png = await _api.fetchCartePng(id);
         if (mounted) setState(() => _cartePng = Uint8List.fromList(png));
       } catch (_) {}
-      unawaited(_persistActiveCard());
 
-      await _showToast('Paiement confirmé — police émise.', SimToastType.success);
-      if (mounted) setState(() => _step = 3);
+      if (mounted) {
+        await _returnToSimHomeAfterSubscription(
+          toastMessage: 'Paiement confirmé — carte enregistrée dans Mes cartes.',
+        );
+      }
     } on SimApiException catch (e) {
       if (e.code == 'deja_confirmee') {
         setState(() => _paid = true);
-        unawaited(_ensureCartePng());
-        await _showToast('Paiement déjà confirmé.', SimToastType.info);
-        if (mounted) setState(() => _step = 3);
+        await _ensureCartePng();
+        if (mounted) {
+          await _returnToSimHomeAfterSubscription(
+            toastMessage: 'Paiement déjà confirmé — carte disponible dans Mes cartes.',
+          );
+        }
+      } else if (SimIdempotency.isBodyMismatch(e)) {
+        _resetConfirmIdempotency();
+        await _showToast(
+          'Conflit d\'idempotence — réessayez de confirmer le paiement.',
+          SimToastType.error,
+        );
       } else {
         await _showToast(e.displayMessage, SimToastType.error);
       }
@@ -747,15 +768,13 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
     }
     if (_step == 2) {
       if (_paid) {
-        unawaited(_ensureCartePng());
-        setState(() => _step = 3);
+        await _returnToSimHomeAfterSubscription(
+          toastMessage: 'Carte disponible dans Mes cartes.',
+        );
       } else {
         await _payAndConfirm();
       }
       return;
-    }
-    if (_step == 3) {
-      SimHostBridge.exitModule(context);
     }
   }
 
@@ -769,8 +788,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
     return switch (_step) {
       0 => _devis == null ? 'Calculer le devis' : 'Continuer',
       1 => 'Confirmer la souscription',
-      2 => _paid ? 'Continuer' : 'Payer avec Peya Pay',
-      3 => 'Fermer la souscription',
+      2 => _paid ? 'Retour à l\'accueil SIM' : 'Payer avec Peya Pay',
       _ => 'Continuer',
     };
   }
@@ -782,7 +800,6 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
       };
 
   String? get _amountText {
-    if (_step == 3) return null;
     if (_step == 0 && _devis == null) {
       final prime = _formuleOptions.where((o) => o.value == _formule).firstOrNull?.prime;
       if (prime == null || prime <= 0) return null;
@@ -797,8 +814,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
       0 => _buildDevisStep(),
       1 => _buildSouscriptionStep(),
       2 => _buildPaymentStep(),
-      3 => _buildDocumentsStep(),
-      _ => _buildDocumentsStep(),
+      _ => _buildPaymentStep(),
     };
   }
 
@@ -852,6 +868,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
                 onTap: () => setState(() {
                   _formule = o.value;
                   _devis = null;
+                  _resetCreateIdempotency();
                 }),
               ),
             ),
@@ -866,6 +883,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
             onChanged: (v) => setState(() {
               _nombrePeriodes = v;
               _devis = null;
+              _resetCreateIdempotency();
             }),
           ),
         ],
@@ -912,16 +930,20 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
         simCardSection(
           title: '2. Documents KYC',
           children: [
-            SimUploadTile(
-              icon: Icons.badge_outlined,
+            SimKycDocumentPreview(
               label: 'Pièce d\'identité',
-              fileName: _pieceIdentiteName,
+              icon: Icons.badge_outlined,
+              imageBytes: _pieceIdentiteBytes,
+              busy: _kycImageBusy,
               onTap: () => _pickImageSheet(false),
             ),
-            SimUploadTile(
-              icon: Icons.face_outlined,
+            const SizedBox(height: 12),
+            SimKycDocumentPreview(
               label: 'Selfie',
-              fileName: _selfieName,
+              icon: Icons.face_outlined,
+              imageBytes: _selfieBytes,
+              previewHeight: 200,
+              busy: _kycImageBusy,
               onTap: () => _pickImageSheet(true),
             ),
           ],
@@ -962,7 +984,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
               selected: true,
               title: 'Peya Pay',
               subtitle: 'Portefeuille Mon Peya',
-              icon: Icons.account_balance_wallet_outlined,
+              leading: const SimPeyapayLogo(),
               onTap: () {},
             ),
           ],
@@ -971,155 +993,6 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
           const SimSuccessBanner(
             title: 'Paiement validé !',
             message: 'Votre paiement a été confirmé auprès de SIM Assurances.',
-          ),
-      ],
-    );
-  }
-
-  Widget _buildDocumentsStep() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
-      children: [
-        const Center(child: SimCheckBurst()),
-        const SizedBox(height: 16),
-        const SimRise(
-          delay: Duration(milliseconds: 250),
-          child: Column(
-            children: [
-              Text('Vous êtes assuré', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
-              SizedBox(height: 6),
-              Text(
-                'Votre carte est disponible ici, même hors connexion.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14.5, color: SimBrand.muted),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        SimRise(
-          delay: const Duration(milliseconds: 500),
-          offset: const Offset(0, 40),
-          child: Column(
-            children: [
-              SimAssuranceCardFlip(record: _activeRecord()),
-              const SizedBox(height: 10),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.threesixty_rounded, size: 16, color: SimBrand.muted),
-                  SizedBox(width: 6),
-                  Text(
-                    'Touchez ou glissez pour retourner la carte',
-                    style: TextStyle(fontSize: 12.5, color: SimBrand.muted, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        SimSummaryCard(
-          rows: [
-            ('Assureur', SimBrand.title),
-            ('Produit', _productLabel),
-            ('Prime', _formatAmount(_montantAPercevoir ?? _devis?.prime ?? 0)),
-            ('Début', _dateDebut ?? '—'),
-            ('Fin', _dateFin ?? '—'),
-            ('Réf. paiement', _paymentReference ?? '—'),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (_cartePng != null) ...[
-          const Text(
-            'Carte de prise en charge',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _loading ? null : _saveCarte,
-                  icon: const Icon(Icons.download_outlined, size: 18),
-                  label: const Text('Enregistrer'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: SimBrand.primary,
-                    side: BorderSide(color: SimBrand.primary),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _loading ? null : _shareCarte,
-                  icon: const Icon(Icons.share_outlined, size: 18),
-                  label: const Text('Partager'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: SimBrand.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _loading ? null : _saveCartePdf,
-                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                  label: const Text('PDF'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: SimBrand.primary,
-                    side: BorderSide(color: SimBrand.primary),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _loading ? null : _shareCartePdf,
-                  icon: const Icon(Icons.ios_share_outlined, size: 18),
-                  label: const Text('Partager PDF'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: SimBrand.primaryDark,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ] else
-          simCardSection(
-            title: 'Documents',
-            children: [
-              const Text(
-                'La carte sera disponible quelques instants après confirmation.',
-                style: TextStyle(fontSize: 13, color: SimBrand.textDark),
-              ),
-              if (_souscriptionId != null) ...[
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _loading ? null : () => unawaited(_ensureCartePng()),
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Actualiser la carte'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: SimBrand.primary,
-                    side: BorderSide(color: SimBrand.primary),
-                  ),
-                ),
-              ],
-            ],
           ),
       ],
     );
@@ -1135,6 +1008,8 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
           onNewSubscription: () => setState(() {
             _viewingMyCards = false;
             _choosing = true;
+            _resetSubscriptionFlow();
+            unawaited(_prefillFromSession());
           }),
           onOpenCard: _showSavedCardDetails,
         ),
@@ -1152,8 +1027,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
           onOpenCards: () => setState(() => _viewingMyCards = true),
           onSelect: (p) => setState(() {
             _produit = p.code;
-            _devis = null;
-            _step = 0;
+            _resetSubscriptionFlow();
             _syncFormuleForProduct();
             _choosing = false;
           }),
@@ -1209,7 +1083,7 @@ class _SimModuleScreenState extends State<SimModuleScreen> {
           onPrimary: _onPrimaryAction,
           amountLabel: _amountLabel,
           amount: _amountText,
-          footnote: _step == 3 ? null : 'Payé avec\nPeya Pay',
+          footnote: 'Payé avec\nPeya Pay',
         ),
       ),
     );
