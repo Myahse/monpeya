@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:app/src/core/assets/constants/asset.paths.dart';
@@ -43,6 +46,9 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
   int _step = 0; // 0: ID photos, 1: Identity + email, 2: PIN
   bool _busy = false;
   final _picker = ImagePicker();
+  final _bodyKey = GlobalKey();
+  final _keypadKey = GlobalKey();
+  final _nextButtonKey = GlobalKey();
 
   XFile? _idRecto;
   XFile? _idVerso;
@@ -110,7 +116,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
 
     await showModalBottomSheet<void>(
       context: context,
-      isScrollControlled: false,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         final cs = Theme.of(context).colorScheme;
@@ -192,6 +198,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
   Future<void> _pickIdPhoto({required bool recto}) async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         final cs = Theme.of(context).colorScheme;
@@ -271,12 +278,15 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
     if (_step == 0) {
       if (!_idPhotosOk) return;
       setState(() => _step = 1);
+      _scrollToTop();
       return;
     }
 
     if (_step == 1) {
       if (!_identityOk) return;
+      FocusManager.instance.primaryFocus?.unfocus();
       setState(() => _step = 2);
+      _revealKeypad();
       return;
     }
 
@@ -291,6 +301,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
         _busy = false;
         _pinIssue = RegistrationPinIssue.mismatch;
       });
+      _revealKeypad();
       return;
     }
 
@@ -306,6 +317,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
         _busy = false;
         _pinIssue = RegistrationPinIssue.fromSignInFailure(e);
       });
+      _revealKeypad();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
       );
@@ -323,6 +335,60 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
     AuthNavigation.completeAuthFlow(context);
   }
 
+  static const _scrollDuration = Duration(milliseconds: 250);
+
+  /// AuthFlowScaffold's scroll view, which the steps share.
+  ScrollPosition? get _bodyScroll {
+    final body = _bodyKey.currentContext;
+    return body == null ? null : Scrollable.maybeOf(body)?.position;
+  }
+
+  /// A new step starts at the top, whatever the last one was scrolled to.
+  void _scrollToTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final position = _bodyScroll;
+      if (position == null || position.pixels <= 0) return;
+      position.animateTo(0, duration: _scrollDuration, curve: Curves.easeOut);
+    });
+  }
+
+  /// The PIN step is taller than most phones. Once it is laid out and the keyboard is gone,
+  /// scroll so the whole keypad sits just above the floating Suivant button: no key hidden
+  /// under it, and the PIN boxes kept in view wherever the screen allows.
+  void _revealKeypad([int framesLeft = 30]) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (MediaQuery.viewInsetsOf(context).bottom > 0 && framesLeft > 0) {
+        _revealKeypad(framesLeft - 1);
+        WidgetsBinding.instance.scheduleFrame();
+        return;
+      }
+      final body = _bodyKey.currentContext;
+      final scrollable = body == null ? null : Scrollable.maybeOf(body);
+      final scrollBox = scrollable?.context.findRenderObject();
+      final keypad = _keypadKey.currentContext?.findRenderObject();
+      final button = _nextButtonKey.currentContext?.findRenderObject();
+      final viewport = keypad == null ? null : RenderAbstractViewport.maybeOf(keypad);
+      if (scrollable == null ||
+          scrollBox is! RenderBox ||
+          keypad is! RenderBox ||
+          button is! RenderBox ||
+          viewport == null) {
+        return;
+      }
+      // The offset that puts the keypad's bottom at the scroll view's bottom edge, then
+      // further up by what the floating button covers of that edge.
+      final covered =
+          scrollBox.localToGlobal(Offset(0, scrollBox.size.height)).dy - button.localToGlobal(Offset.zero).dy;
+      final position = scrollable.position;
+      final target = (viewport.getOffsetToReveal(keypad, 1.0).offset + covered)
+          .clamp(position.minScrollExtent, position.maxScrollExtent);
+      if ((target - position.pixels).abs() < 1) return;
+      position.animateTo(target, duration: _scrollDuration, curve: Curves.easeOut);
+    });
+  }
+
   void _back() {
     if (_busy) return;
     if (_step == 0) {
@@ -333,6 +399,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
       return;
     }
     setState(() => _step -= 1);
+    _scrollToTop();
   }
 
   @override
@@ -365,110 +432,117 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
         minHeight: 6,
         borderRadius: BorderRadius.circular(999),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(0, 0, 0, 24),
-        children: [
-          if (_step == 0) ...[
-            _IdPhotoTile(
-              title: 'Recto',
-              subtitle: 'Obligatoire',
-              file: _idRecto,
-              onTap: () => _pickIdPhoto(recto: true),
-            ),
-            const SizedBox(height: 12),
-            _IdPhotoTile(
-              title: 'Verso',
-              subtitle: 'Optionnel',
-              file: _idVerso,
-              onTap: () => _pickIdPhoto(recto: false),
-            ),
-          ] else if (_step == 1) ...[
-            _Field(label: 'Nom', controller: _lastName, onChanged: () => setState(() {})),
-            const SizedBox(height: 12),
-            _Field(label: 'Prénoms', controller: _firstName, onChanged: () => setState(() {})),
-            const SizedBox(height: 12),
-            _Field(
-              label: 'Email',
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              onChanged: () => setState(() {}),
-            ),
-            const SizedBox(height: 12),
-            _Field(label: 'Numéro CNI', controller: _idNumber, onChanged: () => setState(() {})),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _Field(
-                    label: 'Date de naissance',
-                    controller: _birthDate,
-                    hint: 'JJ/MM/AAAA',
-                    readOnly: true,
-                    onTap: _pickBirthDate,
-                    onChanged: () => setState(() {}),
+      // A plain Column: AuthFlowScaffold already scrolls, and a ListView there gets unbounded height.
+      body: Padding(
+        key: _bodyKey,
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_step == 0) ...[
+              _IdPhotoTile(
+                title: 'Recto',
+                subtitle: 'Obligatoire',
+                file: _idRecto,
+                onTap: () => _pickIdPhoto(recto: true),
+              ),
+              const SizedBox(height: 12),
+              _IdPhotoTile(
+                title: 'Verso',
+                subtitle: 'Optionnel',
+                file: _idVerso,
+                onTap: () => _pickIdPhoto(recto: false),
+              ),
+            ] else if (_step == 1) ...[
+              _Field(label: 'Nom', controller: _lastName, onChanged: () => setState(() {})),
+              const SizedBox(height: 12),
+              _Field(label: 'Prénoms', controller: _firstName, onChanged: () => setState(() {})),
+              const SizedBox(height: 12),
+              _Field(
+                label: 'Email',
+                controller: _email,
+                keyboardType: TextInputType.emailAddress,
+                onChanged: () => setState(() {}),
+              ),
+              const SizedBox(height: 12),
+              _Field(label: 'Numéro CNI', controller: _idNumber, onChanged: () => setState(() {})),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _Field(
+                      label: 'Date de naissance',
+                      controller: _birthDate,
+                      hint: 'JJ/MM/AAAA',
+                      readOnly: true,
+                      onTap: _pickBirthDate,
+                      onChanged: () => setState(() {}),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _SexPicker(
-                    value: _sex,
-                    onChanged: (v) => setState(() => _sex = v),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _SexPicker(
+                      value: _sex,
+                      onChanged: (v) => setState(() => _sex = v),
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _Field(label: 'Lieu de naissance', controller: _birthPlace, onChanged: () => setState(() {})),
+              const SizedBox(height: 12),
+              _Field(label: 'Profession', controller: _profession, onChanged: () => setState(() {})),
+            ] else ...[
+              _PinBoxes(
+                pin: _pin,
+                confirmPin: _confirmPin,
+                showError: _pinIssue?.pinIsWrong ?? false,
+              ),
+              if (_pinIssue != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _pinIssue!.message,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: cs.error, fontWeight: FontWeight.w800),
                 ),
               ],
-            ),
-            const SizedBox(height: 12),
-            _Field(label: 'Lieu de naissance', controller: _birthPlace, onChanged: () => setState(() {})),
-            const SizedBox(height: 12),
-            _Field(label: 'Profession', controller: _profession, onChanged: () => setState(() {})),
-          ] else ...[
-            _PinBoxes(
-              pin: _pin,
-              confirmPin: _confirmPin,
-              showError: _pinIssue?.pinIsWrong ?? false,
-            ),
-            if (_pinIssue != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _pinIssue!.message,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: cs.error, fontWeight: FontWeight.w800),
+              const SizedBox(height: 16),
+              PinKeypad(
+                key: _keypadKey,
+                keypad: _keypad,
+                onKeyPress: (n) {
+                  setState(() {
+                    _pinIssue = null;
+                    if (_pin.length < 4) {
+                      _pin = _pin + n;
+                      return;
+                    }
+                    if (_confirmPin.length < 4) {
+                      _confirmPin = _confirmPin + n;
+                    }
+                  });
+                },
+                onDelete: () {
+                  setState(() {
+                    _pinIssue = null;
+                    if (_confirmPin.isNotEmpty) {
+                      _confirmPin = _confirmPin.substring(0, _confirmPin.length - 1);
+                      return;
+                    }
+                    if (_pin.isNotEmpty) _pin = _pin.substring(0, _pin.length - 1);
+                  });
+                },
+                onLongDelete: () => setState(() {
+                  _pinIssue = null;
+                  _pin = '';
+                  _confirmPin = '';
+                }),
+                textColor: cs.onSurface,
               ),
             ],
-            const SizedBox(height: 16),
-            PinKeypad(
-              keypad: _keypad,
-              onKeyPress: (n) {
-                setState(() {
-                  _pinIssue = null;
-                  if (_pin.length < 4) {
-                    _pin = _pin + n;
-                    return;
-                  }
-                  if (_confirmPin.length < 4) {
-                    _confirmPin = _confirmPin + n;
-                  }
-                });
-              },
-              onDelete: () {
-                setState(() {
-                  _pinIssue = null;
-                  if (_confirmPin.isNotEmpty) {
-                    _confirmPin = _confirmPin.substring(0, _confirmPin.length - 1);
-                    return;
-                  }
-                  if (_pin.isNotEmpty) _pin = _pin.substring(0, _pin.length - 1);
-                });
-              },
-              onLongDelete: () => setState(() {
-                _pinIssue = null;
-                _pin = '';
-                _confirmPin = '';
-              }),
-              textColor: cs.onSurface,
-            ),
           ],
-        ],
+        ),
       ),
       bottom: SafeArea(
         top: false,
@@ -477,6 +551,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
           child: SizedBox(
             width: double.infinity,
             child: FilledButton(
+              key: _nextButtonKey,
               style: FilledButton.styleFrom(
                 backgroundColor: canNext ? const Color(0xFF006D56) : const Color(0xFFB9D8CF),
                 foregroundColor: Colors.white,
@@ -488,6 +563,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
                   : () async {
                       if (_step == 2 && _pin.length == 4 && _confirmPin.length == 4 && _pin != _confirmPin) {
                         setState(() => _pinIssue = RegistrationPinIssue.mismatch);
+                        _revealKeypad();
                         return;
                       }
                       await _next();
@@ -576,8 +652,8 @@ class _IdPhotoTile extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(18),
                 child: file != null
-                    ? Image.network(
-                        file!.path,
+                    ? Image.file(
+                        File(file!.path),
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => const SizedBox(),
                       )
@@ -732,6 +808,7 @@ class _SexPicker extends StatelessWidget {
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           initialValue: value.isEmpty ? null : value,
+          isExpanded: true,
           items: const [
             DropdownMenuItem(value: 'M', child: Text('Homme')),
             DropdownMenuItem(value: 'F', child: Text('Femme')),

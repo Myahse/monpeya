@@ -10,8 +10,8 @@ import 'package:app/src/core/api/mon_peya_api.exception.dart';
 import 'package:app/src/core/api/mon_peya_api.service.dart';
 import 'package:app/src/features/auth/presentation/registration_flow/screens/registration_flow.screen.dart';
 
-// The registration screen's body cannot be laid out in a widget test (a ListView inside
-// AuthFlowScaffold's scroll view), so its error choice is tested here without the screen.
+// The PIN step's error choice, tested through the real sign-in service without the screen
+// (registration_flow_layout_test.dart pumps the screen itself).
 
 const _mismatchText = 'Les codes PIN ne correspondent pas.';
 const _pinRefusedText = 'Code PIN incorrect. Réessayez.';
