@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:app/src/core/auth/auth.navigation.dart';
 import 'package:app/src/core/auth/module.auth.dart';
 import 'package:app/src/core/navigation/app.navigation.dart';
 import 'package:app/src/core/peyapay/peyapay_profile.util.dart';
@@ -93,15 +94,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(PrefsKeys.biometricEnabled, false);
+    endMonPeyaSession();
     await monPeyaLogoutSession();
     await AuthStore.endSession();
     await AuthStore.setImmoUserId(null);
     clearPeyapayWalletQrCache();
-    endMonPeyaSession();
     notifyMonPeyaSessionChanged();
 
     if (!mounted) return;
-    Navigator.of(context).pop();
+    AuthNavigation.signOutToPhoneInput();
   }
 
   Future<void> _guardedAction({

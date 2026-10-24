@@ -33,6 +33,7 @@ class LoginPinScreen extends StatefulWidget {
 class _LoginPinScreenState extends State<LoginPinScreen> {
   String _pin = '';
   bool _showError = false;
+  bool _pinRefused = false;
   bool _submitting = false;
   bool _biometricAvailable = false;
   bool _biometricEnabled = false;
@@ -147,6 +148,7 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
       if (!mounted) return;
       setState(() {
         _showError = true;
+        _pinRefused = e.isPinRefused;
         _pin = '';
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -196,7 +198,11 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
     final pin = await AuthStore.getPinForPhone(phone);
     if (!mounted || pin == null) return;
 
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      // A new attempt: an earlier typed attempt's status must not stay on screen.
+      _showError = false;
+    });
     PinAuthLogger.step('Connexion biométrique pour ${PinAuthLogger.maskPhone(phone)}');
     try {
       await authenticateMonPeyaSession(phone: phone, pin: pin);
@@ -283,7 +289,9 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
                             color: isDark ? cs.surfaceContainerHighest : Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: _showError ? const Color(0xFFEF4444) : const Color(0xFF9CA3AF),
+                              color: _showError && _pinRefused
+                                  ? const Color(0xFFEF4444)
+                                  : const Color(0xFF9CA3AF),
                               width: 2,
                             ),
                           ),
@@ -321,12 +329,14 @@ class _LoginPinScreenState extends State<LoginPinScreen> {
                             ),
                           )
                         else if (_showError)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 6),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
                             child: Text(
-                              'Code PIN incorrect. Réessayez.',
+                              _pinRefused
+                                  ? 'Code PIN incorrect. Réessayez.'
+                                  : 'Service indisponible. Votre code PIN n’a pas été vérifié.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Color(0xFFEF4444)),
+                              style: const TextStyle(color: Color(0xFFEF4444)),
                             ),
                           ),
                       ],

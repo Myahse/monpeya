@@ -8,6 +8,10 @@ abstract final class MonPeyaErrorMessages {
       'Le serveur Mon Peya est momentanément indisponible. '
       'Vérifiez votre connexion et réessayez dans quelques instants.';
 
+  static const peyaPayUnavailable =
+      'Le service PeyaPay est momentanément indisponible. '
+      'Réessayez dans quelques instants.';
+
   static const serverUnreachable =
       'Impossible de joindre le serveur Mon Peya. '
       'Vérifiez que le téléphone et le PC sont sur le même réseau, '

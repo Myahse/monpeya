@@ -456,6 +456,7 @@ class MonPeyaApiService {
         message: _friendlyApiMessage(
           apiError?.message ?? errorMessage,
           fallback: errorMessage,
+          code: apiError?.code,
         ),
         statusCode: response.statusCode,
         apiCode: apiError?.code,
@@ -470,7 +471,11 @@ class MonPeyaApiService {
         (decoded['hasError'] == true ||
             (apiError.code != null && apiError.code != '800'))) {
       throw MonPeyaApiException(
-        message: _friendlyApiMessage(apiError.message, fallback: errorMessage),
+        message: _friendlyApiMessage(
+          apiError.message,
+          fallback: errorMessage,
+          code: apiError.code,
+        ),
         statusCode: response.statusCode,
         apiCode: apiError.code,
       );
@@ -503,7 +508,14 @@ class MonPeyaApiService {
     return _ApiStatusError(code: code, message: message);
   }
 
-  String _friendlyApiMessage(String? raw, {required String fallback}) {
+  String _friendlyApiMessage(
+    String? raw, {
+    required String fallback,
+    String? code,
+  }) {
+    if (code == MonPeyaApiException.serviceUnavailableCode) {
+      return MonPeyaErrorMessages.peyaPayUnavailable;
+    }
     final msg = raw?.trim();
     if (msg == null || msg.isEmpty) return fallback;
     final lower = msg.toLowerCase();

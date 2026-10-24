@@ -32,6 +32,15 @@ class AuthNavigation {
     );
   }
 
+  /// Clears the stack and shows phone entry after sign-out.
+  static void signOutToPhoneInput() {
+    final navigator = rootNavKey.currentState;
+    navigator?.pushNamedAndRemoveUntil(
+      Routes.phoneInput,
+      (route) => false,
+    );
+  }
+
   static void popUntilApp(BuildContext context) {
     Navigator.of(context).popUntil(
       (route) => route.settings.name == Routes.app || route.isFirst,

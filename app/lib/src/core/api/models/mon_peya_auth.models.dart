@@ -11,6 +11,7 @@ class MonPeyaAuthUser {
     this.numerocomptecomplet,
     this.accountId,
     this.codePaysResidence,
+    this.accounts = const [],
   });
 
   final String? userId;
@@ -25,8 +26,18 @@ class MonPeyaAuthUser {
   final String? numerocomptecomplet;
   final String? accountId;
   final String? codePaysResidence;
+  final List<Map<String, dynamic>> accounts;
 
   factory MonPeyaAuthUser.fromJson(Map<String, dynamic> json) {
+    final accountsRaw = json['accounts'];
+    final accounts = <Map<String, dynamic>>[];
+    if (accountsRaw is List) {
+      for (final row in accountsRaw) {
+        if (row is Map) {
+          accounts.add(Map<String, dynamic>.from(row));
+        }
+      }
+    }
     return MonPeyaAuthUser(
       userId: json['userId']?.toString(),
       phone: json['phone']?.toString(),
@@ -40,6 +51,7 @@ class MonPeyaAuthUser {
       numerocomptecomplet: json['numerocomptecomplet']?.toString(),
       accountId: json['accountId']?.toString(),
       codePaysResidence: json['codePaysResidence']?.toString(),
+      accounts: accounts,
     );
   }
 }

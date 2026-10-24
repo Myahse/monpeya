@@ -5,6 +5,7 @@ import 'package:immo/immo.dart';
 import 'package:peyapay/peyapay.dart';
 
 import 'package:app/src/core/api/models/mon_peya_auth.models.dart';
+import 'package:app/src/core/api/models/mon_peya_wallet.models.dart';
 import 'package:app/src/core/api/models/mon_peya_subscription.models.dart';
 import 'package:app/src/core/api/mon_peya_api.exception.dart';
 import 'package:app/src/core/api/mon_peya_api.service.dart';
@@ -131,20 +132,14 @@ Future<void> _persistMonPeyaSession(MonPeyaAuthSession session) async {
 
   final user = session.user;
   if (user != null) {
-    await AuthStore.setMonPeyaUserId(user.userId);
-    await AuthStore.setCodeClient(user.codeClient);
-    await AuthStore.setPeyaAccountProfile(
-      isPeyaClient: user.isPeyaClient,
-      isPeyapayMerchant: user.isPeyapayMerchant,
-    );
+    await _persistMonPeyaUser(user);
   }
 
   // Token Mon Peya unique — réutilisé par le module immo (Bearer).
+  // Its user id is Mon Peya's own, not a Mr Immo id: Immo finds its user by phone (ensureSession).
   if (session.accessToken != null && session.accessToken!.isNotEmpty) {
     await AuthStore.setImmoAuthToken(session.accessToken!);
-    if (user?.userId != null) {
-      await AuthStore.setImmoUserId(user!.userId);
-    }
+    await AuthStore.setImmoUserId(null);
   }
 }
 
@@ -166,6 +161,7 @@ void _seedClientStateFromSession(MonPeyaAuthSession session) {
   final account = user.numerocomptecomplet?.trim().isNotEmpty == true
       ? user.numerocomptecomplet
       : user.accountId;
+  final codeClient = _resolveCodeClient(user);
 
   api.setClientState(
     PeyapayClientState(
@@ -174,8 +170,53 @@ void _seedClientStateFromSession(MonPeyaAuthSession session) {
       etatClient: PeyapayClientEtat.customer,
       gsmPrincipale: user.phone,
       nomClient: name,
+      codeClient: codeClient,
+      deplafonner: user.isDeplafonne == true,
     ),
   );
+}
+
+String? _resolveCodeClient(MonPeyaAuthUser user) {
+  final direct = user.codeClient?.trim();
+  if (direct != null && direct.isNotEmpty) return direct;
+  for (final row in user.accounts) {
+    final c = row['codeClient']?.toString().trim();
+    if (c != null && c.isNotEmpty) return c;
+  }
+  return null;
+}
+
+bool _accountTypcptIsMerchant(Map<String, dynamic> row) {
+  final t = (row['typcpt'] ?? row['typeCompte'])?.toString().trim().toUpperCase();
+  return t == 'S';
+}
+
+Future<void> _persistMonPeyaUser(MonPeyaAuthUser user) async {
+  await AuthStore.setMonPeyaUserId(user.userId);
+  final codeClient = _resolveCodeClient(user);
+  await AuthStore.setCodeClient(codeClient);
+
+  var isMerchant = user.isPeyapayMerchant;
+  if (user.accounts.isNotEmpty) {
+    if (user.accounts.any(_accountTypcptIsMerchant)) {
+      isMerchant = true;
+    }
+  }
+
+  await AuthStore.setPeyaAccountProfile(
+    isPeyaClient: user.isPeyaClient ?? true,
+    isPeyapayMerchant: isMerchant,
+  );
+}
+
+Future<void> _persistMonPeyaProfile(MonPeyaProfile profile) async {
+  final userRaw = profile.user;
+  if (userRaw == null) return;
+  final merged = Map<String, dynamic>.from(userRaw);
+  if (profile.accounts.isNotEmpty) {
+    merged['accounts'] = profile.accounts;
+  }
+  await _persistMonPeyaUser(MonPeyaAuthUser.fromJson(merged));
 }
 
 void _syncPeyapayWalletInBackground(String phone, String pin) {
@@ -219,7 +260,30 @@ Future<MonPeyaAuthSession> authenticateMonPeyaSession({
 
   final session = await monPeyaApi.login(phone: phone, pin: pin);
   await _persistMonPeyaSession(session);
-  _seedClientStateFromSession(session);
+  final token = session.accessToken;
+  if (token != null && token.isNotEmpty) {
+    try {
+      final profile = await monPeyaApi.profileRefresh(accessToken: token);
+      await _persistMonPeyaProfile(profile);
+      if (session.user != null) {
+        final mergedUser = MonPeyaAuthUser.fromJson({
+          ...Map<String, dynamic>.from(profile.user ?? {}),
+          if (profile.accounts.isNotEmpty) 'accounts': profile.accounts,
+        });
+        _seedClientStateFromSession(
+          MonPeyaAuthSession(
+            accessToken: session.accessToken,
+            refreshToken: session.refreshToken,
+            user: mergedUser,
+          ),
+        );
+      }
+    } catch (_) {
+      _seedClientStateFromSession(session);
+    }
+  } else {
+    _seedClientStateFromSession(session);
+  }
   PinAuthLogger.success('Session Mon Peya backend OK');
 
   // Await profile + balance so home/wallet show data immediately.

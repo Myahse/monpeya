@@ -110,6 +110,7 @@ Future<PeyapayWalletBalance> peyapayFetchWalletBalance(String phone) {
 
 /// Ensures a PeyaPay client JWT is on the API service (direct Peya, not backend).
 Future<void> peyapayEnsureBearerReady({bool preferAppToken = false}) async {
+  if (!MonPeyaSession.instance.isSessionActive) return;
   final api = _requirePeyapayApi();
   await api.hydrateBearerFrom(AuthStore.authToken, preferAppToken: preferAppToken);
 
@@ -149,6 +150,9 @@ Future<PeyapayClientState> authenticatePeyapaySession({
   required String phone,
   required String pin,
 }) async {
+  if (!MonPeyaSession.instance.isSessionActive) {
+    throw PeyapayApiException(message: 'Session Mon Peya requise');
+  }
   final api = _requirePeyapayApi();
   PinAuthLogger.step(
     'PeyaPay /authclient/token — ${PinAuthLogger.maskPhone(phone)}',

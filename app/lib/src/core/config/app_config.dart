@@ -3,7 +3,8 @@
 /// Nothing secret lives in source control. Copy `config/env.example.json`
 /// to `config/env.json` (git-ignored), fill it in, then run from `app/`:
 ///
-/// `flutter run --dart-define-from-file=config/env.json`
+/// `flutter run` (Cursor/VS Code: `app/.vscode/settings.json` adds
+/// `--dart-define-from-file=config/env.json` automatically), or `.\run.ps1`
 ///
 /// Defaults below are safe placeholders for the Android emulator
 /// (`10.0.2.2` = host machine). On a physical phone, put the PC's LAN IP in

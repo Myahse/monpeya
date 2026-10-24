@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:app/src/core/config/mon_peya_env.dart';
 import 'package:app/src/core/auth/pin_auth.logger.dart';
+import 'package:app/src/core/session/mon_peya.session.dart';
 import 'package:app/src/core/storage/constants/prefs.keys.dart';
 
 class AuthStore {
@@ -123,8 +124,13 @@ class AuthStore {
     await setImmoAuthToken(null);
     await setMonPeyaAccessToken(null);
     await setMonPeyaRefreshToken(null);
+    await setMonPeyaUserId(null);
+    await setCodeClient(null);
     await setPeyaAccountProfile(isPeyaClient: null, isPeyapayMerchant: null);
-    PeyapayHostBridge.api?.setBearerToken(null);
+    final api = PeyapayHostBridge.api;
+    api?.setClientState(null);
+    api?.setWalletBalance(null);
+    api?.setBearerToken(null);
   }
 
   static Future<void> setSessionRegistered(bool value) async {
@@ -264,13 +270,11 @@ class AuthStore {
 
   /// True when the signed-in phone has a PeyaPay **client** wallet
   /// (`estFournisseur: N`, `wtypeClient` CLIENT, or non-`P` `typcpt`).
+  ///
+  /// Same GSM can be **client and merchant**; PeyaPay session wins over stale
+  /// Mon Peya flags when both wallets exist.
   static Future<bool> hasClientWallet() async {
-    final clientFlag = await isPeyaClientFlag();
-    if (clientFlag == true) return true;
-    if (clientFlag == false) {
-      final merchant = await isPeyapayMerchantFlag();
-      if (merchant == true) return false;
-    }
+    if (!MonPeyaSession.instance.isSessionActive) return false;
 
     final state = PeyapayHostBridge.api?.clientState;
     if (state != null) {
@@ -281,7 +285,12 @@ class AuthStore {
       }
     }
 
-    // Unknown — keep legacy client UX unless backend said merchant-only.
+    final clientFlag = await isPeyaClientFlag();
+    final merchantFlag = await isPeyapayMerchantFlag();
+    if (clientFlag == true) return true;
+    if (clientFlag == false && merchantFlag == true) return false;
+
+    // Unknown — default to client UX until PeyaPay PIN refreshes profile.
     return clientFlag ?? true;
   }
 

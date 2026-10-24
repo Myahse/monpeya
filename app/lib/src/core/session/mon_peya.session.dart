@@ -31,7 +31,6 @@ class MonPeyaSession extends ChangeNotifier {
   }
 
   void endSession() {
-    if (!_sessionActive) return;
     _sessionActive = false;
     notifyListeners();
   }

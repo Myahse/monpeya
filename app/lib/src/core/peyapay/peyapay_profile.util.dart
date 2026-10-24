@@ -1,6 +1,7 @@
 import 'package:peyapay/peyapay.dart';
 
 import 'package:app/src/core/auth/module.auth.dart';
+import 'package:app/src/core/session/mon_peya.session.dart';
 import 'package:app/src/core/storage/auth.store.dart';
 
 /// Shared display helpers for the signed-in PeyaPay profile.
@@ -10,6 +11,7 @@ abstract final class PeyapayProfileDisplay {
   static const guestLabel = 'Utilisateur';
 
   static String? clientName() {
+    if (!MonPeyaSession.instance.isSessionActive) return null;
     final nom = PeyapayHostBridge.api?.clientState?.nomClient?.trim();
     if (nom == null || nom.isEmpty) return null;
     return nom;

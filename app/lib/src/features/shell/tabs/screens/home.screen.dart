@@ -113,6 +113,13 @@ class _HomeScreenState extends State<HomeScreen>
   void _onSessionChanged() {
     if (MonPeyaSession.instance.isSessionActive) {
       setState(() => _showBalance = true);
+    } else {
+      setState(() {
+        _showBalance = false;
+        _balanceSolde = null;
+        _clientTitle = PeyapayProfileDisplay.guestLabel;
+        _clientInitials = PeyapayProfileDisplay.initials(PeyapayProfileDisplay.guestLabel);
+      });
     }
     unawaited(_loadProfileAndBalance());
   }

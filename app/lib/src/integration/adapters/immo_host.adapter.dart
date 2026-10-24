@@ -58,4 +58,7 @@ class MonPeyaImmoHostAdapter implements ImmoHostAuth {
 
   @override
   Future<void> setImmoUserId(String? userId) => AuthStore.setImmoUserId(userId);
+
+  @override
+  Future<String?> monPeyaAccessToken() => AuthStore.monPeyaAccessToken();
 }

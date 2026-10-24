@@ -20,6 +20,9 @@ class RegistrationFlowScreen extends StatefulWidget {
   State<RegistrationFlowScreen> createState() => _RegistrationFlowScreenState();
 }
 
+/// Why the PIN step shows a message under its boxes.
+enum _PinIssue { mismatch, refused, notChecked }
+
 class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
   int _step = 0; // 0: ID photos, 1: Identity + email, 2: PIN
   bool _busy = false;
@@ -39,7 +42,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
 
   String _pin = '';
   String _confirmPin = '';
-  bool _pinError = false;
+  _PinIssue? _pinIssue;
 
   late final List<List<String>> _keypad;
 
@@ -266,7 +269,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
     if (phone == null || phone.trim().isEmpty || !_pinOk) {
       setState(() {
         _busy = false;
-        _pinError = true;
+        _pinIssue = _PinIssue.mismatch;
       });
       return;
     }
@@ -281,7 +284,8 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _pinError = true;
+        // Only PeyaPay's refusal (919) means a wrong PIN; any other failure left it unchecked.
+        _pinIssue = e.isPinRefused ? _PinIssue.refused : _PinIssue.notChecked;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
@@ -402,12 +406,16 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
             _PinBoxes(
               pin: _pin,
               confirmPin: _confirmPin,
-              showError: _pinError,
+              showError: _pinIssue == _PinIssue.mismatch || _pinIssue == _PinIssue.refused,
             ),
-            if (_pinError) ...[
+            if (_pinIssue != null) ...[
               const SizedBox(height: 8),
               Text(
-                'Les codes PIN ne correspondent pas.',
+                switch (_pinIssue!) {
+                  _PinIssue.mismatch => 'Les codes PIN ne correspondent pas.',
+                  _PinIssue.refused => 'Code PIN incorrect. Réessayez.',
+                  _PinIssue.notChecked => 'Service indisponible. Votre code PIN n’a pas été vérifié.',
+                },
                 textAlign: TextAlign.center,
                 style: TextStyle(color: cs.error, fontWeight: FontWeight.w800),
               ),
@@ -417,7 +425,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
               keypad: _keypad,
               onKeyPress: (n) {
                 setState(() {
-                  _pinError = false;
+                  _pinIssue = null;
                   if (_pin.length < 4) {
                     _pin = _pin + n;
                     return;
@@ -429,7 +437,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
               },
               onDelete: () {
                 setState(() {
-                  _pinError = false;
+                  _pinIssue = null;
                   if (_confirmPin.isNotEmpty) {
                     _confirmPin = _confirmPin.substring(0, _confirmPin.length - 1);
                     return;
@@ -438,7 +446,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
                 });
               },
               onLongDelete: () => setState(() {
-                _pinError = false;
+                _pinIssue = null;
                 _pin = '';
                 _confirmPin = '';
               }),
@@ -464,7 +472,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
                   ? null
                   : () async {
                       if (_step == 2 && _pin.length == 4 && _confirmPin.length == 4 && _pin != _confirmPin) {
-                        setState(() => _pinError = true);
+                        setState(() => _pinIssue = _PinIssue.mismatch);
                         return;
                       }
                       await _next();
