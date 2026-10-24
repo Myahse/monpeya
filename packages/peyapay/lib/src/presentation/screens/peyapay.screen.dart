@@ -182,6 +182,17 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
         }
       }
 
+      if (!sessionActive) {
+        if (!mounted) return;
+        setState(() {
+          _userName = 'Utilisateur';
+          _balance = null;
+          _showBalance = false;
+          _transactions = const [];
+        });
+        return;
+      }
+
       final clientState = api?.clientState;
       final nomClient = clientState?.nomClient?.trim();
       if (!mounted) return;
@@ -190,16 +201,6 @@ class _PeyapayScreenState extends State<PeyapayScreen> with TickerProviderStateM
             ? nomClient
             : _displayName(phone);
       });
-
-      if (!sessionActive) {
-        if (!mounted) return;
-        setState(() {
-          _balance = null;
-          _showBalance = false;
-          _transactions = const [];
-        });
-        return;
-      }
 
       if (api == null || phone == null || phone.isEmpty) return;
 

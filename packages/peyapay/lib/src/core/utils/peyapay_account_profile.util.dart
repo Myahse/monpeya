@@ -6,8 +6,8 @@ import 'package:peyapay/src/data/models/peyapay_type_client.model.dart';
 abstract final class PeyapayAccountProfile {
   PeyapayAccountProfile._();
 
-  /// Merchant / professionnel wallet in `datasCompte.typcpt`.
-  static const merchantTypcpt = 'P';
+  /// Supplier / merchant wallet in Peya `datasCompte.typcpt` (client wallet = P).
+  static const merchantTypcpt = 'S';
 
   static bool isMerchantTypcpt(String? typcpt) =>
       typcpt?.trim().toUpperCase() == merchantTypcpt;
