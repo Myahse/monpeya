@@ -215,16 +215,11 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
         builder: (context) => _OtpBottomSheet(
           onResend: () => monPeyaSendOtp(fullPhone),
           onSubmit: (code) async {
-            try {
-              final session = await monPeyaVerifyOtp(phone: fullPhone, code: code);
-              await monPeyaPersistAuthSession(session);
-              if (!context.mounted) return false;
-              Navigator.of(context).pop();
-              await _continueAfterOtp(fullPhone);
-              return true;
-            } on MonPeyaApiException {
-              return false;
-            }
+            final session = await monPeyaVerifyOtp(phone: fullPhone, code: code);
+            await monPeyaPersistAuthSession(session);
+            if (!context.mounted) return;
+            Navigator.of(context).pop();
+            await _continueAfterOtp(fullPhone);
           },
         ),
       );
@@ -375,7 +370,8 @@ class _OtpBottomSheet extends StatefulWidget {
     required this.onResend,
   });
 
-  final Future<bool> Function(String code) onSubmit;
+  /// Pops the sheet on success; throws [MonPeyaApiException] when the code was not accepted.
+  final Future<void> Function(String code) onSubmit;
   final Future<void> Function() onResend;
 
   @override
@@ -386,6 +382,7 @@ class _OtpBottomSheetState extends State<_OtpBottomSheet> {
   static const _len = 4;
   String _code = '';
   bool _error = false;
+  bool _codeRefused = false;
   bool _resending = false;
   int _timer = 0;
 
@@ -450,11 +447,14 @@ class _OtpBottomSheetState extends State<_OtpBottomSheet> {
 
   Future<void> _submit() async {
     if (_code.length != _len) return;
-    final ok = await widget.onSubmit(_code);
-    if (!mounted) return;
-    if (!ok) {
+    try {
+      await widget.onSubmit(_code);
+    } on MonPeyaApiException catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = true;
+        // Only PeyaPay's refusal (920) means a wrong code; any other failure left it unchecked.
+        _codeRefused = e.isOtpRefused;
         _code = '';
       });
     }
@@ -518,8 +518,8 @@ class _OtpBottomSheetState extends State<_OtpBottomSheet> {
                       color: cs.surface,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: _error ? cs.error : cs.outlineVariant,
-                        width: _error ? 2.5 : 2,
+                        color: _error && _codeRefused ? cs.error : cs.outlineVariant,
+                        width: _error && _codeRefused ? 2.5 : 2,
                       ),
                     ),
                     child: Row(
@@ -561,9 +561,14 @@ class _OtpBottomSheetState extends State<_OtpBottomSheet> {
                       children: [
                         Icon(Icons.error_outline, size: 18, color: cs.error),
                         const SizedBox(width: 6),
-                        Text(
-                          'Code OTP invalide',
-                          style: TextStyle(color: cs.error, fontWeight: FontWeight.w800),
+                        Flexible(
+                          child: Text(
+                            _codeRefused
+                                ? 'Code OTP invalide'
+                                : 'Service indisponible. Votre code OTP n’a pas été vérifié.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: cs.error, fontWeight: FontWeight.w800),
+                          ),
                         ),
                       ],
                     ),

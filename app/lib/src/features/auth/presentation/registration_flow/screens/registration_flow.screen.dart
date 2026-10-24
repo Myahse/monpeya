@@ -21,7 +21,23 @@ class RegistrationFlowScreen extends StatefulWidget {
 }
 
 /// Why the PIN step shows a message under its boxes.
-enum _PinIssue { mismatch, refused, notChecked }
+@visibleForTesting
+enum RegistrationPinIssue {
+  mismatch('Les codes PIN ne correspondent pas.'),
+  refused('Code PIN incorrect. Réessayez.'),
+  notChecked('Service indisponible. Votre code PIN n’a pas été vérifié.');
+
+  const RegistrationPinIssue(this.message);
+
+  /// Only PeyaPay's refusal (919) means a wrong PIN; any other failure left it unchecked.
+  static RegistrationPinIssue fromSignInFailure(MonPeyaApiException e) =>
+      e.isPinRefused ? refused : notChecked;
+
+  final String message;
+
+  /// Red boxes: the PIN itself is wrong, never when it was not checked.
+  bool get pinIsWrong => this != notChecked;
+}
 
 class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
   int _step = 0; // 0: ID photos, 1: Identity + email, 2: PIN
@@ -42,7 +58,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
 
   String _pin = '';
   String _confirmPin = '';
-  _PinIssue? _pinIssue;
+  RegistrationPinIssue? _pinIssue;
 
   late final List<List<String>> _keypad;
 
@@ -264,12 +280,16 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
       return;
     }
 
-    setState(() => _busy = true);
+    // A new attempt hides the last one's message, as on the PIN login screen.
+    setState(() {
+      _busy = true;
+      _pinIssue = null;
+    });
     final phone = await AuthStore.getPhone();
     if (phone == null || phone.trim().isEmpty || !_pinOk) {
       setState(() {
         _busy = false;
-        _pinIssue = _PinIssue.mismatch;
+        _pinIssue = RegistrationPinIssue.mismatch;
       });
       return;
     }
@@ -284,8 +304,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        // Only PeyaPay's refusal (919) means a wrong PIN; any other failure left it unchecked.
-        _pinIssue = e.isPinRefused ? _PinIssue.refused : _PinIssue.notChecked;
+        _pinIssue = RegistrationPinIssue.fromSignInFailure(e);
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
@@ -406,16 +425,12 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
             _PinBoxes(
               pin: _pin,
               confirmPin: _confirmPin,
-              showError: _pinIssue == _PinIssue.mismatch || _pinIssue == _PinIssue.refused,
+              showError: _pinIssue?.pinIsWrong ?? false,
             ),
             if (_pinIssue != null) ...[
               const SizedBox(height: 8),
               Text(
-                switch (_pinIssue!) {
-                  _PinIssue.mismatch => 'Les codes PIN ne correspondent pas.',
-                  _PinIssue.refused => 'Code PIN incorrect. Réessayez.',
-                  _PinIssue.notChecked => 'Service indisponible. Votre code PIN n’a pas été vérifié.',
-                },
+                _pinIssue!.message,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: cs.error, fontWeight: FontWeight.w800),
               ),
@@ -472,7 +487,7 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
                   ? null
                   : () async {
                       if (_step == 2 && _pin.length == 4 && _confirmPin.length == 4 && _pin != _confirmPin) {
-                        setState(() => _pinIssue = _PinIssue.mismatch);
+                        setState(() => _pinIssue = RegistrationPinIssue.mismatch);
                         return;
                       }
                       await _next();
