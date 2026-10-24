@@ -353,17 +353,13 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
     });
   }
 
-  /// The PIN step is taller than most phones. Once it is laid out and the keyboard is gone,
-  /// scroll so the whole keypad sits just above the floating Suivant button: no key hidden
-  /// under it, and the PIN boxes kept in view wherever the screen allows.
-  void _revealKeypad([int framesLeft = 30]) {
+  /// The PIN step is taller than most phones. Once it is laid out, the keyboard is gone and
+  /// the floating Suivant button has stopped following it, scroll so the whole keypad sits
+  /// just above that button: no key hidden under it, and the PIN boxes kept in view
+  /// wherever the screen allows.
+  void _revealKeypad({int framesLeft = 90, double? lastButtonTop}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (MediaQuery.viewInsetsOf(context).bottom > 0 && framesLeft > 0) {
-        _revealKeypad(framesLeft - 1);
-        WidgetsBinding.instance.scheduleFrame();
-        return;
-      }
       final body = _bodyKey.currentContext;
       final scrollable = body == null ? null : Scrollable.maybeOf(body);
       final scrollBox = scrollable?.context.findRenderObject();
@@ -377,10 +373,19 @@ class _RegistrationFlowScreenState extends State<RegistrationFlowScreen> {
           viewport == null) {
         return;
       }
+      // The button slides down after the keyboard: measure it once it has held still for a
+      // frame with the keyboard gone (frames, not time, so a stuck keyboard cannot wait forever).
+      final buttonTop = button.localToGlobal(Offset.zero).dy;
+      final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
+      final moving = lastButtonTop == null || (buttonTop - lastButtonTop).abs() >= 0.5;
+      if ((keyboardUp || moving) && framesLeft > 0) {
+        _revealKeypad(framesLeft: framesLeft - 1, lastButtonTop: keyboardUp ? null : buttonTop);
+        WidgetsBinding.instance.scheduleFrame();
+        return;
+      }
       // The offset that puts the keypad's bottom at the scroll view's bottom edge, then
-      // further up by what the floating button covers of that edge.
-      final covered =
-          scrollBox.localToGlobal(Offset(0, scrollBox.size.height)).dy - button.localToGlobal(Offset.zero).dy;
+      // further up by what the button covers of that edge.
+      final covered = scrollBox.localToGlobal(Offset(0, scrollBox.size.height)).dy - buttonTop;
       final position = scrollable.position;
       final target = (viewport.getOffsetToReveal(keypad, 1.0).offset + covered)
           .clamp(position.minScrollExtent, position.maxScrollExtent);
