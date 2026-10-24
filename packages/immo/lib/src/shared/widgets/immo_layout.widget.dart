@@ -503,16 +503,30 @@ class ImmoTabPage extends StatelessWidget {
     required this.title,
     this.subtitle,
     required this.children,
+    this.onRefresh,
   });
 
   final String title;
   final String? subtitle;
   final List<Widget> children;
 
+  /// Pull-to-refresh on the sheet, as on the Location lists.
+  final RefreshCallback? onRefresh;
+
   @override
   Widget build(BuildContext context) {
     final b = ImmoBrand.rentalOf(context);
     final top = MediaQuery.paddingOf(context).top;
+    final list = ListView(
+      physics: onRefresh == null ? null : const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(
+        ImmoSpacing.lg,
+        ImmoSpacing.lg,
+        ImmoSpacing.lg,
+        ImmoPillNavBar.contentBottomPadding(context),
+      ),
+      children: ImmoStagger.wrap(children),
+    );
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: ColoredBox(
@@ -557,15 +571,13 @@ class ImmoTabPage extends StatelessWidget {
             ),
             Expanded(
               child: ImmoSheet(
-                child: ListView(
-                  padding: EdgeInsets.fromLTRB(
-                    ImmoSpacing.lg,
-                    ImmoSpacing.lg,
-                    ImmoSpacing.lg,
-                    ImmoPillNavBar.contentBottomPadding(context),
-                  ),
-                  children: ImmoStagger.wrap(children),
-                ),
+                child: onRefresh == null
+                    ? list
+                    : RefreshIndicator(
+                        onRefresh: onRefresh!,
+                        color: b.primary,
+                        child: list,
+                      ),
               ),
             ),
           ],
@@ -1009,7 +1021,7 @@ class ImmoAccountView extends StatelessWidget {
         ),
         ImmoListTile(
           icon: Icons.logout_rounded,
-          title: 'Retour à Mon Peya',
+          title: ImmoHostBridge.exitLabel,
           danger: true,
           onTap: () => ImmoHostBridge.exitModule(context),
         ),

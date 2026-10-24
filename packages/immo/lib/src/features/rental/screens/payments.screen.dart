@@ -4,27 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:immo/src/features/rental/auth/scopes/rental_session.scope.dart';
 import 'package:immo/src/features/rental/services/rental.payment.dart';
 import 'package:immo/src/features/rental/theme/themes/rental.theme.dart';
+import 'package:immo/src/features/rental/utils/rental_format.util.dart';
 import 'package:immo/src/features/rental/widgets/rental_layout_widgets.widget.dart';
-
-const _monthsFr = [
-  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
-  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
-];
-
-String _formatAmount(double amount) {
-  final s = amount.round().toString();
-  final buf = StringBuffer();
-  for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
-    buf.write(s[i]);
-  }
-  return '${buf.toString()} FCFA';
-}
-
-String _formatDate(DateTime? date) {
-  if (date == null) return '—';
-  return '${date.day.toString().padLeft(2, '0')} ${_monthsFr[date.month - 1]} ${date.year}';
-}
 
 class PaymentsScreen extends StatefulWidget {
   const PaymentsScreen({super.key, this.onBack});
@@ -112,7 +93,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                           const SizedBox(width: RentalTheme.spacingMd),
                           Expanded(
                             child: _StatCard(
-                              value: _formatAmount(monthlyTotal),
+                              value: formatRentalAmount(monthlyTotal),
                               label: 'Ce mois-ci',
                               green: true,
                             ),
@@ -235,7 +216,7 @@ class _PaymentCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _formatAmount(payment.amount),
+                      formatRentalAmount(payment.amount),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -243,7 +224,7 @@ class _PaymentCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      _formatDate(payment.paidAt),
+                      formatRentalDate(payment.paidAt),
                       style: TextStyle(fontSize: 13, color: b.muted),
                     ),
                   ],

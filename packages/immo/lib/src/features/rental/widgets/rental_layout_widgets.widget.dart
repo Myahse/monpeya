@@ -344,6 +344,138 @@ class RentalGradientPillButton extends StatelessWidget {
   }
 }
 
+/// Full-width action of a detail page (property, lease): filled in rental green, or outlined.
+/// While [busy] it spins in place of its icon and does not respond.
+class RentalActionButton extends StatelessWidget {
+  const RentalActionButton({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.filled,
+    required this.onTap,
+    this.busy = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool filled;
+  final VoidCallback? onTap;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final b = ImmoBrand.rentalOf(context);
+    final text = Text(
+      label,
+      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+    );
+    Widget leading(Color spinner) => busy
+        ? SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: spinner),
+          )
+        : Icon(icon, size: 20);
+    if (filled) {
+      return SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: FilledButton.icon(
+          onPressed: busy ? null : onTap,
+          style: FilledButton.styleFrom(
+            backgroundColor: RentalTheme.green,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          icon: leading(Colors.white),
+          label: text,
+        ),
+      );
+    }
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton.icon(
+        onPressed: busy ? null : onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: b.text,
+          side: BorderSide(color: b.text, width: 1.4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        icon: leading(b.text),
+        label: text,
+      ),
+    );
+  }
+}
+
+/// Opens a rental bottom sheet: card surface, 22 top corners; tall content scrolls.
+Future<T?> showRentalSheet<T>(
+  BuildContext context, {
+  required WidgetBuilder builder,
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: ImmoBrand.rentalOf(context).card,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+    ),
+    builder: builder,
+  );
+}
+
+/// Handle, title and body of a rental bottom sheet. Rises above the keyboard.
+class RentalSheetFrame extends StatelessWidget {
+  const RentalSheetFrame({super.key, required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final b = ImmoBrand.rentalOf(context);
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 12, 20, 24 + MediaQuery.viewInsetsOf(context).bottom),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: b.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: b.text,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...children,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Payments / messages tall gradient header.
 class RentalGradientPageHeader extends StatelessWidget {
   const RentalGradientPageHeader({

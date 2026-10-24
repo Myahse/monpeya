@@ -20,6 +20,22 @@ class CreateTenantDraft {
   String leaseEndDate = '';
   String paymentDay = '1';
 
+  /// Lease contract terms, sent once the tenant exists.
+  String deposit = '';
+  String paymentMode = 'mobile_money';
+
+  static double? amount(String text) {
+    final digits = text.replaceAll(RegExp(r'[^0-9.]'), '');
+    return digits.isEmpty ? null : double.tryParse(digits);
+  }
+
+  /// The contract's periodicité for the payment frequency picked here.
+  String get contractPeriodicity => switch (paymentFrequency) {
+        'daily' => 'journalier',
+        'yearly' => 'annuel',
+        _ => 'mensuel',
+      };
+
   Map<String, dynamic> toCreatePayload({
     required String utilisateursId,
     String? photoUrl,

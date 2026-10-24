@@ -269,59 +269,27 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen>
     final items = p.amenities.isEmpty
         ? const ['Non renseigné pour ce bien']
         : p.amenities;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: b.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: b.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+    showRentalSheet<void>(
+      context,
+      builder: (ctx) => RentalSheetFrame(
+        title: 'Amenities',
+        children: [
+          for (final a in items)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle_outline,
+                      color: RentalTheme.green, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(a, style: TextStyle(color: b.text)),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Amenities',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: b.text,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                for (final a in items)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      children: [
-                        Icon(Icons.check_circle_outline,
-                            color: RentalTheme.green, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(a, style: TextStyle(color: b.text)),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -769,14 +737,14 @@ class _PropertyOverviewSheet extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      _PrimaryCta(
+                      RentalActionButton(
                         label: 'Contact provider',
                         icon: Icons.mail_outline_rounded,
                         filled: true,
                         onTap: onContact,
                       ),
                       const SizedBox(height: 12),
-                      _PrimaryCta(
+                      RentalActionButton(
                         label: 'Call provider',
                         icon: Icons.phone_outlined,
                         filled: false,
@@ -948,65 +916,6 @@ class _RatingArc extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _PrimaryCta extends StatelessWidget {
-  const _PrimaryCta({
-    required this.label,
-    required this.icon,
-    required this.filled,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool filled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final b = RentalTheme.of(context);
-    if (filled) {
-      return SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: FilledButton.icon(
-          onPressed: onTap,
-          style: FilledButton.styleFrom(
-            backgroundColor: RentalTheme.green,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-          icon: Icon(icon, size: 20),
-          label: Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-          ),
-        ),
-      );
-    }
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: OutlinedButton.icon(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: b.text,
-          side: BorderSide(color: b.text, width: 1.4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        icon: Icon(icon, size: 20),
-        label: Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-        ),
-      ),
     );
   }
 }

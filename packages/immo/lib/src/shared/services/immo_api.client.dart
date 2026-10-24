@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'package:immo/src/core/host/immo_host.bridge.dart';
 import 'package:immo/src/shared/config/immo_api.config.dart';
 import 'package:immo/src/shared/models/immo_api.response.dart';
 
@@ -21,18 +22,28 @@ class ImmoApiClient {
 
   void setAuthToken(String? token) => _authToken = token;
 
+  /// Where the Mon Peya session's access token comes from (read for each request, so a
+  /// refreshed token is used). Unset (null), it is the host's session, so every client the
+  /// Mon Peya app makes tells Mr Immo who the user is; a role app's host has none to send.
+  Future<String?> Function()? _monPeyaToken;
+
+  void useMonPeyaToken(Future<String?> Function()? provider) => _monPeyaToken = provider;
+
   Uri resolve(String path) {
     if (path.startsWith('http')) return Uri.parse(path);
     final normalized = path.startsWith('/') ? path : '/$path';
     return Uri.parse('$baseUrl$normalized');
   }
 
-  Map<String, String> _headers([Map<String, String>? extra]) {
+  Future<Map<String, String>> _headers([Map<String, String>? extra]) async {
+    final monPeyaSession = _monPeyaToken ?? ImmoHostBridge.auth?.monPeyaAccessToken;
+    final monPeyaToken = await monPeyaSession?.call();
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       if (_authToken != null && _authToken!.isNotEmpty)
         'Authorization': 'Bearer $_authToken',
+      if (monPeyaToken != null && monPeyaToken.isNotEmpty) 'X-MonPeya-Token': monPeyaToken,
       ...?extra,
     };
   }
@@ -40,7 +51,7 @@ class ImmoApiClient {
   Future<ImmoApiResponse<dynamic>> getBody(String path) async {
     try {
       final response = await _http
-          .get(resolve(path), headers: _headers())
+          .get(resolve(path), headers: await _headers())
           .timeout(const Duration(milliseconds: ImmoApiConfig.timeoutMs));
 
       return _parseBody(response);
@@ -52,7 +63,7 @@ class ImmoApiClient {
   Future<ImmoApiResponse<Map<String, dynamic>>> getJson(String path) async {
     try {
       final response = await _http
-          .get(resolve(path), headers: _headers())
+          .get(resolve(path), headers: await _headers())
           .timeout(const Duration(milliseconds: ImmoApiConfig.timeoutMs));
 
       return _parseResponse(response);
@@ -70,7 +81,27 @@ class ImmoApiClient {
       final response = await _http
           .post(
             resolve(path),
-            headers: _headers(),
+            headers: await _headers(),
+            body: body == null ? null : jsonEncode(body),
+          )
+          .timeout(timeout ?? const Duration(milliseconds: ImmoApiConfig.timeoutMs));
+
+      return _parseResponse(response);
+    } catch (e) {
+      return ImmoApiResponse(success: false, error: e.toString());
+    }
+  }
+
+  Future<ImmoApiResponse<Map<String, dynamic>>> putJson(
+    String path, {
+    Object? body,
+    Duration? timeout,
+  }) async {
+    try {
+      final response = await _http
+          .put(
+            resolve(path),
+            headers: await _headers(),
             body: body == null ? null : jsonEncode(body),
           )
           .timeout(timeout ?? const Duration(milliseconds: ImmoApiConfig.timeoutMs));
@@ -92,7 +123,7 @@ class ImmoApiClient {
       final response = await _http
           .post(
             resolve(path),
-            headers: _headers(),
+            headers: await _headers(),
             body: body == null ? null : jsonEncode(body),
           )
           .timeout(timeout ?? const Duration(milliseconds: ImmoApiConfig.timeoutMs));
@@ -105,7 +136,7 @@ class ImmoApiClient {
   Future<ImmoApiResponse<Map<String, dynamic>>> deleteJson(String path) async {
     try {
       final response = await _http
-          .delete(resolve(path), headers: _headers())
+          .delete(resolve(path), headers: await _headers())
           .timeout(const Duration(milliseconds: ImmoApiConfig.timeoutMs));
 
       return _parseResponse(response);
@@ -118,7 +149,7 @@ class ImmoApiClient {
   Future<ImmoApiResponse<void>> deleteOk(String path) async {
     try {
       final response = await _http
-          .delete(resolve(path), headers: _headers())
+          .delete(resolve(path), headers: await _headers())
           .timeout(const Duration(milliseconds: ImmoApiConfig.timeoutMs));
       return _parseOk(response);
     } catch (e) {

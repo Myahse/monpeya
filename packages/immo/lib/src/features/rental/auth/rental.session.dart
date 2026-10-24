@@ -76,6 +76,17 @@ class RentalSession extends ChangeNotifier {
     super.dispose();
   }
 
+  /// Signs [userId] in as a landlord without Mon Peya, the network or realtime (widget tests).
+  @visibleForTesting
+  void signInForTest(String userId) {
+    _userId = userId;
+    _guestMode = false;
+    _monPeyaSessionActive = true;
+    _profileRole = RentalProfileRole.landlord;
+    _bootstrapComplete = true;
+    notifyListeners();
+  }
+
   Future<void> bootstrap() async {
     final prefs = await SharedPreferences.getInstance();
     _guestMode = true;
@@ -88,7 +99,10 @@ class RentalSession extends ChangeNotifier {
 
     try {
       final host = ImmoHostBridge.auth;
+      _api.client.useMonPeyaToken(null);
       if (host != null && await host.isSessionActive()) {
+        // Mr Immo knows a Mon Peya user by their session, password or not
+        _api.client.useMonPeyaToken(host.monPeyaAccessToken);
         _monPeyaSessionActive = true;
         _businessOnly = await ImmoHostBridge.isBusinessOnlyAccount();
         _displayName = await host.displayName();

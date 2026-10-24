@@ -19,6 +19,10 @@ abstract class ImmoHostAuth {
   Future<void> setAuthToken(String? token);
   Future<String?> immoUserId();
   Future<void> setImmoUserId(String? userId);
+
+  /// The Mon Peya session's access token (null without one): Mr Immo checks it with Mon Peya
+  /// to know who the user is when they have no Mr Immo password.
+  Future<String?> monPeyaAccessToken();
 }
 
 typedef ImmoHostExitHandler = void Function(BuildContext context);
@@ -35,6 +39,9 @@ class ImmoHostBridge {
   static ImmoHostExitHandler? onExitModule;
   static ImmoEnsureSession? ensureSession;
   static ImmoBusinessOnlyResolver? resolveBusinessOnlyAccount;
+
+  /// Label of the account tab's exit tile; a standalone app makes it "Se déconnecter".
+  static String exitLabel = 'Retour à Mon Peya';
 
   /// Mon Peya session unlock — re-bootstrap Immo when the user enters PIN.
   static Listenable? sessionChanges;

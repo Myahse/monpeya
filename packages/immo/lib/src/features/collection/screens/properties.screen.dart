@@ -1,37 +1,44 @@
 import 'package:flutter/material.dart';
 
-import 'package:immo/src/features/collection/models/property.model.dart';
-import 'package:immo/src/features/collection/services/property.service.dart';
+import 'package:immo/src/features/collection/services/collection.store.dart';
 import 'package:immo/src/shared/widgets/immo_layout.widget.dart';
 
-class PropertiesScreen extends StatefulWidget {
-  const PropertiesScreen({super.key, this.onSelectProperty});
+class PropertiesScreen extends StatelessWidget {
+  const PropertiesScreen({super.key, required this.store, this.onSelectProperty});
 
+  final CollectionStore store;
   final ValueChanged<String>? onSelectProperty;
 
   @override
-  State<PropertiesScreen> createState() => _PropertiesScreenState();
-}
-
-class _PropertiesScreenState extends State<PropertiesScreen> {
-  late final Future<List<CollectionProperty>> _properties =
-      CollectionPropertyService().fetchProperties();
-
-  @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: _properties,
-      builder: (context, snap) {
-        final list = snap.data ?? const <CollectionProperty>[];
+    return ListenableBuilder(
+      listenable: store,
+      builder: (context, _) {
+        final list = store.properties;
         return ImmoTabPage(
           title: 'Biens',
           subtitle: 'Immeubles, lots et locataires',
+          onRefresh: store.signedIn ? store.refresh : null,
           children: [
-            if (snap.connectionState != ConnectionState.done)
+            if (!store.loaded)
               const Center(child: Padding(
                 padding: EdgeInsets.all(32),
                 child: CircularProgressIndicator(),
               ))
+            else if (!store.signedIn)
+              const ImmoEmptyState(
+                icon: Icons.lock_outline_rounded,
+                title: 'Connexion requise',
+                message: 'Connectez-vous à Mon Peya pour suivre vos loyers.',
+              )
+            else if (store.error != null && list.isEmpty)
+              ImmoEmptyState(
+                icon: Icons.cloud_off_rounded,
+                title: 'Chargement impossible',
+                message: store.error!,
+                actionLabel: 'Réessayer',
+                onAction: store.refresh,
+              )
             else if (list.isEmpty)
               const ImmoEmptyState(
                 icon: Icons.apartment_rounded,
@@ -44,12 +51,13 @@ class _PropertiesScreenState extends State<PropertiesScreen> {
                   icon: Icons.apartment_rounded,
                   title: p.name,
                   subtitle: [
-                    if (p.address != null) p.address!,
-                    if (p.unitCount != null) '${p.unitCount} lots',
+                    if (p.address != null && p.address!.isNotEmpty) p.address!,
+                    if (p.unitCount != null)
+                      p.unitCount == 1 ? '1 locataire' : '${p.unitCount} locataires',
                   ].join(' · '),
-                  onTap: widget.onSelectProperty == null
+                  onTap: onSelectProperty == null
                       ? null
-                      : () => widget.onSelectProperty!(p.id),
+                      : () => onSelectProperty!(p.id),
                 ),
           ],
         );

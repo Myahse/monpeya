@@ -47,6 +47,7 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
   late final TextEditingController _leaseStartCtrl;
   late final TextEditingController _leaseEndCtrl;
   late final TextEditingController _paymentDayCtrl;
+  late final TextEditingController _depositCtrl;
 
   @override
   void initState() {
@@ -65,6 +66,7 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
     _leaseStartCtrl = TextEditingController();
     _leaseEndCtrl = TextEditingController();
     _paymentDayCtrl = TextEditingController(text: '1');
+    _depositCtrl = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadProperties());
   }
 
@@ -85,6 +87,7 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
     _leaseStartCtrl.dispose();
     _leaseEndCtrl.dispose();
     _paymentDayCtrl.dispose();
+    _depositCtrl.dispose();
     super.dispose();
   }
 
@@ -120,6 +123,7 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
     _draft.leaseStartDate = _leaseStartCtrl.text;
     _draft.leaseEndDate = _leaseEndCtrl.text;
     _draft.paymentDay = _paymentDayCtrl.text;
+    _draft.deposit = _depositCtrl.text;
   }
 
   Future<void> _saveAndExit() async {
@@ -152,8 +156,19 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
       case 2:
         if (_draft.propertyId == null ||
             _draft.monthlyRent.trim().isEmpty ||
-            _draft.leaseStartDate.trim().isEmpty) {
-          _error('Bien, loyer et date de début requis.');
+            _draft.leaseStartDate.trim().isEmpty ||
+            _draft.leaseEndDate.trim().isEmpty) {
+          _error('Bien, loyer et dates du bail requis.');
+          return false;
+        }
+        final start = DateTime.tryParse(_draft.leaseStartDate.trim());
+        final end = DateTime.tryParse(_draft.leaseEndDate.trim());
+        if (start == null || end == null) {
+          _error('Dates du bail au format AAAA-MM-JJ.');
+          return false;
+        }
+        if (!end.isAfter(start)) {
+          _error('La fin du bail doit suivre son début.');
           return false;
         }
         return true;
@@ -220,13 +235,46 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
       final session = RentalSessionScope.of(context);
       final userId = session.userId;
       if (userId == null || userId.isEmpty) throw Exception('Session invalide.');
-      await session.api.tenants.createTenant(_draft, utilisateursId: userId);
+      final tenantId = await session.api.tenants.createTenant(_draft, utilisateursId: userId);
+      // The lease follows the tenant; the tenant stays created if it fails
+      String? contractError;
+      if (tenantId.isEmpty) {
+        contractError = 'identifiant du locataire introuvable';
+      } else {
+        try {
+          await session.api.contracts.createContract(
+            ownerId: userId,
+            propertyId: _draft.propertyId!,
+            tenantId: tenantId,
+            startDate: DateTime.parse(_draft.leaseStartDate.trim()),
+            endDate: DateTime.parse(_draft.leaseEndDate.trim()),
+            monthlyRent: CreateTenantDraft.amount(_draft.monthlyRent) ?? 0,
+            deposit: CreateTenantDraft.amount(_draft.deposit) ?? 0,
+            paymentMode: _draft.paymentMode,
+            periodicity: _draft.contractPeriodicity,
+          );
+        } catch (e) {
+          contractError = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+        }
+      }
       if (!mounted) return;
-      await showCreationSuccessDialog(
-        context,
-        title: 'Succès !',
-        message: 'Le locataire a été créé avec succès.',
-      );
+      if (contractError == null) {
+        await showCreationSuccessDialog(
+          context,
+          title: 'Succès !',
+          message: 'Le locataire et son contrat ont été créés. Signez le contrat dans Mes documents.',
+        );
+      } else {
+        // The backend's reason may end with its own full stop
+        final reason = contractError.replaceFirst(RegExp(r'[\s.]+$'), '');
+        await showCreationWarningDialog(
+          context,
+          title: 'Contrat non créé',
+          message: reason.isEmpty
+              ? 'Le locataire est créé, mais son contrat n’a pas pu l’être.'
+              : 'Le locataire est créé, mais son contrat n’a pas pu l’être : $reason.',
+        );
+      }
       widget.onCreated?.call();
       widget.onClose();
     } catch (e) {
@@ -254,7 +302,8 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
               _properties.isNotEmpty &&
               _draft.propertyId != null &&
               _rentCtrl.text.isNotEmpty &&
-              _leaseStartCtrl.text.isNotEmpty,
+              _leaseStartCtrl.text.isNotEmpty &&
+              _leaseEndCtrl.text.isNotEmpty,
         _ => true,
       };
 
@@ -396,6 +445,8 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             initialValue: _draft.propertyId,
+            // A long property name is cut rather than overflowing the field
+            isExpanded: true,
             dropdownColor: theme.card,
             style: TextStyle(color: theme.textPrimary),
             decoration: InputDecoration(
@@ -458,6 +509,12 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
             keyboardType: TextInputType.number,
             onChanged: (_) => setState(() {}),
           ),
+          CreationTextField(
+            label: 'Caution (FCFA)',
+            controller: _depositCtrl,
+            keyboardType: TextInputType.number,
+            hint: 'Ex. 500 000',
+          ),
           DropdownButtonFormField<String>(
             initialValue: _draft.paymentFrequency,
             dropdownColor: theme.card,
@@ -480,6 +537,30 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
             ],
             onChanged: (v) => setState(() => _draft.paymentFrequency = v ?? 'monthly'),
           ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _draft.paymentMode,
+            dropdownColor: theme.card,
+            style: TextStyle(color: theme.textPrimary),
+            decoration: InputDecoration(
+              labelText: 'Mode de paiement',
+              labelStyle: TextStyle(color: theme.textSecondary),
+              filled: true,
+              fillColor: theme.card,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: theme.borderInput),
+              ),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'mobile_money', child: Text('Mobile money')),
+              DropdownMenuItem(value: 'virement', child: Text('Virement')),
+              DropdownMenuItem(value: 'espèces', child: Text('Espèces')),
+              DropdownMenuItem(value: 'cheque', child: Text('Chèque')),
+            ],
+            onChanged: (v) => setState(() => _draft.paymentMode = v ?? 'mobile_money'),
+          ),
           const SizedBox(height: 8),
           CreationTextField(
             label: 'Début du bail (AAAA-MM-JJ)',
@@ -490,6 +571,8 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
           CreationTextField(
             label: 'Fin du bail (AAAA-MM-JJ)',
             controller: _leaseEndCtrl,
+            required: true,
+            onChanged: (_) => setState(() {}),
           ),
           CreationTextField(
             label: 'Jour de paiement (1-31)',
@@ -516,7 +599,9 @@ class _CreateTenantWizardState extends State<CreateTenantWizard> {
                   'Contrat de location\n'
                   'Locataire: ${_firstNameCtrl.text} ${_lastNameCtrl.text}\n'
                   'Loyer: ${_rentCtrl.text} FCFA\n'
-                  'Période: ${_leaseStartCtrl.text} → ${_leaseEndCtrl.text.isEmpty ? '—' : _leaseEndCtrl.text}',
+                  'Caution: ${_depositCtrl.text.isEmpty ? '0' : _depositCtrl.text} FCFA\n'
+                  'Période: ${_leaseStartCtrl.text} → ${_leaseEndCtrl.text.isEmpty ? '—' : _leaseEndCtrl.text}\n'
+                  'À signer ensuite par vous et le locataire, dans Mes documents',
                   style: TextStyle(fontSize: 13, height: 1.5, color: theme.textPrimary),
                 ),
               ),

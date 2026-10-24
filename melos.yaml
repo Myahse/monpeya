@@ -3,6 +3,7 @@ repository: https://github.com/Myahse/monpeya
 
 packages:
   - app
+  - apps/**
   - packages/**
 
 command:

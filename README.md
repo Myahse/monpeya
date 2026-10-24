@@ -7,6 +7,11 @@ Super-app Flutter pour l'écosystème **N'TERI** en Côte d'Ivoire.
 ```
 .
 ├── app/                    # Shell principal (auth, navigation, abonnements)
+├── apps/                   # Applications pro Mr Immo Construction (une par rôle)
+│   ├── immo_chantier/      # Chef de chantier
+│   ├── immo_superviseur/   # Superviseur — validation des demandes
+│   ├── immo_achats/        # Moyens généraux — commandes fournisseurs
+│   └── immo_fournisseur/   # Fournisseur — livraisons
 ├── packages/
 │   ├── peyapay/            # Wallet & paiements
 │   ├── billetterie/        # Billetterie électronique
@@ -53,6 +58,24 @@ liste complète.
 
 Sur émulateur Android, `10.0.2.2` pointe vers la machine hôte. Sur téléphone
 physique, `tool/sync_dev_lan_host.ps1` met à jour `env.json` avec l'IP LAN du PC.
+
+## Applications pro Mr Immo Construction (`apps/`)
+
+Chaque rôle du circuit des matériaux a sa propre application, avec sa propre connexion
+comme Mon Peya (code client = numéro de téléphone du compte, puis code PIN à 4 chiffres) :
+chef de chantier → superviseur → moyens généraux → fournisseur. Les écrans sont ceux de `packages/immo`
+(`ConstructionRoleApp`) ; un compte d'un autre rôle est refusé à la connexion.
+
+```bash
+cd apps/immo_superviseur
+flutter pub get
+flutter run --dart-define=IMMO_API_URL=http://<IP du PC>:8082
+```
+
+Comptes de démo (backend lancé avec `SEED_DEMO_DATA=true`, code PIN `1234`) : codes client
+`0700000202` (chef), `0700000203` (superviseur), `0700000204` (moyens généraux),
+`0700000301` (fournisseur). Un compte se donne un code PIN avec `POST /api/auth/pin`
+(email + mot de passe web + PIN) ; 5 PIN faux bloquent le compte 15 minutes.
 
 ## Monorepo (Melos)
 

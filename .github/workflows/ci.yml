@@ -18,6 +18,10 @@ jobs:
       matrix:
         package:
           - app
+          - apps/immo_achats
+          - apps/immo_chantier
+          - apps/immo_fournisseur
+          - apps/immo_superviseur
           - packages/billetterie
           - packages/grenier
           - packages/immo

@@ -1,0 +1,37 @@
+name: immo_chantier
+description: "Immo Chantier — Mr Immo Construction, chef de chantier."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  immo:
+    path: ../../packages/immo
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  shared_preferences: ^2.3.2
+
+flutter:
+  uses-material-design: true
+  # Urbanist ships with the immo package (lib/fonts); its screens ask for it by name.
+  fonts:
+    - family: Urbanist
+      fonts:
+        - asset: packages/immo/fonts/urbanist/Urbanist-Regular.ttf
+        - asset: packages/immo/fonts/urbanist/Urbanist-Medium.ttf
+          weight: 500
+        - asset: packages/immo/fonts/urbanist/Urbanist-SemiBold.ttf
+          weight: 600
+        - asset: packages/immo/fonts/urbanist/Urbanist-Bold.ttf
+          weight: 700
+        - asset: packages/immo/fonts/urbanist/Urbanist-ExtraBold.ttf
+          weight: 800
+        - asset: packages/immo/fonts/urbanist/Urbanist-Black.ttf
+          weight: 900

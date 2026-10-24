@@ -14,6 +14,12 @@ abstract final class RentalApiEndpoints {
   static const favorites = '/api/favoris';
   static const createUser = '/api/utilisateurs/create';
   static const usersByCriteria = '/api/utilisateurs/getByCriteria';
+  static const listContracts = '/api/contratslocation/getByCriteria';
+  static const createContract = '/api/contratslocation/create';
+  static String contract(String id) => '/api/contratslocation/$id';
+  static String contractPdfLink(String id) => '/api/contratslocation/$id/pdf-link';
+  static const signContractAsOwner = '/api/contratslocation/signByOwner';
+  static String decideTermination(String id) => '/api/contracts/$id/approve-termination';
 }
 
 /// Property type UUIDs from rental-app `App.tsx`.

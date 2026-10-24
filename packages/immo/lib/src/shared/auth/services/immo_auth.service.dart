@@ -15,6 +15,7 @@ class ImmoAuthService {
 
   static const loginPath = '/api/auth/login';
   static const _loginTimeout = Duration(seconds: 8);
+  static final _monPeyaUserId = RegExp(r'^\d+$');
 
   /// Tries stored JWT, phone+PIN login, phone lookup, then auto-create.
   Future<ImmoAuthResult> ensureSession({
@@ -30,6 +31,11 @@ class ImmoAuthService {
     final phone = await ImmoHostBridge.requireAuth.getPhone();
     final stored = await ImmoHostBridge.requireAuth.authToken();
     var userId = await ImmoHostBridge.requireAuth.immoUserId();
+    // A numeric id is Mon Peya's own (Mr Immo's are UUIDs), stored as the Immo id by older app versions
+    if (userId != null && _monPeyaUserId.hasMatch(userId)) {
+      await ImmoHostBridge.requireAuth.setImmoUserId(null);
+      userId = null;
+    }
 
     if (stored != null && stored.isNotEmpty) {
       apiClient.setAuthToken(stored);

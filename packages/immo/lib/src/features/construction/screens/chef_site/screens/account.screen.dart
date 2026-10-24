@@ -4,7 +4,9 @@ import 'package:immo/src/shared/auth/scopes/immo_module_session.scope.dart';
 import 'package:immo/src/shared/widgets/immo_layout.widget.dart';
 
 class AccountScreen extends StatelessWidget {
-  const AccountScreen({super.key});
+  const AccountScreen({super.key, this.roleLabel = 'Chef de chantier'});
+
+  final String roleLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +16,7 @@ class AccountScreen extends StatelessWidget {
       moduleLabel: 'Mr Immo Construction',
       name: name.isEmpty ? 'Invité' : name,
       phone: session.phone,
-      roleLabel: 'Chef de chantier',
+      roleLabel: roleLabel,
       guest: session.guestMode,
     );
   }

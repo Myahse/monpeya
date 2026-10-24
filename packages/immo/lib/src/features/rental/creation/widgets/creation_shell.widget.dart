@@ -413,6 +413,24 @@ Future<void> showCreationSuccessDialog(
   required String title,
   required String message,
   String actionLabel = 'OK',
+}) =>
+    _showCreationResultDialog(context, title: title, message: message, actionLabel: actionLabel, warning: false);
+
+/// The same dialog when only part of the creation went through (a red "!" instead of the check).
+Future<void> showCreationWarningDialog(
+  BuildContext context, {
+  required String title,
+  required String message,
+  String actionLabel = 'OK',
+}) =>
+    _showCreationResultDialog(context, title: title, message: message, actionLabel: actionLabel, warning: true);
+
+Future<void> _showCreationResultDialog(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String actionLabel,
+  required bool warning,
 }) {
   final theme = CreationTheme.of(context);
   return showDialog<void>(
@@ -428,14 +446,18 @@ Future<void> showCreationSuccessDialog(
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: theme.greenTint,
+              color: warning ? theme.error.withValues(alpha: theme.isDark ? 0.2 : 0.12) : theme.greenTint,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check, color: CreationTheme.listingGreen, size: 36),
+            child: warning
+                ? Icon(Icons.priority_high_rounded, color: theme.error, size: 36)
+                : const Icon(Icons.check, color: CreationTheme.listingGreen, size: 36),
           ),
           const SizedBox(height: 16),
           Text(
             title,
+            // A title on two lines stays centred, like the message under it
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,

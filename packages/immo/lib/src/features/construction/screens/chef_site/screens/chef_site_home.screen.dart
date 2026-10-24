@@ -1,28 +1,51 @@
 import 'package:flutter/material.dart';
 
 import 'package:immo/src/features/construction/navigation/construction.tab.dart';
+import 'package:immo/src/features/construction/services/construction.store.dart';
 import 'package:immo/src/features/construction/widgets/construction_home_layout.widget.dart';
 import 'package:immo/src/shared/widgets/immo_layout.widget.dart';
 
 class ChefSiteHomeScreen extends StatelessWidget {
   const ChefSiteHomeScreen({
     super.key,
-    required this.onRoleChanged,
+    required this.store,
+    this.onRoleChanged,
     required this.onOpenTab,
   });
 
-  final ValueChanged<ConstructionRole> onRoleChanged;
+  final ConstructionStore store;
+  final ValueChanged<ConstructionRole>? onRoleChanged;
   final ValueChanged<ConstructionTab> onOpenTab;
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: store,
+      builder: (context, _) => _layout(),
+    );
+  }
+
+  Widget _layout() {
+    final sites = store.sites;
     return ConstructionHomeLayout(
       role: ConstructionRole.chefSite,
       onRoleChanged: onRoleChanged,
-      stats: const [
-        ImmoStat(label: 'Chantiers actifs', value: '0', icon: Icons.foundation_rounded),
-        ImmoStat(label: 'Demandes en cours', value: '0', icon: Icons.assignment_outlined),
-        ImmoStat(label: 'Équipe', value: '0', icon: Icons.groups_outlined),
+      stats: [
+        ImmoStat(
+          label: 'Chantiers actifs',
+          value: '${sites.where((s) => s.active).length}',
+          icon: Icons.foundation_rounded,
+        ),
+        ImmoStat(
+          label: 'Demandes en cours',
+          value: '${store.requests.where((r) => r.isOpen).length}',
+          icon: Icons.assignment_outlined,
+        ),
+        ImmoStat(
+          label: 'En location',
+          value: '${sites.where((s) => s.handedOver).length}',
+          icon: Icons.key_rounded,
+        ),
       ],
       actions: [
         ImmoAction(

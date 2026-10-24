@@ -18,6 +18,9 @@ class ImmoModuleSession extends ChangeNotifier {
   String? _displayName;
 
   bool get authFailed => false;
+
+  /// True once [bootstrap] has finished, signed in or as a guest.
+  bool get ready => _bootstrapComplete;
   bool get authenticated => _bootstrapComplete && !_guestMode;
   bool get guestMode => _guestMode;
   String? get error => null;

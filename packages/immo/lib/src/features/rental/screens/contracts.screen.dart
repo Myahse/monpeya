@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:immo/src/core/constants/immo.brand.dart';
 import 'package:immo/src/features/rental/auth/scopes/rental_session.scope.dart';
 import 'package:immo/src/features/rental/models/rental.contract.dart';
-import 'package:immo/src/features/rental/models/rental.tenant.dart';
 import 'package:immo/src/features/rental/navigation/rental_bottom.navigation.dart';
 import 'package:immo/src/features/rental/theme/themes/rental.theme.dart';
 import 'package:immo/src/features/rental/widgets/rental_layout_widgets.widget.dart';
@@ -42,12 +41,13 @@ class _ContractsScreenState extends State<ContractsScreen> {
     });
     try {
       final session = RentalSessionScope.of(context);
-      final tenants = await session.api.tenants.fetchTenants(
-        userId: session.userId,
-      );
+      final userId = session.userId;
+      final contracts = userId == null || userId.isEmpty
+          ? const <RentalContract>[]
+          : await session.api.contracts.fetchOwnerContracts(userId: userId);
       if (!mounted) return;
       setState(() {
-        _docs = tenants.map(_fromTenant).toList();
+        _docs = contracts;
         _loading = false;
       });
     } catch (_) {
@@ -60,30 +60,14 @@ class _ContractsScreenState extends State<ContractsScreen> {
     }
   }
 
-  RentalContract _fromTenant(RentalTenant t) {
-    final property = (t.propertyName?.trim().isNotEmpty == true)
-        ? t.propertyName!.trim()
-        : 'Bien locatif';
-    return RentalContract(
-      id: t.id,
-      title: 'Bail — $property',
-      status: t.status,
-      propertyName: t.propertyName,
-      propertyAddress: t.propertyAddress,
-      tenantId: t.id,
-      tenantName: t.fullName,
-      tenantPhone: t.phone,
-      documentType: 'Contrat de location',
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final b = ImmoBrand.rentalOf(context);
     final topPad = MediaQuery.paddingOf(context).top;
     final headerBand = topPad + 132.0;
+    final toSign = _docs.where((d) => d.isToSign).toList();
     final active = _docs.where((d) => d.isActive).toList();
-    final others = _docs.where((d) => !d.isActive).toList();
+    final others = _docs.where((d) => !d.isToSign && !d.isActive).toList();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -183,6 +167,23 @@ class _ContractsScreenState extends State<ContractsScreen> {
                               ),
                             )
                           else ...[
+                            if (toSign.isNotEmpty) ...[
+                              RentalSectionHeader(
+                                title: 'À signer',
+                                subtitle:
+                                    '${toSign.length} document${toSign.length > 1 ? 's' : ''}',
+                              ),
+                              const SizedBox(height: RentalTheme.spacingMd),
+                              for (final doc in toSign)
+                                _DocumentCard(
+                                  document: doc,
+                                  onTap: widget.onViewContract == null
+                                      ? null
+                                      : () =>
+                                          widget.onViewContract!(doc.id),
+                                ),
+                              const SizedBox(height: RentalTheme.spacingXl),
+                            ],
                             RentalSectionHeader(
                               title: 'Actifs',
                               subtitle: active.isEmpty
@@ -325,7 +326,8 @@ class _DocumentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final b = ImmoBrand.rentalOf(context);
-    final active = document.isActive;
+    // Running leases and those waiting on the owner stand out
+    final active = document.isActive || document.isToSign;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -383,23 +385,30 @@ class _DocumentCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: active
-                                  ? b.primary.withValues(alpha: 0.12)
-                                  : b.searchFill,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              document.statusLabel,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: active ? b.primaryDark : b.muted,
+                          // A long status ("Résiliation demandée") is cut rather than overflow,
+                          // and the title keeps the rest of the row
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 132),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: active
+                                    ? b.primary.withValues(alpha: 0.12)
+                                    : b.searchFill,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                document.statusLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: active ? b.primaryDark : b.muted,
+                                ),
                               ),
                             ),
                           ),
